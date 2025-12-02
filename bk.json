@@ -1,0 +1,258 @@
+[{"title":"get 1k streams on spotify","description":"","tags":["music","finance"],"targetDate":"","milestones":[{"title":"release and promote new track (Come On Over)","description":"","targetDate":"2025-12-07","completed":false,"id":"6fbab30b-e46c-4d62-afd5-5e059c351260","tasks":[{"id":"74ef89c9-0622-42d4-90fc-43b61c361d9e","title":"wait for distro kid to release on spotify and other streaming platforms","completed":true},{"id":"a88a1a7d-ce52-4647-9cf9-11e2075c4b31","title":"make a 1 min reel for marketing","completed":false,"headerId":"6c68a2e6-e486-447b-947d-03e14901929a"}],"linkedGoals":[],"taskHeaders":[{"id":"6c68a2e6-e486-447b-947d-03e14901929a","title":"make a 1 min reel for marketing","order":0}]}],"negativeImpactOn":[],"color":"#FFD6E8","showProgress":true,"id":"cb681120-d9e6-47ec-ba1a-26b69752392c","createdAt":"2025-11-30T20:12:09.819Z","priority":1,"group":"Foundation","order":0,"why":"achieving 1k streams will help me, earn more money and build my fanbase, bring me a little closer to my dream of making music for a living"},{"title":"become fitness model","description":"","tags":[],"targetDate":"","milestones":[{"title":"get ripped","description":"","targetDate":"2025-12-30","completed":false,"linkedGoalId":"8fcdf9c0-f52d-4ca4-a91d-a8b96b8c393c","id":"bbb6e5d7-48b9-4480-909c-20f261c69889","tasks":[],"linkedGoals":[]}],"negativeImpactOn":[],"color":"#D6E8FF","showProgress":true,"id":"bb294dcd-8f98-4d8d-88de-a5f8c6805c07","createdAt":"2025-11-30T20:26:35.356Z","priority":4,"group":"Career","order":1},{"title":"get ripped","description":"","tags":["fitness"],"targetDate":"","milestones":[{"title":"get abs","description":"","targetDate":"2026-01-30","completed":false,"id":"7ff852fe-fea1-4589-9263-9b8659ac3aeb","tasks":[{"id":"7e1fcd96-fa77-40ce-9542-c6b536758865","title":"train abs every other gym session","completed":false},{"id":"dfda86cf-5b5a-4df9-aaa8-88a2aa11519d","title":"dont eat high fat / carb foods","completed":false}],"linkedGoals":[],"taskDisplayStyle":"bullet"},{"title":"eat around 180g protein each day","description":"","targetDate":"2026-01-30","completed":false,"id":"3c0b6d71-da98-4467-a8d3-9e648f13a359","tasks":[{"id":"24b8bd6f-ab3b-4fe4-a9a4-b26bde2eb9d7","title":"Morning","completed":false,"isSeparator":true},{"id":"142a25bd-3180-45ad-b27a-1a03a294430d","title":"5 eggs","completed":false,"headerId":"5a27a684-fb03-47f8-8bd1-5d2ee75ea9a8"},{"id":"c40fa76e-e22e-4656-a777-cc53e1b83e57","title":"lunch","completed":false,"isSeparator":true},{"id":"606adedc-03b5-4e49-898c-1f6e3d7f3045","title":"3 scoops of huel","completed":false},{"id":"5ebe0684-cb8f-4a09-8ef4-0b70cdf6dda6","title":"jacket pateo with tuna and beans","completed":false},{"id":"cc3bd3b6-c632-49c8-bc06-a98e7c0695ee","title":"dinner","completed":false,"isSeparator":true},{"id":"38bbd3d9-6161-45c5-90d4-16e14534030c","title":"usn anabolic protein shake 3 scoops","completed":false}],"linkedGoals":[],"taskDisplayStyle":"bullet","taskHeaders":[{"id":"5a27a684-fb03-47f8-8bd1-5d2ee75ea9a8","title":"morning","order":0}]}],"negativeImpactOn":[],"color":"#D6E8FF","showProgress":false,"id":"8fcdf9c0-f52d-4ca4-a91d-a8b96b8c393c","createdAt":"2025-11-30T20:26:51.600Z","priority":1,"order":2},{"title":"become a security guard","description":"","tags":["finance","personal development"],"targetDate":"","milestones":[],"negativeImpactOn":[],"color":"#D6FFD6","showProgress":true,"id":"2ebd3708-0436-4e24-9181-07c4ef2ffede","createdAt":"2025-11-30T21:54:50.210Z","order":3}]
+
+[
+    {
+        "title": "get 1k streams on spotify",
+        "description": "",
+        "tags": [
+            "music",
+            "finance"
+        ],
+        "targetDate": "",
+        "milestones": [
+            {
+                "title": "release and promote new track (Come On Over)",
+                "description": "",
+                "targetDate": "2025-12-07",
+                "completed": false,
+                "id": "6fbab30b-e46c-4d62-afd5-5e059c351260",
+                "tasks": [
+                    {
+                        "id": "74ef89c9-0622-42d4-90fc-43b61c361d9e",
+                        "title": "wait for distro kid to release on spotify and other streaming platforms",
+                        "completed": true
+                    },
+                    {
+                        "id": "a88a1a7d-ce52-4647-9cf9-11e2075c4b31",
+                        "title": "make a 1 min reel for marketing",
+                        "completed": true,
+                        "headerId": "6c68a2e6-e486-447b-947d-03e14901929a"
+                    },
+                    {
+                        "id": "cf1b46d8-db76-4d64-92a3-46faa6493686",
+                        "title": "release reel on tiktok",
+                        "completed": true,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "113bcc44-e790-457a-a3f9-e0588fc15aaa",
+                        "title": "release reel on instagram",
+                        "completed": false,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "112ba696-770f-4b1d-9a71-d6b2812bc2e0",
+                        "title": "make short video clip for spotify canvas",
+                        "completed": true,
+                        "isSeparator": false
+                    }
+                ],
+                "linkedGoals": [],
+                "taskHeaders": [
+                    {
+                        "id": "6c68a2e6-e486-447b-947d-03e14901929a",
+                        "title": "make a 1 min reel for marketing",
+                        "order": 0
+                    }
+                ]
+            },
+            {
+                "title": "Market Nocturnal Vocies",
+                "description": "",
+                "targetDate": "2025-12-15",
+                "completed": false,
+                "id": "3c640de9-db5d-4180-82af-f264e72e55f6",
+                "tasks": [
+                    {
+                        "id": "8152c87a-1124-4250-b217-3eb26da7fd4f",
+                        "title": "make video based on album art",
+                        "completed": false,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "1cdfdc11-6dd6-4b25-8b42-bd897d6a2a00",
+                        "title": "advertise via hypeditt",
+                        "completed": false,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "6115c014-6c1b-4130-bee5-7e01bca628c6",
+                        "title": "realse on insta",
+                        "completed": false,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "9ba2ad2d-efff-4757-9d9e-898748275e12",
+                        "title": "release on tiktok",
+                        "completed": false,
+                        "isSeparator": false
+                    },
+                    {
+                        "id": "e3451c07-9e09-43ac-9594-f7b5218a7d9b",
+                        "title": "make short video clip for spotify canvas",
+                        "completed": false,
+                        "isSeparator": false
+                    }
+                ],
+                "linkedGoals": []
+            }
+        ],
+        "negativeImpactOn": [],
+        "color": "#FFD6E8",
+        "showProgress": true,
+        "id": "cb681120-d9e6-47ec-ba1a-26b69752392c",
+        "createdAt": "2025-11-30T20:12:09.819Z",
+        "priority": 1,
+        "group": "Foundation",
+        "order": 0,
+        "why": "achieving 1k streams will help me, earn more money and build my fanbase, bring me a little closer to my dream of making music for a living"
+    },
+    {
+        "title": "become fitness model",
+        "description": "",
+        "tags": [],
+        "targetDate": "",
+        "milestones": [
+            {
+                "title": "get ripped",
+                "description": "",
+                "targetDate": "2025-12-30",
+                "completed": false,
+                "linkedGoalId": "8fcdf9c0-f52d-4ca4-a91d-a8b96b8c393c",
+                "id": "bbb6e5d7-48b9-4480-909c-20f261c69889",
+                "tasks": [],
+                "linkedGoals": []
+            }
+        ],
+        "negativeImpactOn": [],
+        "color": "#D6E8FF",
+        "showProgress": true,
+        "id": "bb294dcd-8f98-4d8d-88de-a5f8c6805c07",
+        "createdAt": "2025-11-30T20:26:35.356Z",
+        "priority": 4,
+        "group": "Career",
+        "order": 1
+    },
+    {
+        "title": "get ripped",
+        "description": "",
+        "tags": [
+            "fitness"
+        ],
+        "targetDate": "",
+        "milestones": [
+            {
+                "title": "configure fitness plan on alpha progression app",
+                "description": "",
+                "targetDate": "2025-12-01",
+                "completed": false,
+                "id": "bf1a94b1-f809-45f7-ba36-9600b5ca3bb6",
+                "tasks": [],
+                "linkedGoals": [],
+                "taskDisplayStyle": "checkbox"
+            },
+            {
+                "title": "get abs",
+                "description": "",
+                "targetDate": "2026-01-30",
+                "completed": false,
+                "id": "7ff852fe-fea1-4589-9263-9b8659ac3aeb",
+                "tasks": [
+                    {
+                        "id": "7e1fcd96-fa77-40ce-9542-c6b536758865",
+                        "title": "train abs every other gym session",
+                        "completed": false
+                    },
+                    {
+                        "id": "dfda86cf-5b5a-4df9-aaa8-88a2aa11519d",
+                        "title": "dont eat high fat / carb foods",
+                        "completed": false
+                    }
+                ],
+                "linkedGoals": [],
+                "taskDisplayStyle": "bullet"
+            },
+            {
+                "title": "eat around 180g protein each day",
+                "description": "",
+                "targetDate": "2026-01-30",
+                "completed": false,
+                "id": "3c0b6d71-da98-4467-a8d3-9e648f13a359",
+                "tasks": [
+                    {
+                        "id": "24b8bd6f-ab3b-4fe4-a9a4-b26bde2eb9d7",
+                        "title": "Morning",
+                        "completed": false,
+                        "isSeparator": true
+                    },
+                    {
+                        "id": "142a25bd-3180-45ad-b27a-1a03a294430d",
+                        "title": "5 eggs",
+                        "completed": false,
+                        "headerId": "5a27a684-fb03-47f8-8bd1-5d2ee75ea9a8"
+                    },
+                    {
+                        "id": "c40fa76e-e22e-4656-a777-cc53e1b83e57",
+                        "title": "lunch",
+                        "completed": false,
+                        "isSeparator": true
+                    },
+                    {
+                        "id": "606adedc-03b5-4e49-898c-1f6e3d7f3045",
+                        "title": "3 scoops of huel",
+                        "completed": false
+                    },
+                    {
+                        "id": "5ebe0684-cb8f-4a09-8ef4-0b70cdf6dda6",
+                        "title": "jacket pateo with tuna and beans",
+                        "completed": false
+                    },
+                    {
+                        "id": "cc3bd3b6-c632-49c8-bc06-a98e7c0695ee",
+                        "title": "dinner",
+                        "completed": false,
+                        "isSeparator": true
+                    },
+                    {
+                        "id": "38bbd3d9-6161-45c5-90d4-16e14534030c",
+                        "title": "usn anabolic protein shake 3 scoops",
+                        "completed": false
+                    }
+                ],
+                "linkedGoals": [],
+                "taskDisplayStyle": "bullet",
+                "taskHeaders": [
+                    {
+                        "id": "5a27a684-fb03-47f8-8bd1-5d2ee75ea9a8",
+                        "title": "morning",
+                        "order": 0
+                    }
+                ]
+            }
+        ],
+        "negativeImpactOn": [],
+        "color": "#D6E8FF",
+        "showProgress": false,
+        "id": "8fcdf9c0-f52d-4ca4-a91d-a8b96b8c393c",
+        "createdAt": "2025-11-30T20:26:51.600Z",
+        "priority": 1,
+        "group": "Foundation",
+        "order": 1
+    },
+    {
+        "title": "become a security guard",
+        "description": "",
+        "tags": [
+            "finance",
+            "personal development"
+        ],
+        "targetDate": "",
+        "milestones": [],
+        "negativeImpactOn": [],
+        "color": "#D6FFD6",
+        "showProgress": true,
+        "id": "2ebd3708-0436-4e24-9181-07c4ef2ffede",
+        "createdAt": "2025-11-30T21:54:50.210Z",
+        "order": 0
+    }
+]
