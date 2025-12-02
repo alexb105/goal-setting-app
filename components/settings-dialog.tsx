@@ -27,8 +27,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const exportData = {
       goals: goals,
       groupOrder: JSON.parse(localStorage.getItem("goal-group-order") || "[]"),
+      dailyTodos: JSON.parse(localStorage.getItem("pathwise-daily-todos") || "[]"),
+      dailyTodosLastReset: localStorage.getItem("pathwise-daily-todos-last-reset") || null,
       exportedAt: new Date().toISOString(),
-      version: "1.0",
+      version: "1.1",
     }
 
     // Create blob and download
@@ -36,7 +38,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `goals-backup-${new Date().toISOString().split("T")[0]}.json`
+    link.download = `pathwise-backup-${new Date().toISOString().split("T")[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -68,9 +70,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           return
         }
 
-        const confirmImport = confirm(
-          `This will replace all your current data with ${data.goals.length} goals from the backup. This cannot be undone. Continue?`
-        )
+        // Build confirmation message
+        const hasDailyTodos = data.dailyTodos && Array.isArray(data.dailyTodos) && data.dailyTodos.length > 0
+        let confirmMessage = `This will replace all your current data with ${data.goals.length} goals`
+        if (hasDailyTodos) {
+          confirmMessage += ` and ${data.dailyTodos.length} daily tasks`
+        }
+        confirmMessage += ` from the backup. This cannot be undone. Continue?`
+
+        const confirmImport = confirm(confirmMessage)
 
         if (confirmImport) {
           // Import goals using the correct storage key
@@ -79,6 +87,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           // Import group order if present
           if (data.groupOrder) {
             localStorage.setItem("goal-group-order", JSON.stringify(data.groupOrder))
+          }
+
+          // Import daily todos if present
+          if (data.dailyTodos && Array.isArray(data.dailyTodos)) {
+            localStorage.setItem("pathwise-daily-todos", JSON.stringify(data.dailyTodos))
+          }
+          
+          // Import daily todos last reset date if present
+          if (data.dailyTodosLastReset) {
+            localStorage.setItem("pathwise-daily-todos-last-reset", data.dailyTodosLastReset)
           }
 
           // Reload page to apply changes

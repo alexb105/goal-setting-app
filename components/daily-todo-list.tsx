@@ -41,8 +41,6 @@ export function DailyTodoList() {
     if (lastReset !== today) {
       // Filter out completed todos, keep only uncompleted ones
       loadedTodos = loadedTodos.filter((todo) => !todo.completed)
-      // Save filtered todos immediately when resetting for a new day
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedTodos))
       localStorage.setItem(LAST_RESET_KEY, today)
     }
 
