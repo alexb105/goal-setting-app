@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import { Settings, Tag, Pencil, X, Check, Download, Upload, Database } from "lucide-react"
 import { useGoals } from "@/components/goals-context"
+import { STORAGE_KEY } from "@/constants"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,10 +50,21 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        const data = JSON.parse(e.target?.result as string)
+        const result = e.target?.result
+        if (!result || typeof result !== "string") {
+          alert("Failed to read file. Please try again.")
+          return
+        }
+
+        const data = JSON.parse(result)
         
         if (!data.goals || !Array.isArray(data.goals)) {
-          alert("Invalid backup file. Please select a valid goals backup.")
+          alert("Invalid backup file. The file must contain a 'goals' array. Please select a valid goals backup.")
+          return
+        }
+
+        if (data.goals.length === 0) {
+          alert("The backup file contains no goals. Nothing to import.")
           return
         }
 
@@ -61,8 +73,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         )
 
         if (confirmImport) {
-          // Import goals
-          localStorage.setItem("goals", JSON.stringify(data.goals))
+          // Import goals using the correct storage key
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.goals))
           
           // Import group order if present
           if (data.groupOrder) {
@@ -72,10 +84,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           // Reload page to apply changes
           window.location.reload()
         }
-      } catch {
-        alert("Failed to parse backup file. Please make sure it's a valid JSON file.")
+      } catch (error) {
+        console.error("Import error:", error)
+        alert(`Failed to parse backup file: ${error instanceof Error ? error.message : "Unknown error"}. Please make sure it's a valid JSON file.`)
       }
     }
+    
+    reader.onerror = () => {
+      alert("Failed to read file. Please try again.")
+    }
+    
     reader.readAsText(file)
 
     // Reset file input

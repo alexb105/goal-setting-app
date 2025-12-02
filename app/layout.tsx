@@ -19,13 +19,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const isVercel = process.env.VERCEL === "1"
+  
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
         <GoalsProviderWrapper>
           {children}
         </GoalsProviderWrapper>
-        <Analytics />
+        {isVercel && <Analytics />}
       </body>
     </html>
   )
