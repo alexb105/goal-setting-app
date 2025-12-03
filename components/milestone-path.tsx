@@ -401,12 +401,14 @@ function SortableMilestoneItem({
             onClick={canToggle ? onToggle : undefined}
             disabled={!canToggle}
             className={cn(
-              "relative z-10 flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all touch-target",
+              "relative z-10 flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-all touch-target",
               milestone.completed
-                ? "border-primary bg-primary text-primary-foreground"
-                : canToggle
-                  ? "border-border bg-card text-muted-foreground hover:border-primary/50 cursor-pointer active:scale-95"
-                  : "border-border bg-card text-muted-foreground opacity-50 cursor-not-allowed",
+                ? "border-2 border-primary bg-primary text-primary-foreground"
+                : regularTasks.length > 0
+                  ? "bg-card text-muted-foreground hover:bg-muted cursor-pointer active:scale-95"
+                  : canToggle
+                    ? "border-2 border-border bg-card text-muted-foreground hover:border-primary/50 cursor-pointer active:scale-95"
+                    : "border-2 border-border bg-card text-muted-foreground opacity-50 cursor-not-allowed",
             )}
             title={!canToggle && milestone.linkedGoalId ? "Complete the linked goal first" : undefined}
           >

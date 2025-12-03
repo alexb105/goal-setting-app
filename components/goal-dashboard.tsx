@@ -826,91 +826,73 @@ export function GoalDashboard() {
     <div className="min-h-screen safe-area-top">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-4">
-          <div className="flex items-center justify-between gap-2">
+        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-2.5 sm:py-3">
+          <div className="flex items-center justify-between gap-4">
             {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary flex-shrink-0">
-                <Target className="h-5 w-5 sm:h-5 sm:w-5 text-primary-foreground" />
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
+                <Target className="h-5 w-5 text-primary-foreground" />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-foreground">Pathwise</h1>
-                <p className="text-xs text-muted-foreground hidden sm:block">Your journey to success</p>
-              </div>
+              <h1 className="text-lg font-bold text-foreground">Pathwise</h1>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-2">
-              <Button
-                variant={lateMilestones > 0 ? "default" : "outline"}
-                size="sm"
-                className="gap-2"
-                onClick={() => lateMilestones > 0 && setShowLateMilestones(true)}
-                disabled={lateMilestones === 0}
-              >
-                {lateMilestones === 0 ? (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    <span>No late milestones</span>
-                  </>
-                ) : (
-                  <>
-                    <Calendar className="h-4 w-4" />
-                    <span>{lateMilestones} late</span>
-                  </>
-                )}
-              </Button>
-              <Link href="/milestones">
-                <Button variant="outline" size="sm" className="gap-2">
+            <div className="hidden md:flex items-center flex-1 justify-center">
+              <nav className="flex items-center bg-muted/50 rounded-lg p-1">
+                <Link href="/milestones" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
                   <List className="h-4 w-4" />
                   <span>Milestones</span>
-                </Button>
-              </Link>
-              <Link href="/recurring-tasks">
-                <Button variant="outline" size="sm" className="gap-2">
+                </Link>
+                <Link href="/recurring-tasks" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
                   <Repeat className="h-4 w-4" />
                   <span>Recurring</span>
-                </Button>
-              </Link>
-              <Link href="/completed">
-                <Button variant="outline" size="sm" className="gap-2">
+                </Link>
+                <Link href="/completed" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
                   <CheckCircle2 className="h-4 w-4" />
                   <span>Completed</span>
-                </Button>
-              </Link>
-              <Link href="/archived">
-                <Button variant="outline" size="sm" className="gap-2">
+                </Link>
+                <Link href="/archived" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
                   <Archive className="h-4 w-4" />
                   <span>Archived</span>
-                </Button>
-              </Link>
+                </Link>
+              </nav>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-2">
+              {/* Status badges */}
+              {lateMilestones > 0 && (
+                <button
+                  onClick={() => setShowLateMilestones(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors text-xs font-medium"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>{lateMilestones} late</span>
+                </button>
+              )}
+              {expiringMilestones > 0 && (
+                <button
+                  onClick={() => setShowExpiringMilestones(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-xs font-medium"
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  <span>{expiringMilestones} soon</span>
+                </button>
+              )}
+              
               <Link href="/ai-guidance">
-                <Button variant="outline" size="sm" className="gap-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/30 hover:border-purple-500/50">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  <span>AI Guidance</span>
+                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-500/10">
+                  <Brain className="h-4 w-4" />
+                  <span>AI</span>
                 </Button>
               </Link>
-              <Button variant="ghost" size="icon" onClick={() => setSettingsDialogOpen(true)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSettingsDialogOpen(true)}>
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-2">
+              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="h-8 gap-1.5">
                 <Plus className="h-4 w-4" />
                 <span>New Goal</span>
               </Button>
-              {expiringMilestones > 0 && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="relative"
-                  onClick={() => setShowExpiringMilestones(true)}
-                  title={`${expiringMilestones} milestone${expiringMilestones !== 1 ? "s" : ""} expiring in 3 days`}
-                >
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-xs font-semibold text-white">
-                    {expiringMilestones}
-                  </span>
-                </Button>
-              )}
             </div>
 
             {/* Mobile Actions */}
