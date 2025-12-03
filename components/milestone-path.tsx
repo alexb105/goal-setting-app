@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react"
 import type React from "react"
-import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause } from "lucide-react"
+import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import type { Milestone, Task } from "@/types"
+import type { Goal, Milestone, Task } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { EditMilestoneDialog } from "@/components/edit-milestone-dialog"
+import { AITaskSuggestions } from "@/components/ai-task-suggestions"
 import { cn } from "@/lib/utils"
 import { useMilestoneStatus } from "@/hooks/use-milestone-status"
 import { formatDaysRemaining } from "@/utils/date"
@@ -233,6 +234,7 @@ interface SortableMilestoneItemProps {
   index: number
   isLast: boolean
   goalId: string
+  goal: Goal
   onEdit: (milestone: Milestone) => void
   onDelete: () => void
   onToggle: () => void
@@ -255,6 +257,7 @@ function SortableMilestoneItem({
   index,
   isLast,
   goalId,
+  goal,
   onEdit,
   onDelete,
   onToggle,
@@ -275,6 +278,7 @@ function SortableMilestoneItem({
     id: milestone.id,
   })
   const { goals } = useGoals()
+  const [showAISuggestions, setShowAISuggestions] = useState(false)
   
   const linkedGoal = milestone.linkedGoalId ? goals.find((g) => g.id === milestone.linkedGoalId) : null
   
@@ -643,6 +647,15 @@ function SortableMilestoneItem({
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="h-8 sm:h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-500/10 px-2 sm:px-3"
+                    onClick={() => setShowAISuggestions(true)}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1 sm:mr-1.5" />
+                    AI Suggest
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-8 sm:h-7 text-xs text-muted-foreground hover:text-foreground hidden sm:inline-flex"
                     onClick={() => {
                       const separatorText = prompt('Enter separator text:')
@@ -655,6 +668,16 @@ function SortableMilestoneItem({
                   </Button>
                 </div>
               )}
+
+              <AITaskSuggestions
+                open={showAISuggestions}
+                onOpenChange={setShowAISuggestions}
+                goal={goal}
+                milestone={milestone}
+                onAddTasks={(tasks) => {
+                  tasks.forEach(title => addTaskDirect(milestone.id, title, false))
+                }}
+              />
             </div>
           )}
         </div>
@@ -713,10 +736,12 @@ function TaskList({ tasks, goalId, milestoneId, toggleTask, updateTask, deleteTa
 }
 
 export function MilestonePath({ goalId, milestones, onNavigateToGoal }: MilestonePathProps) {
-  const { toggleMilestone, deleteMilestone, toggleTask, addTask, updateTask, deleteTask, reorderMilestones, reorderTasks, updateMilestone } = useGoals()
+  const { goals, toggleMilestone, deleteMilestone, toggleTask, addTask, updateTask, deleteTask, reorderMilestones, reorderTasks, updateMilestone } = useGoals()
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null)
   const [addingTaskToMilestone, setAddingTaskToMilestone] = useState<string | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState("")
+  
+  const currentGoal = goals.find((g) => g.id === goalId)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -759,13 +784,14 @@ export function MilestonePath({ goalId, milestones, onNavigateToGoal }: Mileston
             {milestones.map((milestone, index) => {
               const isLast = index === milestones.length - 1
 
-              return (
+              return currentGoal ? (
                 <SortableMilestoneItem
                   key={milestone.id}
                   milestone={milestone}
                   index={index}
                   isLast={isLast}
                   goalId={goalId}
+                  goal={currentGoal}
                   onEdit={setEditingMilestone}
                   onDelete={() => deleteMilestone(goalId, milestone.id)}
                   onToggle={() => toggleMilestone(goalId, milestone.id)}
@@ -782,7 +808,7 @@ export function MilestonePath({ goalId, milestones, onNavigateToGoal }: Mileston
                   addTaskDirect={(milestoneId, title, isSeparator) => addTask(goalId, milestoneId, title, isSeparator)}
                   onNavigateToGoal={onNavigateToGoal}
                 />
-              )
+              ) : null
             })}
           </div>
         </SortableContext>
