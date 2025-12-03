@@ -280,18 +280,30 @@ export default function AIGuidancePage() {
       })) || [],
     }))
 
+    const hasGoals = activeGoals.length > 0
+
     return `You are an expert life coach and strategic planner. Your task is to THOROUGHLY DISSECT the life purpose statement and identify ALL the key areas needed to achieve it.
 
 ## LIFE PURPOSE STATEMENT
 "${lifePurpose || "Not defined"}"
 
 ## CURRENT GOALS (${activeGoals.length})
-${JSON.stringify(goalsData, null, 2)}
+${hasGoals ? JSON.stringify(goalsData, null, 2) : "NO GOALS YET - User needs help getting started!"}
 
 ## STATS
 - Completed Goals: ${completedGoals.length}
 - Late Milestones: ${lateMilestones.length}
 - Average Progress: ${averageProgress}%
+
+${!hasGoals ? `
+## SPECIAL INSTRUCTION: NO GOALS EXIST
+The user has defined their life purpose but hasn't created any goals yet. Your PRIMARY task is to:
+1. Break down their life purpose into key areas
+2. Suggest 5-8 specific NEW GOALS they should create to start their journey
+3. Make each suggested goal actionable and specific
+4. Include a mix of short-term (1-3 months), medium-term (3-6 months), and long-term (6-12 months) goals
+5. For suggestions, focus heavily on "new_goal" type suggestions since they have no goals to edit
+` : ''}
 
 ## YOUR CRITICAL TASK: DISSECT THE LIFE PURPOSE
 
@@ -664,7 +676,7 @@ QUALITY STANDARDS:
         )}
 
         {/* Analyze Button */}
-        <Button onClick={runAnalysis} disabled={isAnalyzing || activeGoals.length === 0}
+        <Button onClick={runAnalysis} disabled={isAnalyzing || (!lifePurpose && activeGoals.length === 0)}
           className="w-full gap-2 h-11 mb-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/20">
           {isAnalyzing ? <><RefreshCw className="h-4 w-4 animate-spin" />Analyzing...</> : <><Sparkles className="h-4 w-4" />Analyze Purpose & Goals</>}
         </Button>
