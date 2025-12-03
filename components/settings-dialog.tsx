@@ -30,8 +30,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       dailyTodos: JSON.parse(localStorage.getItem("pathwise-daily-todos") || "[]"),
       dailyTodosLastReset: localStorage.getItem("pathwise-daily-todos-last-reset") || null,
       lifePurpose: localStorage.getItem("pathwise-life-purpose") || null,
+      openaiApiKey: localStorage.getItem("pathwise-openai-api-key") || null,
       exportedAt: new Date().toISOString(),
-      version: "1.2",
+      version: "1.3",
     }
 
     // Create blob and download
@@ -105,6 +106,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             localStorage.setItem("pathwise-life-purpose", data.lifePurpose)
           } else {
             localStorage.removeItem("pathwise-life-purpose")
+          }
+
+          // Import OpenAI API key if present
+          if (data.openaiApiKey) {
+            localStorage.setItem("pathwise-openai-api-key", data.openaiApiKey)
           }
 
           // Reload page to apply changes

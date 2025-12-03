@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive } from "lucide-react"
+import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive, Brain } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -884,6 +884,12 @@ export function GoalDashboard() {
                   <span>Archived</span>
                 </Button>
               </Link>
+              <Link href="/ai-guidance">
+                <Button variant="outline" size="sm" className="gap-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-500/30 hover:border-purple-500/50">
+                  <Brain className="h-4 w-4 text-purple-600" />
+                  <span>AI Guidance</span>
+                </Button>
+              </Link>
               <Button variant="ghost" size="icon" onClick={() => setSettingsDialogOpen(true)}>
                 <Settings className="h-4 w-4" />
               </Button>
@@ -976,6 +982,12 @@ export function GoalDashboard() {
                       <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
                         <Archive className="h-5 w-5" />
                         Archived Goals
+                      </Button>
+                    </Link>
+                    <Link href="/ai-guidance" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base text-purple-600">
+                        <Brain className="h-5 w-5" />
+                        AI Guidance
                       </Button>
                     </Link>
                     <div className="h-px bg-border my-2" />
