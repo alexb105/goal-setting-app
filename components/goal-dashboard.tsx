@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu } from "lucide-react"
+import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -18,6 +18,7 @@ import { SettingsDialog } from "@/components/settings-dialog"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue, getMilestoneDaysOverdue } from "@/utils/date"
 import { isGoalCompleted } from "@/utils/goals"
 import { DailyTodoList } from "@/components/daily-todo-list"
+import { LifePurpose } from "@/components/life-purpose"
 import {
   DragDropContext,
   Droppable,
@@ -298,9 +299,9 @@ export function GoalDashboard() {
 
   const allTags = getAllTags()
 
-  // Filter out completed goals from the main dashboard
+  // Filter out completed and archived goals from the main dashboard
   const activeGoals = useMemo(() => {
-    return goals.filter((goal) => !isGoalCompleted(goal))
+    return goals.filter((goal) => !isGoalCompleted(goal) && !goal.archived)
   }, [goals])
 
   const filteredGoals = useMemo(() => {
@@ -877,6 +878,12 @@ export function GoalDashboard() {
                   <span>Completed</span>
                 </Button>
               </Link>
+              <Link href="/archived">
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Archive className="h-4 w-4" />
+                  <span>Archived</span>
+                </Button>
+              </Link>
               <Button variant="ghost" size="icon" onClick={() => setSettingsDialogOpen(true)}>
                 <Settings className="h-4 w-4" />
               </Button>
@@ -965,6 +972,12 @@ export function GoalDashboard() {
                         Completed Goals
                       </Button>
                     </Link>
+                    <Link href="/archived" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
+                        <Archive className="h-5 w-5" />
+                        Archived Goals
+                      </Button>
+                    </Link>
                     <div className="h-px bg-border my-2" />
                     <Button 
                       variant="ghost" 
@@ -999,189 +1012,214 @@ export function GoalDashboard() {
       </header>
 
       <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
-        {/* Daily Todo List - Top of page */}
+        {/* Life Purpose - Top of page */}
+        <LifePurpose />
+
+        {/* Daily Todo List */}
         <div className="mb-6">
           <DailyTodoList />
         </div>
 
-        {/* Stats - Collapsible on mobile */}
-        <Collapsible open={statsOpen} onOpenChange={setStatsOpen} className="mb-6 sm:mb-8">
-          <CollapsibleTrigger asChild>
-            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4 cursor-pointer hover:opacity-80 transition-opacity active-scale">
-              <h2 className="text-base sm:text-lg font-semibold text-foreground">
-                {statsOpen ? "Dashboard Stats" : "Show stats"}
-              </h2>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${statsOpen ? "rotate-180" : ""}`} />
+        {/* Goals Panel */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {/* Panel Header */}
+          <div className="border-b border-border bg-muted/30 px-4 sm:px-6 py-3 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Target className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-foreground">My Goals</h2>
+                  <p className="text-xs text-muted-foreground">{activeGoals.length} active • {overallProgress}% complete</p>
+                </div>
+              </div>
+              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">New Goal</span>
+              </Button>
             </div>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="grid grid-cols-2 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-                    <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{activeGoals.length}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">Active Goals</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-accent/50 flex-shrink-0">
-                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{totalMilestones}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">Milestones</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-green-500/10 flex-shrink-0">
-                    <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{completedMilestones}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">Completed</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{overallProgress}%</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">Progress</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Sort and Tag Filter Section */}
-        <div className="mb-4 sm:mb-6 space-y-3 sm:space-y-4">
-          {/* Sort Section */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">Sort by</span>
-            </div>
-            <Select value={sortBy} onValueChange={(value: "date" | "priority") => setSortBy(value)}>
-              <SelectTrigger className="w-[140px] sm:w-[180px] h-9">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date">Date Created</SelectItem>
-                <SelectItem value="priority">Priority</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
+          
+          {/* Panel Content */}
+          <div className="p-4 sm:p-6">
+            {/* Stats - Collapsible */}
+            <Collapsible open={statsOpen} onOpenChange={setStatsOpen} className="mb-4 sm:mb-6">
+              <CollapsibleTrigger asChild>
+                <div className="flex items-center justify-between gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity active-scale">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {statsOpen ? "Stats" : "Show stats"}
+                  </span>
+                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${statsOpen ? "rotate-180" : ""}`} />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg sm:text-xl font-bold text-foreground">{activeGoals.length}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Active</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-accent/50 flex-shrink-0">
+                        <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg sm:text-xl font-bold text-foreground">{totalMilestones}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Milestones</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-green-500/10 flex-shrink-0">
+                        <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg sm:text-xl font-bold text-foreground">{completedMilestones}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Completed</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
+                        <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-lg sm:text-xl font-bold text-foreground">{overallProgress}%</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Progress</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
-          {/* Tag Filter Section */}
-          <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
-              <Tag className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-sm font-medium text-foreground">Filter by tags</span>
-              {selectedTags.length > 0 && (
-                <button
-                  onClick={clearTagFilters}
-                  className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors active-scale touch-target"
-                >
-                  <X className="h-3 w-3" />
-                  <span className="hidden sm:inline">Clear filters</span>
-                  <span className="sm:hidden">Clear</span>
-                </button>
-              )}
-            </div>
-            {allTags.length > 0 ? (
-            <>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
-                {allTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => toggleTagFilter(tag)}
-                    className={`rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium transition-all whitespace-nowrap active-scale ${
-                      selectedTags.includes(tag)
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
+            {/* Sort and Tag Filter Section */}
+            <div className="mb-4 sm:mb-6 space-y-3">
+              {/* Sort Section */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Sort by</span>
+                </div>
+                <Select value={sortBy} onValueChange={(value: "date" | "priority") => setSortBy(value)}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date Created</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              {selectedTags.length > 0 && (
-                <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    Showing <span className="font-medium text-foreground">{sortedGoals.length}</span> of{" "}
-                    <span className="font-medium text-foreground">{activeGoals.length}</span> goals
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedTags.map((tag) => (
-                      <span
+
+              {/* Tag Filter Section */}
+              <div className="rounded-lg border border-border bg-background p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs font-medium text-foreground">Filter by tags</span>
+                  {selectedTags.length > 0 && (
+                    <button
+                      onClick={clearTagFilters}
+                      className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors active-scale touch-target"
+                    >
+                      <X className="h-3 w-3" />
+                      <span>Clear</span>
+                    </button>
+                  )}
+                </div>
+                {allTags.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
+                    {allTags.map((tag) => (
+                      <button
                         key={tag}
-                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                        onClick={() => toggleTagFilter(tag)}
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium transition-all whitespace-nowrap active-scale ${
+                          selectedTags.includes(tag)
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
+                        }`}
                       >
                         {tag}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            toggleTagFilter(tag)
-                          }}
-                          className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
+                      </button>
                     ))}
                   </div>
-                </div>
+                  {selectedTags.length > 0 && (
+                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Showing <span className="font-medium text-foreground">{sortedGoals.length}</span> of{" "}
+                        <span className="font-medium text-foreground">{activeGoals.length}</span> goals
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                          >
+                            {tag}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleTagFilter(tag)
+                              }}
+                              className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No tags yet. Add tags to your goals to filter them.
+                </p>
               )}
-            </>
-          ) : (
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              No tags yet. Add tags to your goals to filter them.
-            </p>
-          )}
-          </div>
-        </div>
+              </div>
+            </div>
 
-        {/* Goals Grid */}
-        {goals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 py-16">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-              <Target className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="mb-2 text-lg font-semibold text-foreground">No goals yet</h3>
-            <p className="mb-6 text-center text-muted-foreground max-w-sm">
-              Start your journey by creating your first long-term goal and mapping out the path to achieve it.
-            </p>
-            <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create Your First Goal
-            </Button>
-          </div>
-        ) : sortedGoals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 py-16">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-              <Tag className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="mb-2 text-lg font-semibold text-foreground">No matching goals</h3>
-            <p className="mb-6 text-center text-muted-foreground max-w-sm">
-              No goals match the selected tags. Try selecting different tags or clear the filters.
-            </p>
-            <Button variant="outline" onClick={clearTagFilters} className="gap-2 bg-transparent">
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          </div>
-        ) : (
+            {/* Goals Grid */}
+            {goals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background py-12">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mb-4">
+                  <Target className="h-7 w-7 text-primary" />
+                </div>
+                <h3 className="mb-2 text-base font-semibold text-foreground">No goals yet</h3>
+                <p className="mb-4 text-center text-sm text-muted-foreground max-w-xs px-4">
+                  Start your journey by creating your first long-term goal.
+                </p>
+                <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Your First Goal
+                </Button>
+              </div>
+            ) : sortedGoals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-background py-12">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted mb-4">
+                  <Tag className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <h3 className="mb-2 text-base font-semibold text-foreground">No matching goals</h3>
+                <p className="mb-4 text-center text-sm text-muted-foreground max-w-xs px-4">
+                  No goals match the selected tags.
+                </p>
+                <Button variant="outline" onClick={clearTagFilters} size="sm" className="gap-2 bg-transparent">
+                  <X className="h-4 w-4" />
+                  Clear Filters
+                </Button>
+              </div>
+            ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="groups-container" type="GROUP">
               {(provided) => (
@@ -1243,6 +1281,8 @@ export function GoalDashboard() {
             </Droppable>
           </DragDropContext>
         )}
+          </div>
+        </div>
       </div>
 
       <CreateGoalDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />

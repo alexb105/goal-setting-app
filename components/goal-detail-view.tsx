@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, Calendar, Plus, Trash2, MoreVertical, Pencil, AlertTriangle, CheckCircle2, Repeat, Target } from "lucide-react"
+import { ArrowLeft, Calendar, Plus, Trash2, MoreVertical, Pencil, AlertTriangle, CheckCircle2, Repeat, Target, Archive, ArchiveRestore } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -34,7 +34,7 @@ interface GoalDetailViewProps {
 }
 
 export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailViewProps) {
-  const { deleteGoal, goals, updateGoal } = useGoals()
+  const { deleteGoal, goals, updateGoal, archiveGoal, unarchiveGoal } = useGoals()
   const [addMilestoneOpen, setAddMilestoneOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -74,6 +74,29 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit Goal
                 </DropdownMenuItem>
+                {goal.archived ? (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      unarchiveGoal(goal.id)
+                      onBack()
+                    }}
+                    className="h-10"
+                  >
+                    <ArchiveRestore className="mr-2 h-4 w-4" />
+                    Unarchive Goal
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      archiveGoal(goal.id)
+                      onBack()
+                    }}
+                    className="h-10"
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive Goal
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => setDeleteDialogOpen(true)}
                   className="text-destructive focus:text-destructive h-10"

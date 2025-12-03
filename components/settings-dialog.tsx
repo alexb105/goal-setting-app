@@ -29,8 +29,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       groupOrder: JSON.parse(localStorage.getItem("goal-group-order") || "[]"),
       dailyTodos: JSON.parse(localStorage.getItem("pathwise-daily-todos") || "[]"),
       dailyTodosLastReset: localStorage.getItem("pathwise-daily-todos-last-reset") || null,
+      lifePurpose: localStorage.getItem("pathwise-life-purpose") || null,
       exportedAt: new Date().toISOString(),
-      version: "1.1",
+      version: "1.2",
     }
 
     // Create blob and download
@@ -97,6 +98,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           // Import daily todos last reset date if present
           if (data.dailyTodosLastReset) {
             localStorage.setItem("pathwise-daily-todos-last-reset", data.dailyTodosLastReset)
+          }
+
+          // Import life purpose if present
+          if (data.lifePurpose) {
+            localStorage.setItem("pathwise-life-purpose", data.lifePurpose)
+          } else {
+            localStorage.removeItem("pathwise-life-purpose")
           }
 
           // Reload page to apply changes

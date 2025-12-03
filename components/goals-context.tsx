@@ -30,6 +30,8 @@ interface GoalsContextType {
   renameTag: (oldTag: string, newTag: string) => void
   renameGroup: (oldGroupName: string, newGroupName: string) => void
   reorderGoals: (activeId: string, overId: string) => void
+  archiveGoal: (id: string) => void
+  unarchiveGoal: (id: string) => void
   // Recurring task groups
   addRecurringTaskGroup: (goalId: string, name: string, recurrence: RecurrenceType, startDate?: string) => void
   updateRecurringTaskGroup: (goalId: string, groupId: string, updates: Partial<Omit<RecurringTaskGroup, "id" | "tasks">>) => void
@@ -60,6 +62,7 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         group: goal.group || undefined,
         why: goal.why || undefined,
         order: goal.order !== undefined ? goal.order : index, // Preserve existing order or use index
+        archived: goal.archived || false, // Default to false for existing goals
         milestones: goal.milestones.map((m) => ({
           ...m,
           tasks: m.tasks || [],
@@ -565,6 +568,14 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
     )
   }
 
+  const archiveGoal = (id: string) => {
+    setGoals((prev) => prev.map((goal) => (goal.id === id ? { ...goal, archived: true } : goal)))
+  }
+
+  const unarchiveGoal = (id: string) => {
+    setGoals((prev) => prev.map((goal) => (goal.id === id ? { ...goal, archived: false } : goal)))
+  }
+
   return (
     <GoalsContext.Provider
       value={{
@@ -586,6 +597,8 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         renameTag,
         renameGroup,
         reorderGoals,
+        archiveGoal,
+        unarchiveGoal,
         addRecurringTaskGroup,
         updateRecurringTaskGroup,
         deleteRecurringTaskGroup,

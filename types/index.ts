@@ -60,4 +60,5 @@ export interface Goal {
   priority?: number // Priority number for sorting goals (higher number = higher priority)
   group?: string // Optional group name to organize goals
   order?: number // Manual order for goals within their group
+  archived?: boolean // If true, this goal is archived and hidden from main view
 }
