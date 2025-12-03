@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, Key, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, Star, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot } from "lucide-react"
+import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, Key, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, Star, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot, Pencil, Plus, Check, X, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const API_KEY_STORAGE = "pathwise-openai-api-key"
 const LIFE_PURPOSE_STORAGE = "pathwise-life-purpose"
+const AI_ANALYSIS_STORAGE = "pathwise-ai-analysis"
+const AI_APPLIED_SUGGESTIONS = "pathwise-ai-applied-suggestions"
+const AI_DISMISSED_SUGGESTIONS = "pathwise-ai-dismissed-suggestions"
 
 // Life Purpose Area - key areas needed to achieve purpose
 interface PurposeArea {
@@ -67,6 +70,26 @@ interface HabitInsight {
   suggestion: string
 }
 
+// AI Suggestions that can be applied
+interface AISuggestion {
+  id: string
+  type: "edit_goal" | "add_milestone" | "edit_milestone" | "new_goal" | "add_task" | "edit_task"
+  goalId?: string // For edit_goal, add_milestone, edit_milestone, add_task, edit_task
+  goalTitle?: string // For display purposes
+  milestoneId?: string // For edit_milestone, add_task, edit_task
+  milestoneTitle?: string // For display purposes
+  taskId?: string // For edit_task
+  taskTitle?: string // For display - current task title
+  changes: {
+    title?: string
+    description?: string
+    why?: string
+    targetDate?: string
+  }
+  reason: string
+  impact: string
+}
+
 interface AnalysisResult {
   // Life Purpose Breakdown
   purposeSummary: string
@@ -109,10 +132,13 @@ interface AnalysisResult {
   bigPictureInsight: string
   nextMilestone: string
   thirtyDayGoal: string
+  
+  // AI Suggestions
+  suggestions: AISuggestion[]
 }
 
 export default function AIGuidancePage() {
-  const { goals } = useGoals()
+  const { goals, updateGoal, addGoal, addMilestone, updateMilestone, addTask, updateTask } = useGoals()
   const [apiKey, setApiKey] = useState("")
   const [apiKeyInput, setApiKeyInput] = useState("")
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
@@ -120,7 +146,10 @@ export default function AIGuidancePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("purpose")
+  const [activeTab, setActiveTab] = useState("suggestions")
+  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set())
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
+  const [dataLoaded, setDataLoaded] = useState(false)
 
   useEffect(() => {
     const storedKey = localStorage.getItem(API_KEY_STORAGE)
@@ -132,7 +161,53 @@ export default function AIGuidancePage() {
     if (storedPurpose) {
       setLifePurpose(storedPurpose)
     }
+    // Load persisted analysis data
+    const storedAnalysis = localStorage.getItem(AI_ANALYSIS_STORAGE)
+    if (storedAnalysis) {
+      try {
+        setAnalysis(JSON.parse(storedAnalysis))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    const storedApplied = localStorage.getItem(AI_APPLIED_SUGGESTIONS)
+    if (storedApplied) {
+      try {
+        setAppliedSuggestions(new Set(JSON.parse(storedApplied)))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    const storedDismissed = localStorage.getItem(AI_DISMISSED_SUGGESTIONS)
+    if (storedDismissed) {
+      try {
+        setDismissedSuggestions(new Set(JSON.parse(storedDismissed)))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    setDataLoaded(true)
   }, [])
+
+  // Persist analysis to localStorage
+  useEffect(() => {
+    if (!dataLoaded) return
+    if (analysis) {
+      localStorage.setItem(AI_ANALYSIS_STORAGE, JSON.stringify(analysis))
+    }
+  }, [analysis, dataLoaded])
+
+  // Persist applied suggestions to localStorage
+  useEffect(() => {
+    if (!dataLoaded) return
+    localStorage.setItem(AI_APPLIED_SUGGESTIONS, JSON.stringify([...appliedSuggestions]))
+  }, [appliedSuggestions, dataLoaded])
+
+  // Persist dismissed suggestions to localStorage
+  useEffect(() => {
+    if (!dataLoaded) return
+    localStorage.setItem(AI_DISMISSED_SUGGESTIONS, JSON.stringify([...dismissedSuggestions]))
+  }, [dismissedSuggestions, dataLoaded])
 
   const activeGoals = useMemo(() => {
     return goals.filter((goal) => !isGoalCompleted(goal) && !goal.archived)
@@ -176,6 +251,7 @@ export default function AIGuidancePage() {
 
   const buildAnalysisPrompt = () => {
     const goalsData = activeGoals.map((goal) => ({
+      id: goal.id,
       title: goal.title,
       description: goal.description,
       why: goal.why || "Not specified",
@@ -185,11 +261,17 @@ export default function AIGuidancePage() {
       tags: goal.tags,
       group: goal.group,
       milestones: goal.milestones.map((m) => ({
+        id: m.id,
         title: m.title,
         description: m.description,
         targetDate: m.targetDate,
         completed: m.completed,
         inProgress: m.inProgress,
+        tasks: (m.tasks || []).filter(t => !t.isSeparator).map((t) => ({
+          id: t.id,
+          title: t.title,
+          completed: t.completed,
+        })),
       })),
       recurringTasks: goal.recurringTaskGroups?.map((g) => ({
         name: g.name,
@@ -291,8 +373,81 @@ Respond with this EXACT JSON (no markdown):
   
   "bigPictureInsight": "<how goals connect to purpose>",
   "nextMilestone": "<most important next milestone>",
-  "thirtyDayGoal": "<30 day target>"
-}`
+  "thirtyDayGoal": "<30 day target>",
+  
+  "suggestions": [
+    {
+      "id": "<unique id like 'sug-1'>",
+      "type": "edit_goal|add_milestone|edit_milestone|new_goal|add_task|edit_task",
+      "goalId": "<goal id - required for all except new_goal>",
+      "goalTitle": "<goal title for display>",
+      "milestoneId": "<milestone id - required for milestone and task operations>",
+      "milestoneTitle": "<milestone title for display>",
+      "taskId": "<task id - only for edit_task>",
+      "taskTitle": "<current task title for display - only for edit_task>",
+      "changes": {
+        "title": "<new/improved title>",
+        "description": "<new/improved description if applicable>",
+        "why": "<new/improved why statement - only for goals>",
+        "targetDate": "<YYYY-MM-DD format if suggesting date>"
+      },
+      "reason": "<detailed explanation of why this change is important>",
+      "impact": "<specific, measurable expected benefit>"
+    }
+  ]
+}
+
+## DEEP ANALYSIS REQUIREMENTS - BE THOROUGH AND CRITICAL
+
+ANALYZE THESE ASPECTS:
+1. CLARITY: Are titles/descriptions vague? "work on X" should be "Complete Y by doing Z"
+2. MEASURABILITY: Can progress be tracked? Add specific metrics or deliverables
+3. SPECIFICITY: Generic tasks → concrete actions with clear outcomes
+4. COMPLETENESS: Are there missing steps between milestones? Gaps in the plan?
+5. ALIGNMENT: Does each item directly serve the life purpose?
+6. TIMELINE: Are dates realistic? Missing deadlines that should be set?
+7. BREAKDOWN: Are large items broken into manageable pieces?
+8. ACTIONABILITY: Do tasks start with strong action verbs?
+9. DEPENDENCIES: Should some items be reworded to show what comes first?
+10. MOTIVATION: Are "why" statements compelling and specific?
+
+SUGGESTION GUIDELINES:
+- Generate 8-15 DEEP, specific suggestions
+- Use EXACT goal, milestone, and task IDs from the data
+- BE CRITICAL - even well-written items can be improved
+- PRIORITIZE high-impact changes that will drive real progress
+
+SUGGESTION TYPES TO INCLUDE:
+* new_goal: Fill gaps in purpose coverage (be specific about what's missing)
+* edit_goal: 
+  - Strengthen weak "why" statements with emotional drivers
+  - Make titles more inspiring/specific
+  - Add missing descriptions that clarify the vision
+  - Suggest realistic target dates for undated goals
+* add_milestone:
+  - Break down large goals into 3-5 clear phases
+  - Add "quick win" milestones for motivation
+  - Add validation/review milestones
+* edit_milestone:
+  - Make milestones SMART (Specific, Measurable, Achievable, Relevant, Time-bound)
+  - Add success criteria to descriptions
+  - Clarify what "done" looks like
+* add_task:
+  - Add specific first actions to get started
+  - Include research/learning tasks where knowledge gaps exist
+  - Add review/reflection tasks
+  - Break complex tasks into smaller steps
+* edit_task:
+  - Transform vague tasks into specific actions
+  - Add context (who, what, where, when)
+  - Make tasks completable in one session
+  - Start with strong verbs: Create, Write, Call, Research, Design, Build, Review, Schedule
+
+QUALITY STANDARDS:
+- Every suggestion must have a SPECIFIC reason tied to purpose/progress
+- Impact should describe the tangible benefit
+- Changes should be immediately actionable
+- Prefer multiple smaller improvements over few large ones`
   }
 
   const runAnalysis = async () => {
@@ -304,6 +459,8 @@ Respond with this EXACT JSON (no markdown):
     setIsAnalyzing(true)
     setError(null)
     setAnalysis(null)
+    setAppliedSuggestions(new Set())
+    setDismissedSuggestions(new Set())
 
     try {
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -319,7 +476,7 @@ Respond with this EXACT JSON (no markdown):
             { role: "user", content: buildAnalysisPrompt() },
           ],
           temperature: 0.7,
-          max_tokens: 3500,
+          max_tokens: 4500,
         }),
       })
 
@@ -346,6 +503,109 @@ Respond with this EXACT JSON (no markdown):
   const getPriorityColor = (p: string) => p === "high" ? "bg-red-500 text-white" : p === "medium" ? "bg-amber-500 text-white" : "bg-blue-500 text-white"
   const getStatusColor = (s: string) => s === "on-track" ? "text-green-600 bg-green-500/10" : s === "at-risk" ? "text-amber-600 bg-amber-500/10" : "text-red-600 bg-red-500/10"
   const getRelColor = (r: string) => r === "supports" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" : r === "synergy" ? "bg-green-500/10 text-green-600 border-green-500/30" : "bg-red-500/10 text-red-600 border-red-500/30"
+  const getSuggestionTypeColor = (t: string) => {
+    switch (t) {
+      case "new_goal": return "bg-green-500 text-white"
+      case "add_milestone": return "bg-blue-500 text-white"
+      case "add_task": return "bg-cyan-500 text-white"
+      case "edit_goal": return "bg-amber-500 text-white"
+      case "edit_milestone": return "bg-orange-500 text-white"
+      case "edit_task": return "bg-purple-500 text-white"
+      default: return "bg-gray-500 text-white"
+    }
+  }
+  const getSuggestionTypeLabel = (t: string) => {
+    switch (t) {
+      case "new_goal": return "New Goal"
+      case "add_milestone": return "Add Milestone"
+      case "add_task": return "Add Task"
+      case "edit_goal": return "Edit Goal"
+      case "edit_milestone": return "Edit Milestone"
+      case "edit_task": return "Edit Task"
+      default: return t
+    }
+  }
+  const getSuggestionTypeIcon = (t: string) => {
+    switch (t) {
+      case "new_goal":
+      case "add_milestone":
+      case "add_task":
+        return Plus
+      default:
+        return Pencil
+    }
+  }
+
+  const applySuggestion = (suggestion: AISuggestion) => {
+    try {
+      switch (suggestion.type) {
+        case "edit_goal":
+          if (suggestion.goalId) {
+            const updates: Partial<{ title: string; description: string; why: string; targetDate: string }> = {}
+            if (suggestion.changes.title) updates.title = suggestion.changes.title
+            if (suggestion.changes.description) updates.description = suggestion.changes.description
+            if (suggestion.changes.why) updates.why = suggestion.changes.why
+            if (suggestion.changes.targetDate) updates.targetDate = suggestion.changes.targetDate
+            updateGoal(suggestion.goalId, updates)
+          }
+          break
+        case "add_milestone":
+          if (suggestion.goalId && suggestion.changes.title) {
+            addMilestone(suggestion.goalId, {
+              title: suggestion.changes.title,
+              description: suggestion.changes.description || "",
+              targetDate: suggestion.changes.targetDate || "",
+              completed: false,
+            })
+          }
+          break
+        case "edit_milestone":
+          if (suggestion.goalId && suggestion.milestoneId) {
+            const updates: Partial<{ title: string; description: string; targetDate: string }> = {}
+            if (suggestion.changes.title) updates.title = suggestion.changes.title
+            if (suggestion.changes.description) updates.description = suggestion.changes.description
+            if (suggestion.changes.targetDate) updates.targetDate = suggestion.changes.targetDate
+            updateMilestone(suggestion.goalId, suggestion.milestoneId, updates)
+          }
+          break
+        case "new_goal":
+          if (suggestion.changes.title) {
+            addGoal({
+              title: suggestion.changes.title,
+              description: suggestion.changes.description || "",
+              why: suggestion.changes.why || "",
+              targetDate: suggestion.changes.targetDate || "",
+              milestones: [],
+              tags: [],
+              showProgress: true,
+            })
+          }
+          break
+        case "add_task":
+          if (suggestion.goalId && suggestion.milestoneId && suggestion.changes.title) {
+            addTask(suggestion.goalId, suggestion.milestoneId, suggestion.changes.title)
+          }
+          break
+        case "edit_task":
+          if (suggestion.goalId && suggestion.milestoneId && suggestion.taskId && suggestion.changes.title) {
+            updateTask(suggestion.goalId, suggestion.milestoneId, suggestion.taskId, suggestion.changes.title)
+          }
+          break
+      }
+      setAppliedSuggestions(prev => new Set([...prev, suggestion.id]))
+    } catch (err) {
+      console.error("Failed to apply suggestion:", err)
+    }
+  }
+
+  const dismissSuggestion = (suggestionId: string) => {
+    setDismissedSuggestions(prev => new Set([...prev, suggestionId]))
+  }
+
+  const pendingSuggestions = useMemo(() => {
+    if (!analysis?.suggestions) return []
+    return analysis.suggestions.filter(s => !appliedSuggestions.has(s.id) && !dismissedSuggestions.has(s.id))
+  }, [analysis?.suggestions, appliedSuggestions, dismissedSuggestions])
 
   return (
     <div className="min-h-screen safe-area-top bg-gradient-to-b from-background to-muted/30">
@@ -418,13 +678,157 @@ Respond with this EXACT JSON (no markdown):
         {/* Analysis Results */}
         {analysis && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsList className="grid w-full grid-cols-6 mb-4">
+              <TabsTrigger value="suggestions" className="text-xs relative">
+                <Wand2 className="h-3 w-3 mr-1" />
+                Apply
+                {pendingSuggestions.length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    {pendingSuggestions.length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="purpose" className="text-xs">Purpose</TabsTrigger>
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
               <TabsTrigger value="insights" className="text-xs">Insights</TabsTrigger>
               <TabsTrigger value="actions" className="text-xs">Actions</TabsTrigger>
               <TabsTrigger value="strategy" className="text-xs">Strategy</TabsTrigger>
             </TabsList>
+
+            {/* SUGGESTIONS TAB */}
+            <TabsContent value="suggestions" className="space-y-4 mt-0">
+              <div className="rounded-xl border border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-blue-500/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wand2 className="h-5 w-5 text-purple-600" />
+                  <span className="text-sm font-semibold text-foreground">AI Suggestions</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Review and apply these suggestions to improve your goals and milestones. Changes are applied instantly when you click Accept.</p>
+              </div>
+
+              {/* Applied Suggestions Count */}
+              {appliedSuggestions.size > 0 && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-green-700 dark:text-green-400">{appliedSuggestions.size} suggestion{appliedSuggestions.size !== 1 ? "s" : ""} applied</span>
+                </div>
+              )}
+
+              {/* Pending Suggestions */}
+              {pendingSuggestions.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingSuggestions.map((suggestion) => {
+                    const TypeIcon = getSuggestionTypeIcon(suggestion.type)
+                    return (
+                    <div key={suggestion.id} className="rounded-xl border border-border bg-card p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge className={`${getSuggestionTypeColor(suggestion.type)} text-[10px] px-2 gap-1`}>
+                            <TypeIcon className="h-3 w-3" />
+                            {getSuggestionTypeLabel(suggestion.type)}
+                          </Badge>
+                          {suggestion.goalTitle && suggestion.type !== "new_goal" && (
+                            <span className="text-xs text-muted-foreground">
+                              on "{suggestion.goalTitle}"
+                            </span>
+                          )}
+                          {suggestion.milestoneTitle && (
+                            <span className="text-xs text-muted-foreground">
+                              → "{suggestion.milestoneTitle}"
+                            </span>
+                          )}
+                          {suggestion.taskTitle && (
+                            <span className="text-xs text-muted-foreground">
+                              → task "{suggestion.taskTitle}"
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* What will change */}
+                      <div className="space-y-2 mb-3">
+                        {suggestion.changes.title && (
+                          <div className="p-2 rounded-lg bg-muted/50">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                              {suggestion.type === "add_task" || suggestion.type === "edit_task" ? "Task" : 
+                               suggestion.type === "add_milestone" || suggestion.type === "edit_milestone" ? "Milestone" : "Title"}
+                            </p>
+                            <p className="text-sm font-medium text-foreground">{suggestion.changes.title}</p>
+                          </div>
+                        )}
+                        {suggestion.changes.description && (
+                          <div className="p-2 rounded-lg bg-muted/50">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Description</p>
+                            <p className="text-sm text-foreground">{suggestion.changes.description}</p>
+                          </div>
+                        )}
+                        {suggestion.changes.why && (
+                          <div className="p-2 rounded-lg bg-muted/50">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Why</p>
+                            <p className="text-sm text-foreground">{suggestion.changes.why}</p>
+                          </div>
+                        )}
+                        {suggestion.changes.targetDate && (
+                          <div className="p-2 rounded-lg bg-muted/50">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Target Date</p>
+                            <p className="text-sm text-foreground">{suggestion.changes.targetDate}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reason & Impact */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-start gap-2">
+                          <Lightbulb className="h-3.5 w-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-muted-foreground">{suggestion.reason}</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <TrendingUp className="h-3.5 w-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-green-700 dark:text-green-500">{suggestion.impact}</p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => applySuggestion(suggestion)}
+                          className="gap-1.5 bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Accept
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => dismissSuggestion(suggestion.id)}
+                          className="gap-1.5"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  )})}
+                
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                  {appliedSuggestions.size > 0 || dismissedSuggestions.size > 0 ? (
+                    <>
+                      <CheckCircle2 className="h-10 w-10 text-green-600/50 mx-auto mb-3" />
+                      <h3 className="text-sm font-semibold text-foreground mb-1">All Caught Up!</h3>
+                      <p className="text-xs text-muted-foreground">You've reviewed all suggestions. Run another analysis to get more.</p>
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-10 w-10 text-purple-600/50 mx-auto mb-3" />
+                      <h3 className="text-sm font-semibold text-foreground mb-1">No Suggestions Yet</h3>
+                      <p className="text-xs text-muted-foreground">Run an analysis to get AI-powered suggestions for improving your goals.</p>
+                    </>
+                  )}
+                </div>
+              )}
+            </TabsContent>
 
             {/* PURPOSE TAB */}
             <TabsContent value="purpose" className="space-y-4 mt-0">
