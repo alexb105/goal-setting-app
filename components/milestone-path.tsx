@@ -334,8 +334,11 @@ function SortableMilestoneItem({
   const strokeDashoffset = circumference - (taskProgress / 100) * circumference
 
   // Auto-complete/uncomplete milestone based on task completion
+  // Only applies to checkbox-style tasks - bullet-style tasks allow manual completion
   useEffect(() => {
-    if (regularTasks.length === 0) return
+    // Skip auto-completion for milestones with no tasks or bullet-style tasks
+    // Bullet-style milestones can be manually completed anytime
+    if (regularTasks.length === 0 || milestone.taskDisplayStyle === "bullet") return
 
     const allTasksCompleted = completedTasks === regularTasks.length
 
@@ -357,7 +360,7 @@ function SortableMilestoneItem({
       // Immediately uncheck the milestone
       onToggle()
     }
-  }, [completedTasks, regularTasks.length, milestone.completed, milestone.inProgress, canToggle, onToggle, onToggleInProgress])
+  }, [completedTasks, regularTasks.length, milestone.completed, milestone.inProgress, milestone.taskDisplayStyle, canToggle, onToggle, onToggleInProgress])
 
   return (
     <div ref={setNodeRef} style={style} className="relative flex gap-2 sm:gap-4">
@@ -509,7 +512,7 @@ function SortableMilestoneItem({
                         ? "Completed"
                         : formatDaysRemaining(daysUntilDue)}
                     </span>
-                    {regularTasks.length > 0 && (
+                    {regularTasks.length > 0 && milestone.taskDisplayStyle !== "bullet" && (
                       <span className="flex items-center gap-1 sm:gap-1.5">
                         <CheckSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
                         {completedTasks}/{regularTasks.length} tasks
