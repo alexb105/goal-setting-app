@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
-const STORAGE_KEY = "pathwise-life-purpose"
+const STORAGE_KEY = "goaladdict-life-purpose"
 
 export function LifePurpose() {
   const [lifePurpose, setLifePurpose] = useState("")

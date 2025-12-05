@@ -36,10 +36,10 @@ import { cn } from "@/lib/utils"
 import { useGoals } from "@/components/goals-context"
 import type { DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask } from "@/types"
 
-const STORAGE_KEY = "pathwise-daily-todos"
-const RECURRING_STORAGE_KEY = "pathwise-recurring-tasks"
-const PINNED_TASKS_STORAGE_KEY = "pathwise-pinned-milestone-tasks"
-const LAST_RESET_KEY = "pathwise-daily-todos-last-reset"
+const STORAGE_KEY = "goaladdict-daily-todos"
+const RECURRING_STORAGE_KEY = "goaladdict-recurring-tasks"
+const PINNED_TASKS_STORAGE_KEY = "goaladdict-pinned-milestone-tasks"
+const LAST_RESET_KEY = "goaladdict-daily-todos-last-reset"
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sun", fullLabel: "Sunday" },
@@ -80,7 +80,7 @@ function formatDays(days: number[]): string {
   return sortedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(", ")
 }
 
-const SCROLL_TO_MILESTONE_KEY = "pathwise-scroll-to-milestone"
+const SCROLL_TO_MILESTONE_KEY = "goaladdict-scroll-to-milestone"
 
 interface DailyTodoListProps {
   onNavigateToGoal?: (goalId: string, milestoneId?: string) => void

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import type { Goal, Milestone, Task, PinnedMilestoneTask } from "@/types"
 
-const PINNED_TASKS_STORAGE_KEY = "pathwise-pinned-milestone-tasks"
+const PINNED_TASKS_STORAGE_KEY = "goaladdict-pinned-milestone-tasks"
 import { useGoals } from "@/components/goals-context"
 import { EditMilestoneDialog } from "@/components/edit-milestone-dialog"
 import { AITaskSuggestions } from "@/components/ai-task-suggestions"

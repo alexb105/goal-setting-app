@@ -27,12 +27,12 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const exportData = {
       goals: goals,
       groupOrder: JSON.parse(localStorage.getItem("goal-group-order") || "[]"),
-      dailyTodos: JSON.parse(localStorage.getItem("pathwise-daily-todos") || "[]"),
-      dailyTodosLastReset: localStorage.getItem("pathwise-daily-todos-last-reset") || null,
-      recurringTasks: JSON.parse(localStorage.getItem("pathwise-recurring-tasks") || "[]"),
-      pinnedMilestoneTasks: JSON.parse(localStorage.getItem("pathwise-pinned-milestone-tasks") || "[]"),
-      lifePurpose: localStorage.getItem("pathwise-life-purpose") || null,
-      openaiApiKey: localStorage.getItem("pathwise-openai-api-key") || null,
+      dailyTodos: JSON.parse(localStorage.getItem("goaladdict-daily-todos") || "[]"),
+      dailyTodosLastReset: localStorage.getItem("goaladdict-daily-todos-last-reset") || null,
+      recurringTasks: JSON.parse(localStorage.getItem("goaladdict-recurring-tasks") || "[]"),
+      pinnedMilestoneTasks: JSON.parse(localStorage.getItem("goaladdict-pinned-milestone-tasks") || "[]"),
+      lifePurpose: localStorage.getItem("goaladdict-life-purpose") || null,
+      openaiApiKey: localStorage.getItem("goaladdict-openai-api-key") || null,
       exportedAt: new Date().toISOString(),
       version: "1.5",
     }
@@ -42,7 +42,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `pathwise-backup-${new Date().toISOString().split("T")[0]}.json`
+    link.download = `goaladdict-backup-${new Date().toISOString().split("T")[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -103,34 +103,34 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           // Import daily todos if present
           if (data.dailyTodos && Array.isArray(data.dailyTodos)) {
-            localStorage.setItem("pathwise-daily-todos", JSON.stringify(data.dailyTodos))
+            localStorage.setItem("goaladdict-daily-todos", JSON.stringify(data.dailyTodos))
           }
           
           // Import daily todos last reset date if present
           if (data.dailyTodosLastReset) {
-            localStorage.setItem("pathwise-daily-todos-last-reset", data.dailyTodosLastReset)
+            localStorage.setItem("goaladdict-daily-todos-last-reset", data.dailyTodosLastReset)
           }
 
           // Import recurring tasks if present
           if (data.recurringTasks && Array.isArray(data.recurringTasks)) {
-            localStorage.setItem("pathwise-recurring-tasks", JSON.stringify(data.recurringTasks))
+            localStorage.setItem("goaladdict-recurring-tasks", JSON.stringify(data.recurringTasks))
           }
 
           // Import pinned milestone tasks if present
           if (data.pinnedMilestoneTasks && Array.isArray(data.pinnedMilestoneTasks)) {
-            localStorage.setItem("pathwise-pinned-milestone-tasks", JSON.stringify(data.pinnedMilestoneTasks))
+            localStorage.setItem("goaladdict-pinned-milestone-tasks", JSON.stringify(data.pinnedMilestoneTasks))
           }
 
           // Import life purpose if present
           if (data.lifePurpose) {
-            localStorage.setItem("pathwise-life-purpose", data.lifePurpose)
+            localStorage.setItem("goaladdict-life-purpose", data.lifePurpose)
           } else {
-            localStorage.removeItem("pathwise-life-purpose")
+            localStorage.removeItem("goaladdict-life-purpose")
           }
 
           // Import OpenAI API key if present
           if (data.openaiApiKey) {
-            localStorage.setItem("pathwise-openai-api-key", data.openaiApiKey)
+            localStorage.setItem("goaladdict-openai-api-key", data.openaiApiKey)
           }
 
           // Reload page to apply changes

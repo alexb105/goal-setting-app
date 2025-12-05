@@ -15,12 +15,12 @@ import { isMilestoneOverdue, isMilestoneDueSoon } from "@/utils/date"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-const API_KEY_STORAGE = "pathwise-openai-api-key"
-const LIFE_PURPOSE_STORAGE = "pathwise-life-purpose"
-const AI_ANALYSIS_STORAGE = "pathwise-ai-analysis"
-const AI_APPLIED_SUGGESTIONS = "pathwise-ai-applied-suggestions"
-const AI_DISMISSED_SUGGESTIONS = "pathwise-ai-dismissed-suggestions"
-const PINNED_INSIGHTS_STORAGE = "pathwise-pinned-insights"
+const API_KEY_STORAGE = "goaladdict-openai-api-key"
+const LIFE_PURPOSE_STORAGE = "goaladdict-life-purpose"
+const AI_ANALYSIS_STORAGE = "goaladdict-ai-analysis"
+const AI_APPLIED_SUGGESTIONS = "goaladdict-ai-applied-suggestions"
+const AI_DISMISSED_SUGGESTIONS = "goaladdict-ai-dismissed-suggestions"
+const PINNED_INSIGHTS_STORAGE = "goaladdict-pinned-insights"
 
 // Life Purpose Area - key areas needed to achieve purpose
 interface PurposeArea {

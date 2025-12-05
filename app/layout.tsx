@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Pathwise - Long-Term Goal Planner",
+  title: "GoalAddict - Long-Term Goal Planner",
   description: "Set long-term goals and build a clear path to achieve them",
   generator: "v0.app",
 }

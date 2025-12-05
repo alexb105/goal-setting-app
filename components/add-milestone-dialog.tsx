@@ -16,7 +16,7 @@ import { DateQuickSelect } from "@/components/shared/date-quick-select"
 import { Sparkles, RefreshCw, CheckCircle2, Lightbulb } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-const API_KEY_STORAGE = "pathwise-openai-api-key"
+const API_KEY_STORAGE = "goaladdict-openai-api-key"
 
 interface SuggestedMilestone {
   title: string

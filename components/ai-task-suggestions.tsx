@@ -9,7 +9,7 @@ import { Sparkles, RefreshCw, Plus, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Goal, Milestone } from "@/types"
 
-const API_KEY_STORAGE = "pathwise-openai-api-key"
+const API_KEY_STORAGE = "goaladdict-openai-api-key"
 
 interface SuggestedTask {
   title: string

@@ -11,7 +11,7 @@ export const PASTEL_COLORS = [
   { name: "Sky", value: "#D6F5FF" },
 ] as const
 
-export const STORAGE_KEY = "pathwise-goals"
+export const STORAGE_KEY = "goaladdict-goals"
 
 export const PRIORITY_COLORS: Record<number, string> = {
   0: "bg-gray-400 hover:bg-gray-500",

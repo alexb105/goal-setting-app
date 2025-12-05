@@ -48,11 +48,40 @@ interface GoalsContextType {
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined)
 
+// Migration function to move data from old "pathwise-" keys to new "goaladdict-" keys
+function migrateLocalStorageKeys() {
+  const migrations = [
+    { old: "pathwise-goals", new: "goaladdict-goals" },
+    { old: "pathwise-daily-todos", new: "goaladdict-daily-todos" },
+    { old: "pathwise-daily-todos-last-reset", new: "goaladdict-daily-todos-last-reset" },
+    { old: "pathwise-recurring-tasks", new: "goaladdict-recurring-tasks" },
+    { old: "pathwise-pinned-milestone-tasks", new: "goaladdict-pinned-milestone-tasks" },
+    { old: "pathwise-life-purpose", new: "goaladdict-life-purpose" },
+    { old: "pathwise-openai-api-key", new: "goaladdict-openai-api-key" },
+    { old: "pathwise-ai-analysis", new: "goaladdict-ai-analysis" },
+    { old: "pathwise-ai-applied-suggestions", new: "goaladdict-ai-applied-suggestions" },
+    { old: "pathwise-ai-dismissed-suggestions", new: "goaladdict-ai-dismissed-suggestions" },
+    { old: "pathwise-pinned-insights", new: "goaladdict-pinned-insights" },
+    { old: "pathwise-scroll-to-milestone", new: "goaladdict-scroll-to-milestone" },
+  ]
+
+  migrations.forEach(({ old: oldKey, new: newKey }) => {
+    const oldValue = localStorage.getItem(oldKey)
+    if (oldValue && !localStorage.getItem(newKey)) {
+      localStorage.setItem(newKey, oldValue)
+      localStorage.removeItem(oldKey)
+    }
+  })
+}
+
 export function GoalsProvider({ children }: { children: ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>([])
   const hasLoadedFromStorage = useRef(false)
 
   useEffect(() => {
+    // Migrate old localStorage keys to new ones (one-time migration)
+    migrateLocalStorageKeys()
+    
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       const parsedGoals: Goal[] = JSON.parse(stored)

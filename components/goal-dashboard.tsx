@@ -833,7 +833,7 @@ export function GoalDashboard() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
                 <Target className="h-5 w-5 text-primary-foreground" />
               </div>
-              <h1 className="text-lg font-bold text-foreground">Pathwise</h1>
+              <h1 className="text-lg font-bold text-foreground">GoalAddict</h1>
             </div>
 
             {/* Desktop Navigation */}

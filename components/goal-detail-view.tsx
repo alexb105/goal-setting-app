@@ -28,8 +28,8 @@ import { RecurringTasks } from "@/components/recurring-tasks"
 import { useGoalDate } from "@/hooks/use-goal-date"
 import { calculateProgress, getNegativelyImpactedBy, getNegativelyImpacts, getSupportingGoals } from "@/utils/goals"
 
-const PINNED_INSIGHTS_STORAGE = "pathwise-pinned-insights"
-const SCROLL_TO_MILESTONE_KEY = "pathwise-scroll-to-milestone"
+const PINNED_INSIGHTS_STORAGE = "goaladdict-pinned-insights"
+const SCROLL_TO_MILESTONE_KEY = "goaladdict-scroll-to-milestone"
 
 interface GoalDetailViewProps {
   goal: Goal
