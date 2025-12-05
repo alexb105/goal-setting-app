@@ -53,6 +53,17 @@ export interface Milestone {
   taskDisplayStyle?: "checkbox" | "bullet" // How to display tasks: checkbox or bullet point
 }
 
+export interface PinnedInsight {
+  id: string
+  goalId: string // The goal this insight is pinned to
+  blockerGoalId: string // The blocking goal
+  blockerGoalTitle: string
+  howItImpacts: string
+  whatYouLose: string
+  unlockPotential: string
+  pinnedAt: string // ISO date string
+}
+
 export interface Goal {
   id: string
   title: string
@@ -66,6 +77,7 @@ export interface Goal {
   color?: string // Pastel color for the goal card background
   showProgress?: boolean // If false, hide progress bar and milestone tracking
   negativeImpactOn?: string[] // Array of goal IDs that will be negatively impacted if this goal is not completed
+  negativeImpactOnAll?: boolean // If true, this goal impacts ALL other goals (current and future)
   priority?: number // Priority number for sorting goals (higher number = higher priority)
   group?: string // Optional group name to organize goals
   order?: number // Manual order for goals within their group

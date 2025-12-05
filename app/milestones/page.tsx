@@ -79,29 +79,29 @@ export default function MilestonesPage() {
 
       // Status filter (only for active milestones)
       if (viewTab === "active") {
-        const isOverdue = isMilestoneOverdue(milestone)
-        const isDueSoon = isMilestoneDueSoon(milestone)
+      const isOverdue = isMilestoneOverdue(milestone)
+      const isDueSoon = isMilestoneDueSoon(milestone)
 
-        // By default ("all"), hide completed milestones
-        if (statusFilter === "all") {
-          if (milestone.completed) return false
-        } else {
-          switch (statusFilter) {
-            case "in-progress":
-              if (!milestone.inProgress || milestone.completed) return false
-              break
-            case "completed":
-              if (!milestone.completed) return false
-              break
-            case "overdue":
-              if (!isOverdue) return false
-              break
-            case "due-soon":
-              if (!isDueSoon || milestone.completed) return false
-              break
-            case "pending":
-              if (milestone.completed || milestone.inProgress) return false
-              break
+      // By default ("all"), hide completed milestones
+      if (statusFilter === "all") {
+        if (milestone.completed) return false
+      } else {
+        switch (statusFilter) {
+          case "in-progress":
+            if (!milestone.inProgress || milestone.completed) return false
+            break
+          case "completed":
+            if (!milestone.completed) return false
+            break
+          case "overdue":
+            if (!isOverdue) return false
+            break
+          case "due-soon":
+            if (!isDueSoon || milestone.completed) return false
+            break
+          case "pending":
+            if (milestone.completed || milestone.inProgress) return false
+            break
           }
         }
       }
@@ -167,8 +167,8 @@ export default function MilestonesPage() {
                   {viewTab === "archived" 
                     ? `${sortedMilestones.length} archived milestone${sortedMilestones.length !== 1 ? "s" : ""}`
                     : statusFilter === "completed" 
-                      ? `${sortedMilestones.length} completed milestone${sortedMilestones.length !== 1 ? "s" : ""}`
-                      : `${sortedMilestones.length} of ${activeMilestonesCount} active milestone${activeMilestonesCount !== 1 ? "s" : ""}`
+                    ? `${sortedMilestones.length} completed milestone${sortedMilestones.length !== 1 ? "s" : ""}`
+                    : `${sortedMilestones.length} of ${activeMilestonesCount} active milestone${activeMilestonesCount !== 1 ? "s" : ""}`
                   }
                   {hasActiveFilters && viewTab === "active" && statusFilter !== "completed" && " (filtered)"}
                 </p>
@@ -204,67 +204,67 @@ export default function MilestonesPage() {
 
           {/* Filters - Only show for active tab */}
           {viewTab === "active" && (
-            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline">Filters:</span>
-              </div>
-
-              {/* Group Filter */}
-              <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                  <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                  <SelectValue placeholder="All Groups" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Groups</SelectItem>
-                  <SelectItem value="ungrouped">Ungrouped</SelectItem>
-                  {allGroups.map((group) => (
-                    <SelectItem key={group} value={group}>
-                      {group}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                  <SelectValue placeholder="Active" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Active</SelectItem>
-                  <SelectItem value="in-progress">
-                    <span className="flex items-center gap-2">
-                      <Play className="h-3 w-3 fill-current text-amber-500" />
-                      In Progress
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="due-soon">Due Soon</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="completed">
-                    <span className="flex items-center gap-2">
-                      <CheckCircle2 className="h-3 w-3 text-green-600" />
-                      Completed
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Clear Filters */}
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="hidden sm:inline">Clear</span>
-                </Button>
-              )}
+          <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span className="hidden sm:inline">Filters:</span>
             </div>
+
+            {/* Group Filter */}
+            <Select value={groupFilter} onValueChange={setGroupFilter}>
+              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
+                <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
+                <SelectValue placeholder="All Groups" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Groups</SelectItem>
+                <SelectItem value="ungrouped">Ungrouped</SelectItem>
+                {allGroups.map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {group}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
+                <SelectValue placeholder="Active" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Active</SelectItem>
+                <SelectItem value="in-progress">
+                  <span className="flex items-center gap-2">
+                    <Play className="h-3 w-3 fill-current text-amber-500" />
+                    In Progress
+                  </span>
+                </SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="due-soon">Due Soon</SelectItem>
+                <SelectItem value="overdue">Overdue</SelectItem>
+                <SelectItem value="completed">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    Completed
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
+              >
+                <X className="h-4 w-4" />
+                <span className="hidden sm:inline">Clear</span>
+              </Button>
+            )}
+          </div>
           )}
         </div>
       </header>
@@ -276,7 +276,7 @@ export default function MilestonesPage() {
               {viewTab === "archived" ? (
                 <Archive className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
               ) : (
-                <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
               )}
             </div>
             <h3 className="mb-2 text-base sm:text-lg font-semibold text-foreground text-center">
@@ -303,14 +303,14 @@ export default function MilestonesPage() {
                     milestone.archived
                       ? "border-border/50 bg-muted/30 opacity-80"
                       : milestone.completed
-                        ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
-                        : milestone.inProgress
-                          ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:shadow-amber-500/5"
-                          : isOverdue
-                            ? "border-destructive/50 bg-destructive/5 hover:border-destructive hover:shadow-destructive/5"
-                            : isDueSoon
-                              ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500 hover:shadow-orange-500/5"
-                              : "border-border bg-card hover:border-primary/30 hover:shadow-primary/5"
+                      ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
+                      : milestone.inProgress
+                        ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:shadow-amber-500/5"
+                        : isOverdue
+                          ? "border-destructive/50 bg-destructive/5 hover:border-destructive hover:shadow-destructive/5"
+                          : isDueSoon
+                            ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500 hover:shadow-orange-500/5"
+                            : "border-border bg-card hover:border-primary/30 hover:shadow-primary/5"
                   }`}
                 >
                   <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
@@ -430,30 +430,30 @@ export default function MilestonesPage() {
                   </div>
 
                   <div className="cursor-pointer" onClick={() => setSelectedGoalId(goal.id)}>
-                    <h3 className="mb-1 text-sm sm:text-lg font-semibold text-foreground line-clamp-2 sm:line-clamp-1">{milestone.title}</h3>
-                    {milestone.description && (
-                      <p className="mb-2 sm:mb-3 text-xs sm:text-sm text-muted-foreground line-clamp-2">{milestone.description}</p>
-                    )}
+                  <h3 className="mb-1 text-sm sm:text-lg font-semibold text-foreground line-clamp-2 sm:line-clamp-1">{milestone.title}</h3>
+                  {milestone.description && (
+                    <p className="mb-2 sm:mb-3 text-xs sm:text-sm text-muted-foreground line-clamp-2">{milestone.description}</p>
+                  )}
 
-                    <div className="mt-auto pt-2 sm:pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
-                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground hidden sm:inline">From:</span>
-                        <span className="font-medium text-foreground truncate">{goal.title}</span>
+                  <div className="mt-auto pt-2 sm:pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
+                      <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground hidden sm:inline">From:</span>
+                      <span className="font-medium text-foreground truncate">{goal.title}</span>
+                    </div>
+                    {milestone.targetDate ? (
+                      <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                        <span>
+                          {new Date(milestone.targetDate).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
                       </div>
-                      {milestone.targetDate ? (
-                        <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                          <span>
-                            {new Date(milestone.targetDate).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] sm:text-xs text-muted-foreground">No date</span>
-                      )}
+                    ) : (
+                      <span className="text-[11px] sm:text-xs text-muted-foreground">No date</span>
+                    )}
                     </div>
                   </div>
                 </div>

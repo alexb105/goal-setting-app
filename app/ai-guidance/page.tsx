@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, Key, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, Star, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot, Pencil, Plus, Check, X, Wand2 } from "lucide-react"
+import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, Key, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, Star, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot, Pencil, Plus, Check, X, Wand2, Pin, PinOff } from "lucide-react"
+import type { PinnedInsight } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +20,7 @@ const LIFE_PURPOSE_STORAGE = "pathwise-life-purpose"
 const AI_ANALYSIS_STORAGE = "pathwise-ai-analysis"
 const AI_APPLIED_SUGGESTIONS = "pathwise-ai-applied-suggestions"
 const AI_DISMISSED_SUGGESTIONS = "pathwise-ai-dismissed-suggestions"
+const PINNED_INSIGHTS_STORAGE = "pathwise-pinned-insights"
 
 // Life Purpose Area - key areas needed to achieve purpose
 interface PurposeArea {
@@ -90,6 +92,21 @@ interface AISuggestion {
   impact: string
 }
 
+interface DependencyImpact {
+  blockingGoal: string // The goal that's blocking others
+  blockingGoalId: string
+  whyItMatters: string // Why this blocking goal is important to address
+  impactedGoals: {
+    goalTitle: string
+    goalId: string
+    howItImpacts: string // Specific explanation of how it impacts this goal
+    whatYouLose: string // What progress/benefits you're missing out on
+    unlockPotential: string // What completing the blocker would unlock
+  }[]
+  actionPlan: string[] // Specific steps to address the blocking goal
+  urgencyLevel: "critical" | "high" | "medium"
+}
+
 interface AnalysisResult {
   // Life Purpose Breakdown
   purposeSummary: string
@@ -108,6 +125,9 @@ interface AnalysisResult {
   alignmentItems: AlignmentItem[]
   goalConnections: GoalConnection[]
   timelineInsights: TimelineInsight[]
+  
+  // Dependency Impact Analysis
+  dependencyImpacts: DependencyImpact[]
   
   // Recommendations
   weeklyFocus: WeeklyFocus[]
@@ -149,6 +169,7 @@ export default function AIGuidancePage() {
   const [activeTab, setActiveTab] = useState("suggestions")
   const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set())
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
+  const [pinnedInsights, setPinnedInsights] = useState<PinnedInsight[]>([])
   const [dataLoaded, setDataLoaded] = useState(false)
 
   useEffect(() => {
@@ -186,6 +207,14 @@ export default function AIGuidancePage() {
         // Ignore parse errors
       }
     }
+    const storedPinned = localStorage.getItem(PINNED_INSIGHTS_STORAGE)
+    if (storedPinned) {
+      try {
+        setPinnedInsights(JSON.parse(storedPinned))
+      } catch {
+        // Ignore parse errors
+      }
+    }
     setDataLoaded(true)
   }, [])
 
@@ -208,6 +237,41 @@ export default function AIGuidancePage() {
     if (!dataLoaded) return
     localStorage.setItem(AI_DISMISSED_SUGGESTIONS, JSON.stringify([...dismissedSuggestions]))
   }, [dismissedSuggestions, dataLoaded])
+
+  // Persist pinned insights to localStorage
+  useEffect(() => {
+    if (!dataLoaded) return
+    localStorage.setItem(PINNED_INSIGHTS_STORAGE, JSON.stringify(pinnedInsights))
+  }, [pinnedInsights, dataLoaded])
+
+  const pinInsight = (
+    goalId: string,
+    blockerGoalId: string,
+    blockerGoalTitle: string,
+    howItImpacts: string,
+    whatYouLose: string,
+    unlockPotential: string
+  ) => {
+    const newInsight: PinnedInsight = {
+      id: `${goalId}-${blockerGoalId}-${Date.now()}`,
+      goalId,
+      blockerGoalId,
+      blockerGoalTitle,
+      howItImpacts,
+      whatYouLose,
+      unlockPotential,
+      pinnedAt: new Date().toISOString()
+    }
+    setPinnedInsights(prev => [...prev, newInsight])
+  }
+
+  const unpinInsight = (goalId: string, blockerGoalId: string) => {
+    setPinnedInsights(prev => prev.filter(p => !(p.goalId === goalId && p.blockerGoalId === blockerGoalId)))
+  }
+
+  const isInsightPinned = (goalId: string, blockerGoalId: string) => {
+    return pinnedInsights.some(p => p.goalId === goalId && p.blockerGoalId === blockerGoalId)
+  }
 
   const activeGoals = useMemo(() => {
     return goals.filter((goal) => !isGoalCompleted(goal) && !goal.archived)
@@ -260,6 +324,8 @@ export default function AIGuidancePage() {
       priority: goal.priority || 0,
       tags: goal.tags,
       group: goal.group,
+      negativeImpactOnAll: goal.negativeImpactOnAll || false,
+      negativeImpactOn: goal.negativeImpactOn || [],
       milestones: goal.milestones.map((m) => ({
         id: m.id,
         title: m.title,
@@ -280,7 +346,24 @@ export default function AIGuidancePage() {
       })) || [],
     }))
 
+    // Build dependency info for the AI
+    const dependencyInfo = activeGoals
+      .filter(g => g.negativeImpactOnAll || (g.negativeImpactOn && g.negativeImpactOn.length > 0))
+      .map(g => {
+        const impactedGoalTitles = g.negativeImpactOnAll 
+          ? activeGoals.filter(og => og.id !== g.id).map(og => og.title)
+          : (g.negativeImpactOn || []).map(id => goals.find(og => og.id === id)?.title).filter(Boolean)
+        return {
+          blockingGoal: g.title,
+          blockingGoalId: g.id,
+          impactsAll: g.negativeImpactOnAll,
+          impactedGoals: impactedGoalTitles,
+          progress: calculateProgress(g)
+        }
+      })
+
     const hasGoals = activeGoals.length > 0
+    const hasDependencies = dependencyInfo.length > 0
 
     return `You are an expert life coach and strategic planner. Your task is to THOROUGHLY DISSECT the life purpose statement and identify ALL the key areas needed to achieve it.
 
@@ -294,6 +377,24 @@ ${hasGoals ? JSON.stringify(goalsData, null, 2) : "NO GOALS YET - User needs hel
 - Completed Goals: ${completedGoals.length}
 - Late Milestones: ${lateMilestones.length}
 - Average Progress: ${averageProgress}%
+
+${hasDependencies ? `## GOAL DEPENDENCIES (CRITICAL - ANALYZE ALL OF THESE)
+The user has marked certain goals as "blocking" other goals - meaning if these aren't completed, other goals will be negatively impacted. 
+
+**IMPORTANT: You MUST analyze EVERY SINGLE impacted goal - do not skip any or provide only a sample!**
+
+${JSON.stringify(dependencyInfo, null, 2)}
+
+For EACH blocking goal, you must explain:
+1. WHY this goal matters for ALL the impacted goals (psychological, practical, foundational reasons)
+2. For EVERY impacted goal (list them ALL, not just 2-3):
+   - HOW specifically the blocker is holding back THIS specific goal
+   - WHAT progress/benefits are being lost
+   - WHAT will unlock once the blocker is resolved
+3. SPECIFIC action steps to address the blocking goal (3-5 steps)
+
+**DO NOT TRUNCATE OR SAMPLE - Include analysis for EVERY goal in the impactedGoals list!**
+` : ''}
 
 ${!hasGoals ? `
 ## SPECIAL INSTRUCTION: NO GOALS EXIST
@@ -359,6 +460,28 @@ Respond with this EXACT JSON (no markdown):
   
   "timelineInsights": [
     {"goal": "<title>", "status": "on-track|at-risk|behind", "recommendation": "<action>"}
+  ],
+  
+  "dependencyImpacts": [
+    {
+      "blockingGoal": "<title of the blocking goal>",
+      "blockingGoalId": "<id of blocking goal>",
+      "whyItMatters": "<deep psychological/practical explanation of why this blocker is important - be specific about the underlying issue>",
+      "impactedGoals": [
+        // **INCLUDE ALL IMPACTED GOALS - DO NOT TRUNCATE OR SAMPLE!**
+        // If a goal impacts 9 goals, list all 9 with unique analysis for each
+        {
+          "goalTitle": "<title of impacted goal>",
+          "goalId": "<id>",
+          "howItImpacts": "<SPECIFIC to THIS goal - how the blocker affects it>",
+          "whatYouLose": "<SPECIFIC to THIS goal - what progress is being lost>",
+          "unlockPotential": "<SPECIFIC to THIS goal - what benefits unlock>"
+        }
+        // ... repeat for EVERY impacted goal, no exceptions
+      ],
+      "actionPlan": ["<step 1>", "<step 2>", "<step 3>", "<step 4>", "<step 5>"],
+      "urgencyLevel": "critical|high|medium"
+    }
   ],
   
   "weeklyFocus": [
@@ -488,7 +611,7 @@ QUALITY STANDARDS:
             { role: "user", content: buildAnalysisPrompt() },
           ],
           temperature: 0.7,
-          max_tokens: 4500,
+          max_tokens: 8000,
         }),
       })
 
@@ -690,7 +813,7 @@ QUALITY STANDARDS:
         {/* Analysis Results */}
         {analysis && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 mb-4">
+            <TabsList className="grid w-full grid-cols-7 mb-4">
               <TabsTrigger value="suggestions" className="text-xs relative">
                 <Wand2 className="h-3 w-3 mr-1" />
                 Apply
@@ -702,6 +825,7 @@ QUALITY STANDARDS:
               </TabsTrigger>
               <TabsTrigger value="purpose" className="text-xs">Purpose</TabsTrigger>
               <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+              <TabsTrigger value="impact" className="text-xs">Impact</TabsTrigger>
               <TabsTrigger value="insights" className="text-xs">Insights</TabsTrigger>
               <TabsTrigger value="actions" className="text-xs">Actions</TabsTrigger>
               <TabsTrigger value="strategy" className="text-xs">Strategy</TabsTrigger>
@@ -1031,6 +1155,292 @@ QUALITY STANDARDS:
                   <p className="text-sm text-foreground">{analysis.encouragement}</p>
                 </div>
               </div>
+            </TabsContent>
+
+            {/* IMPACT TAB - Goal Dependencies */}
+            <TabsContent value="impact" className="space-y-4 mt-0">
+              {(() => {
+                // Find goals that impact other goals
+                const impactingGoals = goals.filter(g => 
+                  !g.archived && ((g.negativeImpactOn && g.negativeImpactOn.length > 0) || g.negativeImpactOnAll)
+                )
+                
+                // Find goals that are being impacted
+                const impactedGoalIds = new Set<string>()
+                const impactMap: Record<string, { impactedBy: { id: string; title: string; isAll: boolean }[] }> = {}
+                
+                impactingGoals.forEach(g => {
+                  if (g.negativeImpactOnAll) {
+                    // This goal impacts all other goals
+                    goals.filter(og => og.id !== g.id && !og.archived).forEach(og => {
+                      impactedGoalIds.add(og.id)
+                      if (!impactMap[og.id]) impactMap[og.id] = { impactedBy: [] }
+                      impactMap[og.id].impactedBy.push({ id: g.id, title: g.title, isAll: true })
+                    })
+                  } else if (g.negativeImpactOn) {
+                    g.negativeImpactOn.forEach(impactedId => {
+                      impactedGoalIds.add(impactedId)
+                      if (!impactMap[impactedId]) impactMap[impactedId] = { impactedBy: [] }
+                      impactMap[impactedId].impactedBy.push({ id: g.id, title: g.title, isAll: false })
+                    })
+                  }
+                })
+                
+                const impactedGoals = goals.filter(g => impactedGoalIds.has(g.id) && !g.archived)
+                
+                // Calculate impact scores
+                const incompleteImpactingGoals = impactingGoals.filter(g => !isGoalCompleted(g))
+                const atRiskGoals = impactedGoals.filter(g => {
+                  const blockers = impactMap[g.id]?.impactedBy || []
+                  return blockers.some(b => {
+                    const blockerGoal = goals.find(bg => bg.id === b.id)
+                    return blockerGoal && !isGoalCompleted(blockerGoal)
+                  })
+                })
+                
+                return (
+                  <>
+                    {/* Impact Overview */}
+                    <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-red-500/10 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        <span className="text-sm font-semibold text-foreground">Goal Dependencies Impact</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Analyze how your goal dependencies are affecting your overall progress. Goals marked as having negative impact on others create pressure to complete them first.
+                      </p>
+                    </div>
+                    
+                    {/* Impact Stats */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-xl border border-border bg-card p-3 text-center">
+                        <AlertTriangle className={`h-5 w-5 mx-auto mb-1 ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-muted-foreground'}`} />
+                        <p className={`text-xl font-bold ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-foreground'}`}>
+                          {incompleteImpactingGoals.length}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">Blocking Goals</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-card p-3 text-center">
+                        <Target className={`h-5 w-5 mx-auto mb-1 ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-muted-foreground'}`} />
+                        <p className={`text-xl font-bold ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-foreground'}`}>
+                          {atRiskGoals.length}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">At Risk Goals</p>
+                      </div>
+                      <div className="rounded-xl border border-border bg-card p-3 text-center">
+                        <Link2 className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+                        <p className="text-xl font-bold text-blue-600">{Object.keys(impactMap).length}</p>
+                        <p className="text-[10px] text-muted-foreground">Dependencies</p>
+                      </div>
+                    </div>
+
+                    {/* AI-Powered Dependency Analysis */}
+                    {analysis?.dependencyImpacts && analysis.dependencyImpacts.length > 0 ? (
+                      <div className="space-y-4">
+                        {analysis.dependencyImpacts.map((impact, idx) => (
+                          <div key={idx} className="rounded-xl border-2 border-red-500/50 bg-gradient-to-br from-red-500/5 to-amber-500/5 p-4">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle className={`h-5 w-5 ${impact.urgencyLevel === 'critical' ? 'text-red-600' : impact.urgencyLevel === 'high' ? 'text-amber-600' : 'text-yellow-600'}`} />
+                                <span className="text-sm font-semibold text-foreground">{impact.blockingGoal}</span>
+                              </div>
+                              <Badge className={`text-[10px] ${impact.urgencyLevel === 'critical' ? 'bg-red-500' : impact.urgencyLevel === 'high' ? 'bg-amber-500' : 'bg-yellow-500'} text-white`}>
+                                {impact.urgencyLevel}
+                              </Badge>
+                            </div>
+
+                            {/* Why It Matters */}
+                            <div className="p-3 rounded-lg bg-background/50 mb-4">
+                              <div className="flex items-start gap-2">
+                                <Brain className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide mb-1">Why This Matters</p>
+                                  <p className="text-sm text-foreground">{impact.whyItMatters}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* How It Impacts Each Goal */}
+                            <div className="mb-4">
+                              <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
+                                <Target className="h-4 w-4 text-red-600" />
+                                Impact on Your Goals
+                              </p>
+                              <div className="space-y-3">
+                                {impact.impactedGoals.map((impacted, i) => {
+                                  const isPinned = isInsightPinned(impacted.goalId, impact.blockingGoalId)
+                                  return (
+                                  <div key={i} className="p-3 rounded-lg bg-background border border-red-500/20">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <p className="text-sm font-medium text-foreground">{impacted.goalTitle}</p>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={`h-7 w-7 p-0 ${isPinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                        onClick={() => {
+                                          if (isPinned) {
+                                            unpinInsight(impacted.goalId, impact.blockingGoalId)
+                                          } else {
+                                            pinInsight(
+                                              impacted.goalId,
+                                              impact.blockingGoalId,
+                                              impact.blockingGoal,
+                                              impacted.howItImpacts,
+                                              impacted.whatYouLose,
+                                              impacted.unlockPotential
+                                            )
+                                          }
+                                        }}
+                                        title={isPinned ? "Unpin from goal page" : "Pin to goal page"}
+                                      >
+                                        {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                                      </Button>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-start gap-2">
+                                        <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-[10px] text-red-600 font-medium uppercase">How It's Blocking</p>
+                                          <p className="text-xs text-foreground">{impacted.howItImpacts}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <ArrowRight className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-[10px] text-amber-600 font-medium uppercase">What You're Losing</p>
+                                          <p className="text-xs text-foreground">{impacted.whatYouLose}</p>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <Zap className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                                        <div>
+                                          <p className="text-[10px] text-green-600 font-medium uppercase">What Gets Unlocked</p>
+                                          <p className="text-xs text-foreground">{impacted.unlockPotential}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {isPinned && (
+                                      <div className="mt-2 pt-2 border-t border-border">
+                                        <p className="text-[10px] text-primary flex items-center gap-1">
+                                          <Pin className="h-3 w-3" />
+                                          Pinned to goal page
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )})}
+                              </div>
+                            </div>
+
+                            {/* Action Plan */}
+                            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                              <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
+                                <Rocket className="h-4 w-4" />
+                                Action Plan
+                              </p>
+                              <div className="space-y-1.5">
+                                {impact.actionPlan.map((step, i) => (
+                                  <div key={i} className="flex items-start gap-2">
+                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-[10px] flex items-center justify-center font-bold">
+                                      {i + 1}
+                                    </span>
+                                    <p className="text-sm text-foreground">{step}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : impactingGoals.length > 0 && !analysis ? (
+                      <div className="rounded-xl border border-dashed border-purple-500/50 bg-purple-500/5 p-4 text-center">
+                        <Brain className="h-8 w-8 text-purple-600/50 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-foreground mb-1">Get AI-Powered Impact Analysis</p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Run an AI analysis to understand exactly HOW your blocking goals are affecting your progress and get a personalized action plan.
+                        </p>
+                        <Button onClick={runAnalysis} disabled={isAnalyzing} size="sm" className="gap-2">
+                          <Sparkles className="h-4 w-4" />
+                          Analyze Dependencies
+                        </Button>
+                      </div>
+                    ) : null}
+                    
+                    {/* Blocking Goals - Goals that impact others */}
+                    {incompleteImpactingGoals.length > 0 ? (
+                      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertTriangle className="h-5 w-5 text-amber-600" />
+                          <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                            Priority: Complete These First
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          These incomplete goals are blocking progress on other goals. Focus on completing these to unblock your progress.
+                        </p>
+                        <div className="space-y-3">
+                          {incompleteImpactingGoals.map((goal) => {
+                            const progress = calculateProgress(goal)
+                            const impactCount = goal.negativeImpactOnAll 
+                              ? goals.filter(g => g.id !== goal.id && !g.archived).length
+                              : (goal.negativeImpactOn?.length || 0)
+                            
+                            return (
+                              <div key={goal.id} className="p-3 rounded-lg bg-background border border-amber-500/30">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-foreground">{goal.title}</span>
+                                    {goal.negativeImpactOnAll && (
+                                      <Badge className="bg-red-500 text-white text-[10px]">Impacts All</Badge>
+                                    )}
+                                  </div>
+                                  <span className={`text-sm font-bold ${getScoreColor(progress)}`}>{progress}%</span>
+                                </div>
+                                <Progress value={progress} className="h-2 mb-2" />
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                                  <span>
+                                    Blocking {impactCount} goal{impactCount !== 1 ? 's' : ''}
+                                    {!goal.negativeImpactOnAll && goal.negativeImpactOn && (
+                                      <span className="text-muted-foreground/70">
+                                        : {goal.negativeImpactOn.map(id => goals.find(g => g.id === id)?.title).filter(Boolean).join(', ')}
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : impactingGoals.length > 0 ? (
+                      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                            All blocking goals are completed!
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Great work! You've completed all goals that were blocking others.
+                        </p>
+                      </div>
+                    ) : null}
+                    
+                    {/* Empty State */}
+                    {impactingGoals.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
+                        <Link2 className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+                        <h3 className="text-sm font-semibold text-foreground mb-1">No Dependencies Set</h3>
+                        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                          You haven't set up any goal dependencies yet. When editing a goal, you can specify which other goals would be negatively impacted if it's not completed.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </TabsContent>
 
             {/* INSIGHTS TAB */}

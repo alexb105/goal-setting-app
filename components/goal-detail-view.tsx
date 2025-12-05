@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { ArrowLeft, Calendar, Plus, Trash2, MoreVertical, Pencil, AlertTriangle, CheckCircle2, Repeat, Target, Archive, ArchiveRestore } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ArrowLeft, Calendar, Plus, Trash2, MoreVertical, Pencil, AlertTriangle, CheckCircle2, Repeat, Target, Archive, ArchiveRestore, Brain, AlertCircle, ArrowRight, Zap, PinOff } from "lucide-react"
+import type { PinnedInsight } from "@/types"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +28,8 @@ import { RecurringTasks } from "@/components/recurring-tasks"
 import { useGoalDate } from "@/hooks/use-goal-date"
 import { calculateProgress, getNegativelyImpactedBy, getNegativelyImpacts, getSupportingGoals } from "@/utils/goals"
 
+const PINNED_INSIGHTS_STORAGE = "pathwise-pinned-insights"
+
 interface GoalDetailViewProps {
   goal: Goal
   onBack: () => void
@@ -40,6 +43,34 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [whyText, setWhyText] = useState(goal.why || "")
   const [activeTab, setActiveTab] = useState("overview")
+  const [pinnedInsights, setPinnedInsights] = useState<PinnedInsight[]>([])
+
+  // Load pinned insights for this goal
+  useEffect(() => {
+    const stored = localStorage.getItem(PINNED_INSIGHTS_STORAGE)
+    if (stored) {
+      try {
+        const allPinned: PinnedInsight[] = JSON.parse(stored)
+        setPinnedInsights(allPinned.filter(p => p.goalId === goal.id))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }, [goal.id])
+
+  const unpinInsight = (insightId: string) => {
+    const stored = localStorage.getItem(PINNED_INSIGHTS_STORAGE)
+    if (stored) {
+      try {
+        const allPinned: PinnedInsight[] = JSON.parse(stored)
+        const updated = allPinned.filter(p => p.id !== insightId)
+        localStorage.setItem(PINNED_INSIGHTS_STORAGE, JSON.stringify(updated))
+        setPinnedInsights(updated.filter(p => p.goalId === goal.id))
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }
 
   const negativelyImpactedBy = getNegativelyImpactedBy(goals, goal.id)
   const negativelyImpacts = getNegativelyImpacts(goals, goal)
@@ -111,6 +142,60 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
       </header>
 
       <div className="mx-auto max-w-4xl px-3 sm:px-6 py-4 sm:py-8">
+        {/* Pinned AI Insights */}
+        {pinnedInsights.length > 0 && (
+          <div className="mb-6 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-purple-600">
+              <Brain className="h-4 w-4" />
+              <span>AI Insights</span>
+            </div>
+            {pinnedInsights.map((insight) => (
+              <div key={insight.id} className="rounded-xl border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-amber-500/5 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium text-foreground">
+                      Blocked by: <span className="text-amber-600">{insight.blockerGoalTitle}</span>
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => unpinInsight(insight.id)}
+                    title="Unpin insight"
+                  >
+                    <PinOff className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-red-600 font-medium uppercase">How It's Blocking</p>
+                      <p className="text-xs text-foreground">{insight.howItImpacts}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <ArrowRight className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-amber-600 font-medium uppercase">What You're Losing</p>
+                      <p className="text-xs text-foreground">{insight.whatYouLose}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Zap className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-green-600 font-medium uppercase">What Gets Unlocked</p>
+                      <p className="text-xs text-foreground">{insight.unlockPotential}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Goal Info */}
         <div className="mb-6 sm:mb-8">
           <div className="mb-3 sm:mb-4 flex flex-wrap items-center gap-2">
