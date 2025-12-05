@@ -1,22 +1,36 @@
 "use client"
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue } from "@/utils/date"
 
 type StatusFilter = "all" | "in-progress" | "completed" | "overdue" | "due-soon" | "pending"
+type ViewTab = "active" | "archived"
 
 export default function MilestonesPage() {
-  const { goals } = useGoals()
+  const { goals, archiveMilestone, unarchiveMilestone } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [viewTab, setViewTab] = useState<ViewTab>("active")
 
   // Get all unique groups from goals
   const allGroups = useMemo(() => {
@@ -40,9 +54,20 @@ export default function MilestonesPage() {
     return milestones
   }, [goals])
 
-  // Filter milestones
+  // Separate active and archived milestones
+  const activeMilestones = useMemo(() => {
+    return allMilestones.filter(({ milestone }) => !milestone.archived)
+  }, [allMilestones])
+
+  const archivedMilestones = useMemo(() => {
+    return allMilestones.filter(({ milestone }) => milestone.archived)
+  }, [allMilestones])
+
+  // Filter milestones based on current tab
   const filteredMilestones = useMemo(() => {
-    return allMilestones.filter(({ milestone, goal }) => {
+    const baseMilestones = viewTab === "active" ? activeMilestones : archivedMilestones
+    
+    return baseMilestones.filter(({ milestone, goal }) => {
       // Group filter
       if (groupFilter !== "all") {
         if (groupFilter === "ungrouped") {
@@ -52,41 +77,43 @@ export default function MilestonesPage() {
         }
       }
 
-      // Status filter
-      const isOverdue = isMilestoneOverdue(milestone)
-      const isDueSoon = isMilestoneDueSoon(milestone)
+      // Status filter (only for active milestones)
+      if (viewTab === "active") {
+        const isOverdue = isMilestoneOverdue(milestone)
+        const isDueSoon = isMilestoneDueSoon(milestone)
 
-      // By default ("all"), hide completed milestones
-      if (statusFilter === "all") {
-        if (milestone.completed) return false
-      } else {
-        switch (statusFilter) {
-          case "in-progress":
-            if (!milestone.inProgress || milestone.completed) return false
-            break
-          case "completed":
-            if (!milestone.completed) return false
-            break
-          case "overdue":
-            if (!isOverdue) return false
-            break
-          case "due-soon":
-            if (!isDueSoon || milestone.completed) return false
-            break
-          case "pending":
-            if (milestone.completed || milestone.inProgress) return false
-            break
+        // By default ("all"), hide completed milestones
+        if (statusFilter === "all") {
+          if (milestone.completed) return false
+        } else {
+          switch (statusFilter) {
+            case "in-progress":
+              if (!milestone.inProgress || milestone.completed) return false
+              break
+            case "completed":
+              if (!milestone.completed) return false
+              break
+            case "overdue":
+              if (!isOverdue) return false
+              break
+            case "due-soon":
+              if (!isDueSoon || milestone.completed) return false
+              break
+            case "pending":
+              if (milestone.completed || milestone.inProgress) return false
+              break
+          }
         }
       }
 
       return true
     })
-  }, [allMilestones, groupFilter, statusFilter])
+  }, [activeMilestones, archivedMilestones, viewTab, groupFilter, statusFilter])
   
-  // Count of active (non-completed) milestones for display
+  // Count of active (non-completed, non-archived) milestones for display
   const activeMilestonesCount = useMemo(() => {
-    return allMilestones.filter(({ milestone }) => !milestone.completed).length
-  }, [allMilestones])
+    return activeMilestones.filter(({ milestone }) => !milestone.completed).length
+  }, [activeMilestones])
 
   // Sort milestones by target date (earliest first), milestones without dates at the end
   const sortedMilestones = useMemo(() => {
@@ -137,78 +164,108 @@ export default function MilestonesPage() {
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">All Milestones</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  {statusFilter === "completed" 
-                    ? `${sortedMilestones.length} completed milestone${sortedMilestones.length !== 1 ? "s" : ""}`
-                    : `${sortedMilestones.length} of ${activeMilestonesCount} active milestone${activeMilestonesCount !== 1 ? "s" : ""}`
+                  {viewTab === "archived" 
+                    ? `${sortedMilestones.length} archived milestone${sortedMilestones.length !== 1 ? "s" : ""}`
+                    : statusFilter === "completed" 
+                      ? `${sortedMilestones.length} completed milestone${sortedMilestones.length !== 1 ? "s" : ""}`
+                      : `${sortedMilestones.length} of ${activeMilestonesCount} active milestone${activeMilestonesCount !== 1 ? "s" : ""}`
                   }
-                  {hasActiveFilters && statusFilter !== "completed" && " (filtered)"}
+                  {hasActiveFilters && viewTab === "active" && statusFilter !== "completed" && " (filtered)"}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-              <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">Filters:</span>
-            </div>
-
-            {/* Group Filter */}
-            <Select value={groupFilter} onValueChange={setGroupFilter}>
-              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                <SelectValue placeholder="All Groups" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Groups</SelectItem>
-                <SelectItem value="ungrouped">Ungrouped</SelectItem>
-                {allGroups.map((group) => (
-                  <SelectItem key={group} value={group}>
-                    {group}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                <SelectValue placeholder="Active" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Active</SelectItem>
-                <SelectItem value="in-progress">
-                  <span className="flex items-center gap-2">
-                    <Play className="h-3 w-3 fill-current text-amber-500" />
-                    In Progress
-                  </span>
-                </SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="due-soon">Due Soon</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="completed">
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    Completed
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
-              >
-                <X className="h-4 w-4" />
-                <span className="hidden sm:inline">Clear</span>
-              </Button>
-            )}
+          {/* Tabs */}
+          <div className="mt-3 sm:mt-4">
+            <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
+              <TabsList className="grid w-full max-w-[300px] grid-cols-2">
+                <TabsTrigger value="active" className="gap-1.5">
+                  <Target className="h-3.5 w-3.5" />
+                  Active
+                  {activeMilestones.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                      {activeMilestones.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="archived" className="gap-1.5">
+                  <Archive className="h-3.5 w-3.5" />
+                  Archived
+                  {archivedMilestones.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                      {archivedMilestones.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+
+          {/* Filters - Only show for active tab */}
+          {viewTab === "active" && (
+            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filters:</span>
+              </div>
+
+              {/* Group Filter */}
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
+                  <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
+                  <SelectValue placeholder="All Groups" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  <SelectItem value="ungrouped">Ungrouped</SelectItem>
+                  {allGroups.map((group) => (
+                    <SelectItem key={group} value={group}>
+                      {group}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
+                  <SelectValue placeholder="Active" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Active</SelectItem>
+                  <SelectItem value="in-progress">
+                    <span className="flex items-center gap-2">
+                      <Play className="h-3 w-3 fill-current text-amber-500" />
+                      In Progress
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="due-soon">Due Soon</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="completed">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                      Completed
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="hidden sm:inline">Clear</span>
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
@@ -216,11 +273,20 @@ export default function MilestonesPage() {
         {sortedMilestones.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 py-12 sm:py-16 px-4">
             <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-              <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              {viewTab === "archived" ? (
+                <Archive className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              ) : (
+                <Target className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+              )}
             </div>
-            <h3 className="mb-2 text-base sm:text-lg font-semibold text-foreground text-center">No milestones yet</h3>
+            <h3 className="mb-2 text-base sm:text-lg font-semibold text-foreground text-center">
+              {viewTab === "archived" ? "No archived milestones" : "No milestones yet"}
+            </h3>
             <p className="mb-6 text-center text-sm text-muted-foreground max-w-sm">
-              Create goals and add milestones to see them listed here.
+              {viewTab === "archived" 
+                ? "Archive milestones you no longer need from the active tab."
+                : "Create goals and add milestones to see them listed here."
+              }
             </p>
           </div>
         ) : (
@@ -233,22 +299,32 @@ export default function MilestonesPage() {
               return (
                 <div
                   key={`${goal.id}-${milestone.id}`}
-                  onClick={() => setSelectedGoalId(goal.id)}
-                  className={`group flex flex-col rounded-xl border p-3 sm:p-5 text-left transition-all hover:shadow-lg active:scale-[0.99] cursor-pointer ${
-                    milestone.completed
-                      ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
-                      : milestone.inProgress
-                        ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:shadow-amber-500/5"
-                        : isOverdue
-                          ? "border-destructive/50 bg-destructive/5 hover:border-destructive hover:shadow-destructive/5"
-                          : isDueSoon
-                            ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500 hover:shadow-orange-500/5"
-                            : "border-border bg-card hover:border-primary/30 hover:shadow-primary/5"
+                  className={`group flex flex-col rounded-xl border p-3 sm:p-5 text-left transition-all hover:shadow-lg ${
+                    milestone.archived
+                      ? "border-border/50 bg-muted/30 opacity-80"
+                      : milestone.completed
+                        ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
+                        : milestone.inProgress
+                          ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:shadow-amber-500/5"
+                          : isOverdue
+                            ? "border-destructive/50 bg-destructive/5 hover:border-destructive hover:shadow-destructive/5"
+                            : isDueSoon
+                              ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500 hover:shadow-orange-500/5"
+                              : "border-border bg-card hover:border-primary/30 hover:shadow-primary/5"
                   }`}
                 >
                   <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                      {milestone.inProgress && !milestone.completed && (
+                    <div 
+                      className="flex items-center gap-1.5 sm:gap-2 flex-wrap flex-1 cursor-pointer"
+                      onClick={() => setSelectedGoalId(goal.id)}
+                    >
+                      {milestone.archived && (
+                        <Badge variant="outline" className="bg-muted text-muted-foreground border-border text-[10px] sm:text-xs">
+                          <Archive className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                          Archived
+                        </Badge>
+                      )}
+                      {milestone.inProgress && !milestone.completed && !milestone.archived && (
                         <Badge className="bg-amber-500/90 hover:bg-amber-500/90 text-white text-[10px] sm:text-xs">
                           <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 fill-current" />
                           In Progress
@@ -259,11 +335,11 @@ export default function MilestonesPage() {
                           <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                           Completed
                         </Badge>
-                      ) : isOverdue ? (
+                      ) : !milestone.archived && isOverdue ? (
                         <Badge variant="destructive" className="text-[10px] sm:text-xs">
                           {daysUntilDue !== null ? `${Math.abs(daysUntilDue)}d overdue` : "Overdue"}
                         </Badge>
-                      ) : isDueSoon ? (
+                      ) : !milestone.archived && isDueSoon ? (
                         <Badge variant="outline" className="bg-orange-500/10 text-orange-700 dark:text-orange-500 border-orange-500/20 text-[10px] sm:text-xs">
                           {daysUntilDue === 0
                             ? "Due today"
@@ -271,7 +347,7 @@ export default function MilestonesPage() {
                               ? "Tomorrow"
                               : `${daysUntilDue}d left`}
                         </Badge>
-                      ) : daysUntilDue !== null ? (
+                      ) : !milestone.archived && daysUntilDue !== null ? (
                         <Badge variant="outline" className="text-[10px] sm:text-xs">
                           {daysUntilDue > 0
                             ? `${daysUntilDue}d left`
@@ -285,33 +361,100 @@ export default function MilestonesPage() {
                         </Badge>
                       )}
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
+                    <div className="flex items-center gap-1">
+                      {/* Archive/Unarchive button */}
+                      {milestone.archived ? (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ArchiveRestore className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Restore Milestone</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to restore &quot;{milestone.title}&quot; to active milestones?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => unarchiveMilestone(goal.id, milestone.id)}
+                              >
+                                Restore
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Archive Milestone</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to archive &quot;{milestone.title}&quot;? You can restore it later from the Archived tab.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => archiveMilestone(goal.id, milestone.id)}
+                              >
+                                Archive
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                      <ChevronRight 
+                        className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 flex-shrink-0 cursor-pointer" 
+                        onClick={() => setSelectedGoalId(goal.id)}
+                      />
+                    </div>
                   </div>
 
-                  <h3 className="mb-1 text-sm sm:text-lg font-semibold text-foreground line-clamp-2 sm:line-clamp-1">{milestone.title}</h3>
-                  {milestone.description && (
-                    <p className="mb-2 sm:mb-3 text-xs sm:text-sm text-muted-foreground line-clamp-2">{milestone.description}</p>
-                  )}
-
-                  <div className="mt-auto pt-2 sm:pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
-                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
-                      <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground hidden sm:inline">From:</span>
-                      <span className="font-medium text-foreground truncate">{goal.title}</span>
-                    </div>
-                    {milestone.targetDate ? (
-                      <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                        <span>
-                          {new Date(milestone.targetDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] sm:text-xs text-muted-foreground">No date</span>
+                  <div className="cursor-pointer" onClick={() => setSelectedGoalId(goal.id)}>
+                    <h3 className="mb-1 text-sm sm:text-lg font-semibold text-foreground line-clamp-2 sm:line-clamp-1">{milestone.title}</h3>
+                    {milestone.description && (
+                      <p className="mb-2 sm:mb-3 text-xs sm:text-sm text-muted-foreground line-clamp-2">{milestone.description}</p>
                     )}
+
+                    <div className="mt-auto pt-2 sm:pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
+                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-muted-foreground hidden sm:inline">From:</span>
+                        <span className="font-medium text-foreground truncate">{goal.title}</span>
+                      </div>
+                      {milestone.targetDate ? (
+                        <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                          <span>
+                            {new Date(milestone.targetDate).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] sm:text-xs text-muted-foreground">No date</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
@@ -322,4 +465,3 @@ export default function MilestonesPage() {
     </div>
   )
 }
-

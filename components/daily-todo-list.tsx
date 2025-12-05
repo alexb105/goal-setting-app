@@ -1,39 +1,116 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, X, Sun, Trash2 } from "lucide-react"
+import { Plus, X, Sun, Trash2, Repeat, Calendar, Check, Pencil, List } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import type { DailyTodo } from "@/types"
+import type { DailyTodo, StandaloneRecurringTask } from "@/types"
 
 const STORAGE_KEY = "pathwise-daily-todos"
+const RECURRING_STORAGE_KEY = "pathwise-recurring-tasks"
 const LAST_RESET_KEY = "pathwise-daily-todos-last-reset"
+
+const DAYS_OF_WEEK = [
+  { value: 0, label: "Sun", fullLabel: "Sunday" },
+  { value: 1, label: "Mon", fullLabel: "Monday" },
+  { value: 2, label: "Tue", fullLabel: "Tuesday" },
+  { value: 3, label: "Wed", fullLabel: "Wednesday" },
+  { value: 4, label: "Thu", fullLabel: "Thursday" },
+  { value: 5, label: "Fri", fullLabel: "Friday" },
+  { value: 6, label: "Sat", fullLabel: "Saturday" },
+]
 
 function getTodayDateString(): string {
   return new Date().toISOString().split("T")[0]
 }
 
+function getTodayDayOfWeek(): number {
+  return new Date().getDay()
+}
+
+function formatDays(days: number[]): string {
+  if (days.length === 7) return "Every day"
+  if (days.length === 0) return "No days selected"
+  
+  // Check for weekdays (Mon-Fri)
+  const weekdays = [1, 2, 3, 4, 5]
+  if (days.length === 5 && weekdays.every(d => days.includes(d))) {
+    return "Weekdays"
+  }
+  
+  // Check for weekends (Sat-Sun)
+  const weekends = [0, 6]
+  if (days.length === 2 && weekends.every(d => days.includes(d))) {
+    return "Weekends"
+  }
+  
+  // Sort and display short names
+  const sortedDays = [...days].sort((a, b) => a - b)
+  return sortedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(", ")
+}
+
 export function DailyTodoList() {
   const [todos, setTodos] = useState<DailyTodo[]>([])
+  const [recurringTasks, setRecurringTasks] = useState<StandaloneRecurringTask[]>([])
   const [newTodoTitle, setNewTodoTitle] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Load todos from localStorage and handle daily reset
+  // Recurring task dialog state
+  const [isRecurringDialogOpen, setIsRecurringDialogOpen] = useState(false)
+  const [recurringDialogTab, setRecurringDialogTab] = useState<"new" | "manage">("new")
+  const [newRecurringTitle, setNewRecurringTitle] = useState("")
+  const [selectedDays, setSelectedDays] = useState<number[]>([])
+  const [editingRecurringTask, setEditingRecurringTask] = useState<StandaloneRecurringTask | null>(null)
+
+  const today = getTodayDateString()
+  const todayDayOfWeek = getTodayDayOfWeek()
+
+  // Load todos and recurring tasks from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
+    const storedRecurring = localStorage.getItem(RECURRING_STORAGE_KEY)
     const lastReset = localStorage.getItem(LAST_RESET_KEY)
-    const today = getTodayDateString()
 
     let loadedTodos: DailyTodo[] = []
+    let loadedRecurring: StandaloneRecurringTask[] = []
 
     if (stored) {
       try {
         loadedTodos = JSON.parse(stored)
       } catch {
         loadedTodos = []
+      }
+    }
+
+    if (storedRecurring) {
+      try {
+        loadedRecurring = JSON.parse(storedRecurring)
+      } catch {
+        loadedRecurring = []
       }
     }
 
@@ -45,8 +122,9 @@ export function DailyTodoList() {
     }
 
     setTodos(loadedTodos)
+    setRecurringTasks(loadedRecurring)
     setIsLoaded(true)
-  }, [])
+  }, [today])
 
   // Save todos to localStorage whenever they change
   useEffect(() => {
@@ -54,6 +132,13 @@ export function DailyTodoList() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
     }
   }, [todos, isLoaded])
+
+  // Save recurring tasks to localStorage whenever they change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(RECURRING_STORAGE_KEY, JSON.stringify(recurringTasks))
+    }
+  }, [recurringTasks, isLoaded])
 
   const addTodo = useCallback(() => {
     if (!newTodoTitle.trim()) return
@@ -86,8 +171,117 @@ export function DailyTodoList() {
     setTodos((prev) => prev.filter((todo) => !todo.completed))
   }, [])
 
-  const completedCount = todos.filter((t) => t.completed).length
-  const totalCount = todos.length
+  // Recurring task functions
+  const addOrUpdateRecurringTask = useCallback(() => {
+    if (!newRecurringTitle.trim() || selectedDays.length === 0) return
+
+    if (editingRecurringTask) {
+      // Update existing task
+      setRecurringTasks((prev) =>
+        prev.map((task) =>
+          task.id === editingRecurringTask.id
+            ? { ...task, title: newRecurringTitle.trim(), daysOfWeek: selectedDays }
+            : task
+        )
+      )
+    } else {
+      // Add new task
+      const newTask: StandaloneRecurringTask = {
+        id: crypto.randomUUID(),
+        title: newRecurringTitle.trim(),
+        daysOfWeek: selectedDays,
+        completedDates: [],
+        createdAt: new Date().toISOString(),
+      }
+      setRecurringTasks((prev) => [...prev, newTask])
+    }
+
+    setNewRecurringTitle("")
+    setSelectedDays([])
+    setEditingRecurringTask(null)
+    // Stay on manage tab after adding/editing
+    setRecurringDialogTab("manage")
+  }, [newRecurringTitle, selectedDays, editingRecurringTask])
+
+  const toggleRecurringTask = useCallback((taskId: string) => {
+    setRecurringTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== taskId) return task
+
+        const isCompletedToday = task.completedDates.includes(today)
+        if (isCompletedToday) {
+          // Remove today from completed dates
+          return {
+            ...task,
+            completedDates: task.completedDates.filter((d) => d !== today),
+          }
+        } else {
+          // Add today to completed dates
+          return {
+            ...task,
+            completedDates: [...task.completedDates, today],
+          }
+        }
+      })
+    )
+  }, [today])
+
+  const deleteRecurringTask = useCallback((taskId: string) => {
+    setRecurringTasks((prev) => prev.filter((task) => task.id !== taskId))
+  }, [])
+
+  const openEditRecurringTask = useCallback((task: StandaloneRecurringTask) => {
+    setEditingRecurringTask(task)
+    setNewRecurringTitle(task.title)
+    setSelectedDays(task.daysOfWeek)
+    setRecurringDialogTab("new")
+    setIsRecurringDialogOpen(true)
+  }, [])
+
+  const toggleDay = useCallback((day: number) => {
+    setSelectedDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    )
+  }, [])
+
+  const selectWeekdays = useCallback(() => {
+    setSelectedDays([1, 2, 3, 4, 5])
+  }, [])
+
+  const selectWeekends = useCallback(() => {
+    setSelectedDays([0, 6])
+  }, [])
+
+  const selectEveryDay = useCallback(() => {
+    setSelectedDays([0, 1, 2, 3, 4, 5, 6])
+  }, [])
+
+  const resetFormAndClose = useCallback(() => {
+    setIsRecurringDialogOpen(false)
+    setNewRecurringTitle("")
+    setSelectedDays([])
+    setEditingRecurringTask(null)
+    setRecurringDialogTab("new")
+  }, [])
+
+  const clearForm = useCallback(() => {
+    setNewRecurringTitle("")
+    setSelectedDays([])
+    setEditingRecurringTask(null)
+  }, [])
+
+  // Get recurring tasks scheduled for today
+  const todaysRecurringTasks = recurringTasks.filter((task) =>
+    task.daysOfWeek.includes(todayDayOfWeek)
+  )
+
+  // Count completions
+  const regularCompletedCount = todos.filter((t) => t.completed).length
+  const recurringCompletedCount = todaysRecurringTasks.filter((t) =>
+    t.completedDates.includes(today)
+  ).length
+  const totalCompletedCount = regularCompletedCount + recurringCompletedCount
+  const totalCount = todos.length + todaysRecurringTasks.length
 
   return (
     <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
@@ -101,11 +295,12 @@ export function DailyTodoList() {
             <p className="text-[10px] sm:text-xs text-muted-foreground">
               {totalCount === 0
                 ? "No tasks for today"
-                : `${completedCount}/${totalCount} completed`}
+                : `${totalCompletedCount}/${totalCount} completed`}
             </p>
           </div>
         </div>
-        {completedCount > 0 && (
+        <div className="flex items-center gap-1">
+          {regularCompletedCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
@@ -117,8 +312,76 @@ export function DailyTodoList() {
           </Button>
         )}
       </div>
+      </div>
 
-      {/* Todo List */}
+      {/* Recurring Tasks for Today */}
+      {todaysRecurringTasks.length > 0 && (
+        <div className="space-y-1.5 mb-2">
+          {todaysRecurringTasks.map((task) => {
+            const isCompletedToday = task.completedDates.includes(today)
+            return (
+              <div
+                key={task.id}
+                className="group flex items-center gap-2 rounded-lg border border-purple-500/30 bg-purple-500/5 px-2.5 py-2 transition-colors hover:bg-purple-500/10"
+              >
+                <Checkbox
+                  id={`recurring-${task.id}`}
+                  checked={isCompletedToday}
+                  onCheckedChange={() => toggleRecurringTask(task.id)}
+                  className="h-4 w-4"
+                />
+                <label
+                  htmlFor={`recurring-${task.id}`}
+                  className={cn(
+                    "flex-1 text-sm cursor-pointer",
+                    isCompletedToday && "line-through text-muted-foreground"
+                  )}
+                >
+                  {task.title}
+                </label>
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 cursor-pointer hover:bg-purple-500/20"
+                  onClick={() => openEditRecurringTask(task)}
+                >
+                  <Repeat className="h-2.5 w-2.5 mr-1" />
+                  {formatDays(task.daysOfWeek)}
+                </Badge>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Recurring Task</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete &quot;{task.title}&quot;? This will remove it from all scheduled days.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteRecurringTask(task.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Regular Todo List */}
       <div className="space-y-1.5">
         {todos.map((todo) => (
           <div
@@ -185,22 +448,283 @@ export function DailyTodoList() {
           </Button>
         </div>
       ) : (
+        <div className="mt-2 flex gap-2">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setIsAdding(true)}
-          className="mt-2 w-full h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2"
+            className="flex-1 h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2"
         >
           <Plus className="h-3.5 w-3.5" />
           Add a task for today
         </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEditingRecurringTask(null)
+              setNewRecurringTitle("")
+              setSelectedDays([])
+              setRecurringDialogTab(recurringTasks.length > 0 ? "manage" : "new")
+              setIsRecurringDialogOpen(true)
+            }}
+            className="h-9 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-500/10 gap-1.5"
+          >
+            <Repeat className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Recurring</span>
+          </Button>
+        </div>
       )}
 
       {/* Info text */}
       <p className="mt-2 text-[10px] text-muted-foreground/70 text-center">
-        Completed tasks clear at midnight. Uncompleted tasks carry over.
+        Completed tasks clear at midnight. Recurring tasks reset each day.
       </p>
+
+      {/* Recurring Task Dialog with Tabs */}
+      <Dialog open={isRecurringDialogOpen} onOpenChange={(open) => {
+        if (!open) resetFormAndClose()
+        else setIsRecurringDialogOpen(open)
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Repeat className="h-5 w-5 text-purple-600" />
+              Recurring Tasks
+            </DialogTitle>
+            <DialogDescription>
+              Create tasks that automatically appear on selected days.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs value={recurringDialogTab} onValueChange={(v) => setRecurringDialogTab(v as "new" | "manage")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="new" className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" />
+                {editingRecurringTask ? "Edit Task" : "New Task"}
+              </TabsTrigger>
+              <TabsTrigger value="manage" className="gap-1.5">
+                <List className="h-3.5 w-3.5" />
+                All Tasks
+                {recurringTasks.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+                    {recurringTasks.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* New/Edit Task Tab */}
+            <TabsContent value="new" className="mt-4 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Task Name</label>
+                <Input
+                  placeholder="e.g., Go to the gym"
+                  value={newRecurringTitle}
+                  onChange={(e) => setNewRecurringTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newRecurringTitle.trim() && selectedDays.length > 0) {
+                      addOrUpdateRecurringTask()
+                    }
+                  }}
+                  autoFocus={recurringDialogTab === "new"}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Repeat on</label>
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleDay(day.value)}
+                      className={cn(
+                        "h-10 w-10 rounded-full text-sm font-medium transition-all",
+                        selectedDays.includes(day.value)
+                          ? "bg-purple-600 text-white"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectWeekdays}
+                    className="text-xs"
+                  >
+                    Weekdays
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectWeekends}
+                    className="text-xs"
+                  >
+                    Weekends
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={selectEveryDay}
+                    className="text-xs"
+                  >
+                    Every day
+                  </Button>
+                </div>
+              </div>
+              {selectedDays.length > 0 && (
+                <div className="rounded-lg bg-purple-500/10 p-3 text-sm">
+                  <div className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      Will appear on: <strong>{formatDays(selectedDays)}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                {editingRecurringTask && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={clearForm}
+                    className="flex-1"
+                  >
+                    Cancel Edit
+                  </Button>
+                )}
+                <Button
+                  onClick={addOrUpdateRecurringTask}
+                  disabled={!newRecurringTitle.trim() || selectedDays.length === 0}
+                  className={cn(
+                    "bg-purple-600 hover:bg-purple-700",
+                    !editingRecurringTask && "w-full"
+                  )}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {editingRecurringTask ? "Save Changes" : "Create Task"}
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Manage Tasks Tab */}
+            <TabsContent value="manage" className="mt-4">
+              {recurringTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-purple-500/10 mb-3">
+                    <Repeat className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    No recurring tasks yet
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setRecurringDialogTab("new")}
+                    className="gap-1.5"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Create your first recurring task
+                  </Button>
+                </div>
+              ) : (
+                <ScrollArea className="max-h-[300px] pr-3">
+                  <div className="space-y-2">
+                    {recurringTasks.map((task) => {
+                      const isScheduledToday = task.daysOfWeek.includes(todayDayOfWeek)
+                      return (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            "group flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors",
+                            isScheduledToday
+                              ? "border-purple-500/30 bg-purple-500/5"
+                              : "border-border/50 bg-background/50"
+                          )}
+                        >
+                          <Repeat className={cn(
+                            "h-4 w-4 flex-shrink-0",
+                            isScheduledToday ? "text-purple-600" : "text-muted-foreground"
+                          )} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{task.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDays(task.daysOfWeek)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setEditingRecurringTask(task)
+                                setNewRecurringTitle(task.title)
+                                setSelectedDays(task.daysOfWeek)
+                                setRecurringDialogTab("new")
+                              }}
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Recurring Task</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete &quot;{task.title}&quot;? This will remove it from all scheduled days.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteRecurringTask(task.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+              {recurringTasks.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    clearForm()
+                    setRecurringDialogTab("new")
+                  }}
+                  className="w-full mt-3 gap-1.5 text-purple-600 border-purple-500/30 hover:bg-purple-500/10"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New Recurring Task
+                </Button>
+              )}
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

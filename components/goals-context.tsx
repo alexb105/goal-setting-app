@@ -32,6 +32,8 @@ interface GoalsContextType {
   reorderGoals: (activeId: string, overId: string) => void
   archiveGoal: (id: string) => void
   unarchiveGoal: (id: string) => void
+  archiveMilestone: (goalId: string, milestoneId: string) => void
+  unarchiveMilestone: (goalId: string, milestoneId: string) => void
   // Recurring task groups
   addRecurringTaskGroup: (goalId: string, name: string, recurrence: RecurrenceType, startDate?: string) => void
   updateRecurringTaskGroup: (goalId: string, groupId: string, updates: Partial<Omit<RecurringTaskGroup, "id" | "tasks">>) => void
@@ -69,6 +71,7 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
           linkedGoals: m.linkedGoals || [],
           linkedGoalId: m.linkedGoalId || undefined,
           taskDisplayStyle: m.taskDisplayStyle || undefined,
+          archived: m.archived || false,
         })),
       }))
       setGoals(migratedGoals)
@@ -576,6 +579,36 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
     setGoals((prev) => prev.map((goal) => (goal.id === id ? { ...goal, archived: false } : goal)))
   }
 
+  const archiveMilestone = (goalId: string, milestoneId: string) => {
+    setGoals((prev) =>
+      prev.map((goal) =>
+        goal.id === goalId
+          ? {
+              ...goal,
+              milestones: goal.milestones.map((m) =>
+                m.id === milestoneId ? { ...m, archived: true } : m
+              ),
+            }
+          : goal
+      )
+    )
+  }
+
+  const unarchiveMilestone = (goalId: string, milestoneId: string) => {
+    setGoals((prev) =>
+      prev.map((goal) =>
+        goal.id === goalId
+          ? {
+              ...goal,
+              milestones: goal.milestones.map((m) =>
+                m.id === milestoneId ? { ...m, archived: false } : m
+              ),
+            }
+          : goal
+      )
+    )
+  }
+
   return (
     <GoalsContext.Provider
       value={{
@@ -599,6 +632,8 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         reorderGoals,
         archiveGoal,
         unarchiveGoal,
+        archiveMilestone,
+        unarchiveMilestone,
         addRecurringTaskGroup,
         updateRecurringTaskGroup,
         deleteRecurringTaskGroup,

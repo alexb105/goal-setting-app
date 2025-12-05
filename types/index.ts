@@ -12,6 +12,14 @@ export interface DailyTodo {
   createdAt: string // ISO date string
 }
 
+export interface StandaloneRecurringTask {
+  id: string
+  title: string
+  daysOfWeek: number[] // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  completedDates: string[] // ISO date strings (YYYY-MM-DD) when the task was completed
+  createdAt: string // ISO date string
+}
+
 export type RecurrenceType = "daily" | "weekly" | "monthly"
 
 export interface RecurringTask {
@@ -38,6 +46,7 @@ export interface Milestone {
   targetDate: string
   completed: boolean
   inProgress?: boolean // If true, this milestone is currently being worked on
+  archived?: boolean // If true, this milestone is archived and hidden from main view
   tasks: Task[]
   linkedGoals: string[] // Array of goal IDs that aid this milestone
   linkedGoalId?: string // If set, this milestone is a link to another goal
