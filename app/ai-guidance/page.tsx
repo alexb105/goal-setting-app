@@ -813,23 +813,25 @@ QUALITY STANDARDS:
         {/* Analysis Results */}
         {analysis && (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-7 mb-4">
-              <TabsTrigger value="suggestions" className="text-xs relative">
-                <Wand2 className="h-3 w-3 mr-1" />
-                Apply
-                {pendingSuggestions.length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                    {pendingSuggestions.length}
-                  </span>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="purpose" className="text-xs">Purpose</TabsTrigger>
-              <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-              <TabsTrigger value="impact" className="text-xs">Impact</TabsTrigger>
-              <TabsTrigger value="insights" className="text-xs">Insights</TabsTrigger>
-              <TabsTrigger value="actions" className="text-xs">Actions</TabsTrigger>
-              <TabsTrigger value="strategy" className="text-xs">Strategy</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0 mb-4">
+              <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-7 gap-1">
+                <TabsTrigger value="suggestions" className="text-[11px] sm:text-xs relative px-2.5 sm:px-3">
+                  <Wand2 className="h-3 w-3 mr-1" />
+                  <span className="hidden xs:inline">Apply</span>
+                  {pendingSuggestions.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                      {pendingSuggestions.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="purpose" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Purpose</TabsTrigger>
+                <TabsTrigger value="overview" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Overview</TabsTrigger>
+                <TabsTrigger value="impact" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Impact</TabsTrigger>
+                <TabsTrigger value="insights" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Insights</TabsTrigger>
+                <TabsTrigger value="actions" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Actions</TabsTrigger>
+                <TabsTrigger value="strategy" className="text-[11px] sm:text-xs px-2.5 sm:px-3">Strategy</TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* SUGGESTIONS TAB */}
             <TabsContent value="suggestions" className="space-y-4 mt-0">
@@ -1201,36 +1203,36 @@ QUALITY STANDARDS:
                 return (
                   <>
                     {/* Impact Overview */}
-                    <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-red-500/10 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="h-5 w-5 text-amber-600" />
-                        <span className="text-sm font-semibold text-foreground">Goal Dependencies Impact</span>
+                    <div className="rounded-lg sm:rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-red-500/10 p-3 sm:p-4">
+                      <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                        <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                        <span className="text-xs sm:text-sm font-semibold text-foreground">Goal Dependencies Impact</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Analyze how your goal dependencies are affecting your overall progress. Goals marked as having negative impact on others create pressure to complete them first.
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">
+                        Analyze how your goal dependencies are affecting your overall progress.
                       </p>
                     </div>
                     
                     {/* Impact Stats */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="rounded-xl border border-border bg-card p-3 text-center">
-                        <AlertTriangle className={`h-5 w-5 mx-auto mb-1 ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-muted-foreground'}`} />
-                        <p className={`text-xl font-bold ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-foreground'}`}>
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                      <div className="rounded-lg sm:rounded-xl border border-border bg-card p-2 sm:p-3 text-center">
+                        <AlertTriangle className={`h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-0.5 sm:mb-1 ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-muted-foreground'}`} />
+                        <p className={`text-lg sm:text-xl font-bold ${incompleteImpactingGoals.length > 0 ? 'text-amber-600' : 'text-foreground'}`}>
                           {incompleteImpactingGoals.length}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">Blocking Goals</p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground">Blocking</p>
                       </div>
-                      <div className="rounded-xl border border-border bg-card p-3 text-center">
-                        <Target className={`h-5 w-5 mx-auto mb-1 ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-muted-foreground'}`} />
-                        <p className={`text-xl font-bold ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-foreground'}`}>
+                      <div className="rounded-lg sm:rounded-xl border border-border bg-card p-2 sm:p-3 text-center">
+                        <Target className={`h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-0.5 sm:mb-1 ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-muted-foreground'}`} />
+                        <p className={`text-lg sm:text-xl font-bold ${atRiskGoals.length > 0 ? 'text-red-600' : 'text-foreground'}`}>
                           {atRiskGoals.length}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">At Risk Goals</p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground">At Risk</p>
                       </div>
-                      <div className="rounded-xl border border-border bg-card p-3 text-center">
-                        <Link2 className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-                        <p className="text-xl font-bold text-blue-600">{Object.keys(impactMap).length}</p>
-                        <p className="text-[10px] text-muted-foreground">Dependencies</p>
+                      <div className="rounded-lg sm:rounded-xl border border-border bg-card p-2 sm:p-3 text-center">
+                        <Link2 className="h-4 w-4 sm:h-5 sm:w-5 mx-auto mb-0.5 sm:mb-1 text-blue-600" />
+                        <p className="text-lg sm:text-xl font-bold text-blue-600">{Object.keys(impactMap).length}</p>
+                        <p className="text-[9px] sm:text-[10px] text-muted-foreground">Links</p>
                       </div>
                     </div>
 
@@ -1238,46 +1240,46 @@ QUALITY STANDARDS:
                     {analysis?.dependencyImpacts && analysis.dependencyImpacts.length > 0 ? (
                       <div className="space-y-4">
                         {analysis.dependencyImpacts.map((impact, idx) => (
-                          <div key={idx} className="rounded-xl border-2 border-red-500/50 bg-gradient-to-br from-red-500/5 to-amber-500/5 p-4">
+                          <div key={idx} className="rounded-xl border-2 border-red-500/50 bg-gradient-to-br from-red-500/5 to-amber-500/5 p-3 sm:p-4">
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle className={`h-5 w-5 ${impact.urgencyLevel === 'critical' ? 'text-red-600' : impact.urgencyLevel === 'high' ? 'text-amber-600' : 'text-yellow-600'}`} />
-                                <span className="text-sm font-semibold text-foreground">{impact.blockingGoal}</span>
+                            <div className="flex items-start sm:items-center justify-between gap-2 mb-3">
+                              <div className="flex items-start sm:items-center gap-2 min-w-0">
+                                <AlertTriangle className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 mt-0.5 sm:mt-0 ${impact.urgencyLevel === 'critical' ? 'text-red-600' : impact.urgencyLevel === 'high' ? 'text-amber-600' : 'text-yellow-600'}`} />
+                                <span className="text-xs sm:text-sm font-semibold text-foreground break-words">{impact.blockingGoal}</span>
                               </div>
-                              <Badge className={`text-[10px] ${impact.urgencyLevel === 'critical' ? 'bg-red-500' : impact.urgencyLevel === 'high' ? 'bg-amber-500' : 'bg-yellow-500'} text-white`}>
+                              <Badge className={`text-[10px] flex-shrink-0 ${impact.urgencyLevel === 'critical' ? 'bg-red-500' : impact.urgencyLevel === 'high' ? 'bg-amber-500' : 'bg-yellow-500'} text-white`}>
                                 {impact.urgencyLevel}
                               </Badge>
                             </div>
 
                             {/* Why It Matters */}
-                            <div className="p-3 rounded-lg bg-background/50 mb-4">
+                            <div className="p-2.5 sm:p-3 rounded-lg bg-background/50 mb-3 sm:mb-4">
                               <div className="flex items-start gap-2">
-                                <Brain className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                                <div>
+                                <Brain className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
                                   <p className="text-[10px] font-semibold text-purple-600 uppercase tracking-wide mb-1">Why This Matters</p>
-                                  <p className="text-sm text-foreground">{impact.whyItMatters}</p>
+                                  <p className="text-xs sm:text-sm text-foreground">{impact.whyItMatters}</p>
                                 </div>
                               </div>
                             </div>
 
                             {/* How It Impacts Each Goal */}
-                            <div className="mb-4">
+                            <div className="mb-3 sm:mb-4">
                               <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-2">
-                                <Target className="h-4 w-4 text-red-600" />
+                                <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-600" />
                                 Impact on Your Goals
                               </p>
-                              <div className="space-y-3">
+                              <div className="space-y-2 sm:space-y-3">
                                 {impact.impactedGoals.map((impacted, i) => {
                                   const isPinned = isInsightPinned(impacted.goalId, impact.blockingGoalId)
                                   return (
-                                  <div key={i} className="p-3 rounded-lg bg-background border border-red-500/20">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <p className="text-sm font-medium text-foreground">{impacted.goalTitle}</p>
+                                  <div key={i} className="p-2.5 sm:p-3 rounded-lg bg-background border border-red-500/20">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <p className="text-xs sm:text-sm font-medium text-foreground min-w-0 break-words">{impacted.goalTitle}</p>
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className={`h-7 w-7 p-0 ${isPinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                        className={`h-6 w-6 sm:h-7 sm:w-7 p-0 flex-shrink-0 ${isPinned ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
                                         onClick={() => {
                                           if (isPinned) {
                                             unpinInsight(impacted.goalId, impact.blockingGoalId)
@@ -1294,29 +1296,29 @@ QUALITY STANDARDS:
                                         }}
                                         title={isPinned ? "Unpin from goal page" : "Pin to goal page"}
                                       >
-                                        {isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                                        {isPinned ? <PinOff className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Pin className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                                       </Button>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5 sm:space-y-2">
                                       <div className="flex items-start gap-2">
-                                        <AlertCircle className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                          <p className="text-[10px] text-red-600 font-medium uppercase">How It's Blocking</p>
-                                          <p className="text-xs text-foreground">{impacted.howItImpacts}</p>
+                                        <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] sm:text-[10px] text-red-600 font-medium uppercase">How It's Blocking</p>
+                                          <p className="text-[11px] sm:text-xs text-foreground">{impacted.howItImpacts}</p>
                                         </div>
                                       </div>
                                       <div className="flex items-start gap-2">
-                                        <ArrowRight className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                          <p className="text-[10px] text-amber-600 font-medium uppercase">What You're Losing</p>
-                                          <p className="text-xs text-foreground">{impacted.whatYouLose}</p>
+                                        <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] sm:text-[10px] text-amber-600 font-medium uppercase">What You're Losing</p>
+                                          <p className="text-[11px] sm:text-xs text-foreground">{impacted.whatYouLose}</p>
                                         </div>
                                       </div>
                                       <div className="flex items-start gap-2">
-                                        <Zap className="h-3.5 w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-                                        <div>
-                                          <p className="text-[10px] text-green-600 font-medium uppercase">What Gets Unlocked</p>
-                                          <p className="text-xs text-foreground">{impacted.unlockPotential}</p>
+                                        <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] sm:text-[10px] text-green-600 font-medium uppercase">What Gets Unlocked</p>
+                                          <p className="text-[11px] sm:text-xs text-foreground">{impacted.unlockPotential}</p>
                                         </div>
                                       </div>
                                     </div>
@@ -1334,18 +1336,18 @@ QUALITY STANDARDS:
                             </div>
 
                             {/* Action Plan */}
-                            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                            <div className="p-2.5 sm:p-3 rounded-lg bg-green-500/10 border border-green-500/30">
                               <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2 flex items-center gap-2">
-                                <Rocket className="h-4 w-4" />
+                                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 Action Plan
                               </p>
                               <div className="space-y-1.5">
                                 {impact.actionPlan.map((step, i) => (
                                   <div key={i} className="flex items-start gap-2">
-                                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500 text-white text-[10px] flex items-center justify-center font-bold">
+                                    <span className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-500 text-white text-[9px] sm:text-[10px] flex items-center justify-center font-bold">
                                       {i + 1}
                                     </span>
-                                    <p className="text-sm text-foreground">{step}</p>
+                                    <p className="text-xs sm:text-sm text-foreground">{step}</p>
                                   </div>
                                 ))}
                               </div>
@@ -1354,32 +1356,32 @@ QUALITY STANDARDS:
                         ))}
                       </div>
                     ) : impactingGoals.length > 0 && !analysis ? (
-                      <div className="rounded-xl border border-dashed border-purple-500/50 bg-purple-500/5 p-4 text-center">
-                        <Brain className="h-8 w-8 text-purple-600/50 mx-auto mb-2" />
-                        <p className="text-sm font-medium text-foreground mb-1">Get AI-Powered Impact Analysis</p>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Run an AI analysis to understand exactly HOW your blocking goals are affecting your progress and get a personalized action plan.
+                      <div className="rounded-lg sm:rounded-xl border border-dashed border-purple-500/50 bg-purple-500/5 p-3 sm:p-4 text-center">
+                        <Brain className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600/50 mx-auto mb-2" />
+                        <p className="text-xs sm:text-sm font-medium text-foreground mb-1">Get AI-Powered Impact Analysis</p>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
+                          Run an AI analysis to understand HOW your blocking goals are affecting your progress.
                         </p>
-                        <Button onClick={runAnalysis} disabled={isAnalyzing} size="sm" className="gap-2">
-                          <Sparkles className="h-4 w-4" />
-                          Analyze Dependencies
+                        <Button onClick={runAnalysis} disabled={isAnalyzing} size="sm" className="gap-2 h-8 sm:h-9 text-xs sm:text-sm">
+                          <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                          Analyze
                         </Button>
                       </div>
                     ) : null}
                     
                     {/* Blocking Goals - Goals that impact others */}
                     {incompleteImpactingGoals.length > 0 ? (
-                      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <AlertTriangle className="h-5 w-5 text-amber-600" />
-                          <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/5 p-3 sm:p-4">
+                        <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-400">
                             Priority: Complete These First
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mb-3">
-                          These incomplete goals are blocking progress on other goals. Focus on completing these to unblock your progress.
+                        <p className="text-[11px] sm:text-xs text-muted-foreground mb-2 sm:mb-3">
+                          These incomplete goals are blocking progress on other goals.
                         </p>
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                           {incompleteImpactingGoals.map((goal) => {
                             const progress = calculateProgress(goal)
                             const impactCount = goal.negativeImpactOnAll 
@@ -1387,26 +1389,21 @@ QUALITY STANDARDS:
                               : (goal.negativeImpactOn?.length || 0)
                             
                             return (
-                              <div key={goal.id} className="p-3 rounded-lg bg-background border border-amber-500/30">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-foreground">{goal.title}</span>
+                              <div key={goal.id} className="p-2.5 sm:p-3 rounded-lg bg-background border border-amber-500/30">
+                                <div className="flex items-start sm:items-center justify-between gap-2 mb-2">
+                                  <div className="flex items-start sm:items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                                    <span className="text-xs sm:text-sm font-medium text-foreground break-words">{goal.title}</span>
                                     {goal.negativeImpactOnAll && (
-                                      <Badge className="bg-red-500 text-white text-[10px]">Impacts All</Badge>
+                                      <Badge className="bg-red-500 text-white text-[9px] sm:text-[10px]">Impacts All</Badge>
                                     )}
                                   </div>
-                                  <span className={`text-sm font-bold ${getScoreColor(progress)}`}>{progress}%</span>
+                                  <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${getScoreColor(progress)}`}>{progress}%</span>
                                 </div>
-                                <Progress value={progress} className="h-2 mb-2" />
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
-                                  <span>
+                                <Progress value={progress} className="h-1.5 sm:h-2 mb-2" />
+                                <div className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-muted-foreground">
+                                  <AlertCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                  <span className="break-words">
                                     Blocking {impactCount} goal{impactCount !== 1 ? 's' : ''}
-                                    {!goal.negativeImpactOnAll && goal.negativeImpactOn && (
-                                      <span className="text-muted-foreground/70">
-                                        : {goal.negativeImpactOn.map(id => goals.find(g => g.id === id)?.title).filter(Boolean).join(', ')}
-                                      </span>
-                                    )}
                                   </span>
                                 </div>
                               </div>
@@ -1415,14 +1412,14 @@ QUALITY STANDARDS:
                         </div>
                       </div>
                     ) : impactingGoals.length > 0 ? (
-                      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4">
+                      <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3 sm:p-4">
                         <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                          <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                          <span className="text-xs sm:text-sm font-medium text-green-700 dark:text-green-400">
                             All blocking goals are completed!
                           </span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
                           Great work! You've completed all goals that were blocking others.
                         </p>
                       </div>
@@ -1430,11 +1427,11 @@ QUALITY STANDARDS:
                     
                     {/* Empty State */}
                     {impactingGoals.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-border bg-card/50 p-8 text-center">
-                        <Link2 className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-                        <h3 className="text-sm font-semibold text-foreground mb-1">No Dependencies Set</h3>
-                        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                          You haven't set up any goal dependencies yet. When editing a goal, you can specify which other goals would be negatively impacted if it's not completed.
+                      <div className="rounded-lg sm:rounded-xl border border-dashed border-border bg-card/50 p-6 sm:p-8 text-center">
+                        <Link2 className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground/50 mx-auto mb-2 sm:mb-3" />
+                        <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-1">No Dependencies Set</h3>
+                        <p className="text-[11px] sm:text-xs text-muted-foreground max-w-sm mx-auto">
+                          Edit a goal to specify which other goals would be impacted if it's not completed.
                         </p>
                       </div>
                     )}
