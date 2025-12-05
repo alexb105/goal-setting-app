@@ -20,6 +20,18 @@ export interface StandaloneRecurringTask {
   createdAt: string // ISO date string
 }
 
+export interface PinnedMilestoneTask {
+  id: string // Unique ID for the pinned reference
+  goalId: string
+  goalTitle: string
+  milestoneId: string
+  milestoneTitle: string
+  taskId: string
+  taskTitle: string
+  pinnedAt: string // ISO date string
+  completedDate?: string // If completed while pinned, store the date (YYYY-MM-DD) - disappears next day
+}
+
 export type RecurrenceType = "daily" | "weekly" | "monthly"
 
 export interface RecurringTask {

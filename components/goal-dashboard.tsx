@@ -1011,7 +1011,7 @@ export function GoalDashboard() {
 
         {/* Daily Todo List */}
         <div className="mb-6">
-          <DailyTodoList />
+          <DailyTodoList onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)} />
         </div>
 
         {/* Goals Panel */}

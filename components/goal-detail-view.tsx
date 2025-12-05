@@ -29,6 +29,7 @@ import { useGoalDate } from "@/hooks/use-goal-date"
 import { calculateProgress, getNegativelyImpactedBy, getNegativelyImpacts, getSupportingGoals } from "@/utils/goals"
 
 const PINNED_INSIGHTS_STORAGE = "pathwise-pinned-insights"
+const SCROLL_TO_MILESTONE_KEY = "pathwise-scroll-to-milestone"
 
 interface GoalDetailViewProps {
   goal: Goal
@@ -55,6 +56,30 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
       } catch {
         // Ignore parse errors
       }
+    }
+  }, [goal.id])
+
+  // Scroll to milestone if requested
+  useEffect(() => {
+    const milestoneId = localStorage.getItem(SCROLL_TO_MILESTONE_KEY)
+    if (milestoneId) {
+      // Clear the stored milestone ID
+      localStorage.removeItem(SCROLL_TO_MILESTONE_KEY)
+      
+      // Wait a bit for the DOM to render
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`milestone-${milestoneId}`)
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" })
+          // Add a highlight effect
+          element.classList.add("ring-2", "ring-emerald-500", "ring-offset-2")
+          setTimeout(() => {
+            element.classList.remove("ring-2", "ring-emerald-500", "ring-offset-2")
+          }, 2000)
+        }
+      }, 300)
+      
+      return () => clearTimeout(timer)
     }
   }, [goal.id])
 
@@ -218,6 +243,8 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
 
           <h1 className="mb-2 text-xl sm:text-3xl font-bold text-foreground leading-tight">{goal.title}</h1>
 
+          {goal.description && <p className="mb-4 sm:mb-6 text-sm sm:text-base text-muted-foreground">{goal.description}</p>}
+
           {/* Why I want to achieve this goal */}
           <div className="mb-4 sm:mb-6 space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-2">
@@ -236,8 +263,6 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
               className="text-sm sm:text-base"
             />
           </div>
-
-          {goal.description && <p className="mb-4 sm:mb-6 text-sm sm:text-base text-muted-foreground">{goal.description}</p>}
 
           {/* Negative Impact Information */}
           {(negativelyImpactedBy.length > 0 || negativelyImpacts.length > 0) && (

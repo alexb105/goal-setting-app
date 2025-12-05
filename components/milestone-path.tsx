@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react"
 import type React from "react"
-import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause, Sparkles } from "lucide-react"
+import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause, Sparkles, Pin, PinOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import type { Goal, Milestone, Task } from "@/types"
+import type { Goal, Milestone, Task, PinnedMilestoneTask } from "@/types"
+
+const PINNED_TASKS_STORAGE_KEY = "pathwise-pinned-milestone-tasks"
 import { useGoals } from "@/components/goals-context"
 import { EditMilestoneDialog } from "@/components/edit-milestone-dialog"
 import { AITaskSuggestions } from "@/components/ai-task-suggestions"
@@ -41,16 +43,19 @@ interface MilestonePathProps {
 interface SortableTaskItemProps {
   task: Task
   goalId: string
+  goalTitle: string
   milestoneId: string
+  milestoneTitle: string
   onToggle: () => void
   onUpdate: (title: string) => void
   onDelete: () => void
   displayStyle?: "checkbox" | "bullet"
 }
 
-function SortableTaskItem({ task, goalId, milestoneId, onToggle, onUpdate, onDelete, displayStyle = "checkbox" }: SortableTaskItemProps) {
+function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle, onToggle, onUpdate, onDelete, displayStyle = "checkbox" }: SortableTaskItemProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
+  const [isPinned, setIsPinned] = useState(false)
   
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -65,6 +70,55 @@ function SortableTaskItem({ task, goalId, milestoneId, onToggle, onUpdate, onDel
   useEffect(() => {
     setEditTitle(task.title)
   }, [task.title])
+
+  // Check if task is pinned
+  useEffect(() => {
+    const stored = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
+    if (stored) {
+      try {
+        const pinnedTasks: PinnedMilestoneTask[] = JSON.parse(stored)
+        setIsPinned(pinnedTasks.some(pt => pt.taskId === task.id))
+      } catch {
+        setIsPinned(false)
+      }
+    }
+  }, [task.id])
+
+  const togglePin = () => {
+    const stored = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
+    let pinnedTasks: PinnedMilestoneTask[] = []
+    if (stored) {
+      try {
+        pinnedTasks = JSON.parse(stored)
+      } catch {
+        pinnedTasks = []
+      }
+    }
+
+    if (isPinned) {
+      // Unpin
+      pinnedTasks = pinnedTasks.filter(pt => pt.taskId !== task.id)
+    } else {
+      // Pin
+      const newPinnedTask: PinnedMilestoneTask = {
+        id: crypto.randomUUID(),
+        goalId,
+        goalTitle,
+        milestoneId,
+        milestoneTitle,
+        taskId: task.id,
+        taskTitle: task.title,
+        pinnedAt: new Date().toISOString(),
+        completedDate: task.completed ? new Date().toISOString().split("T")[0] : undefined,
+      }
+      pinnedTasks.push(newPinnedTask)
+    }
+
+    localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(pinnedTasks))
+    setIsPinned(!isPinned)
+    // Dispatch storage event to notify other components
+    window.dispatchEvent(new Event('storage'))
+  }
 
   const handleSave = () => {
     if (editTitle.trim()) {
@@ -220,6 +274,20 @@ function SortableTaskItem({ task, goalId, milestoneId, onToggle, onUpdate, onDel
       <Button
         variant="ghost"
         size="icon"
+        className={cn(
+          "transition-opacity h-6 w-6",
+          isPinned 
+            ? "opacity-100 text-emerald-600 hover:text-emerald-700" 
+            : "opacity-0 group-hover/task:opacity-100 text-muted-foreground hover:text-emerald-600"
+        )}
+        onClick={togglePin}
+        title={isPinned ? "Unpin from Today's Tasks" : "Pin to Today's Tasks"}
+      >
+        {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         className="opacity-0 group-hover/task:opacity-100 transition-opacity h-6 w-6 text-muted-foreground hover:text-destructive"
         onClick={onDelete}
       >
@@ -363,7 +431,7 @@ function SortableMilestoneItem({
   }, [completedTasks, regularTasks.length, milestone.completed, milestone.inProgress, milestone.taskDisplayStyle, canToggle, onToggle, onToggleInProgress])
 
   return (
-    <div ref={setNodeRef} style={style} className="relative flex gap-2 sm:gap-4">
+    <div ref={setNodeRef} style={style} id={`milestone-${milestone.id}`} className="relative flex gap-2 sm:gap-4">
       {/* Timeline */}
       <div className="flex flex-col items-center">
         <div className="relative">
@@ -582,7 +650,9 @@ function SortableMilestoneItem({
                 <TaskList
                   tasks={tasks}
                   goalId={goalId}
+                  goalTitle={goal.title}
                   milestoneId={milestone.id}
+                  milestoneTitle={milestone.title}
                   toggleTask={toggleTask}
                   updateTask={updateTask}
                   deleteTask={deleteTask}
@@ -694,7 +764,9 @@ function SortableMilestoneItem({
 interface TaskListProps {
   tasks: Task[]
   goalId: string
+  goalTitle: string
   milestoneId: string
+  milestoneTitle: string
   toggleTask: (goalId: string, milestoneId: string, taskId: string) => void
   updateTask: (goalId: string, milestoneId: string, taskId: string, title: string) => void
   deleteTask: (goalId: string, milestoneId: string, taskId: string) => void
@@ -702,7 +774,7 @@ interface TaskListProps {
   displayStyle?: "checkbox" | "bullet"
 }
 
-function TaskList({ tasks, goalId, milestoneId, toggleTask, updateTask, deleteTask, reorderTasks, displayStyle = "checkbox" }: TaskListProps) {
+function TaskList({ tasks, goalId, goalTitle, milestoneId, milestoneTitle, toggleTask, updateTask, deleteTask, reorderTasks, displayStyle = "checkbox" }: TaskListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -727,7 +799,9 @@ function TaskList({ tasks, goalId, milestoneId, toggleTask, updateTask, deleteTa
                key={task.id}
                task={task}
                goalId={goalId}
+               goalTitle={goalTitle}
                milestoneId={milestoneId}
+               milestoneTitle={milestoneTitle}
                onToggle={() => toggleTask(goalId, milestoneId, task.id)}
                onUpdate={(title) => updateTask(goalId, milestoneId, task.id, title)}
                onDelete={() => deleteTask(goalId, milestoneId, task.id)}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, X, Sun, Trash2, Repeat, Calendar, Check, Pencil, List } from "lucide-react"
+import { Plus, X, Sun, Trash2, Repeat, Calendar, Check, Pencil, List, Pin, PinOff, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -26,11 +26,19 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { DailyTodo, StandaloneRecurringTask } from "@/types"
+import { useGoals } from "@/components/goals-context"
+import type { DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask } from "@/types"
 
 const STORAGE_KEY = "pathwise-daily-todos"
 const RECURRING_STORAGE_KEY = "pathwise-recurring-tasks"
+const PINNED_TASKS_STORAGE_KEY = "pathwise-pinned-milestone-tasks"
 const LAST_RESET_KEY = "pathwise-daily-todos-last-reset"
 
 const DAYS_OF_WEEK = [
@@ -72,9 +80,17 @@ function formatDays(days: number[]): string {
   return sortedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(", ")
 }
 
-export function DailyTodoList() {
+const SCROLL_TO_MILESTONE_KEY = "pathwise-scroll-to-milestone"
+
+interface DailyTodoListProps {
+  onNavigateToGoal?: (goalId: string, milestoneId?: string) => void
+}
+
+export function DailyTodoList({ onNavigateToGoal }: DailyTodoListProps) {
+  const { goals, toggleTask } = useGoals()
   const [todos, setTodos] = useState<DailyTodo[]>([])
   const [recurringTasks, setRecurringTasks] = useState<StandaloneRecurringTask[]>([])
+  const [pinnedTasks, setPinnedTasks] = useState<PinnedMilestoneTask[]>([])
   const [newTodoTitle, setNewTodoTitle] = useState("")
   const [isAdding, setIsAdding] = useState(false)
   const [isLoaded, setIsLoaded] = useState(false)
@@ -89,14 +105,16 @@ export function DailyTodoList() {
   const today = getTodayDateString()
   const todayDayOfWeek = getTodayDayOfWeek()
 
-  // Load todos and recurring tasks from localStorage
+  // Load todos, recurring tasks, and pinned tasks from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     const storedRecurring = localStorage.getItem(RECURRING_STORAGE_KEY)
+    const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
     const lastReset = localStorage.getItem(LAST_RESET_KEY)
 
     let loadedTodos: DailyTodo[] = []
     let loadedRecurring: StandaloneRecurringTask[] = []
+    let loadedPinned: PinnedMilestoneTask[] = []
 
     if (stored) {
       try {
@@ -114,17 +132,47 @@ export function DailyTodoList() {
       }
     }
 
+    if (storedPinned) {
+      try {
+        loadedPinned = JSON.parse(storedPinned)
+      } catch {
+        loadedPinned = []
+      }
+    }
+
     // Check if we need to reset (new day)
     if (lastReset !== today) {
       // Filter out completed todos, keep only uncompleted ones
       loadedTodos = loadedTodos.filter((todo) => !todo.completed)
+      // Filter out pinned tasks that were completed yesterday (completedDate is before today)
+      loadedPinned = loadedPinned.filter((task) => !task.completedDate || task.completedDate === today)
       localStorage.setItem(LAST_RESET_KEY, today)
     }
 
     setTodos(loadedTodos)
     setRecurringTasks(loadedRecurring)
+    setPinnedTasks(loadedPinned)
     setIsLoaded(true)
   }, [today])
+
+  // Listen for storage events (when pinned tasks are changed from other components)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
+      if (storedPinned) {
+        try {
+          setPinnedTasks(JSON.parse(storedPinned))
+        } catch {
+          // Ignore parse errors
+        }
+      } else {
+        setPinnedTasks([])
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   // Save todos to localStorage whenever they change
   useEffect(() => {
@@ -139,6 +187,13 @@ export function DailyTodoList() {
       localStorage.setItem(RECURRING_STORAGE_KEY, JSON.stringify(recurringTasks))
     }
   }, [recurringTasks, isLoaded])
+
+  // Save pinned tasks to localStorage whenever they change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(pinnedTasks))
+    }
+  }, [pinnedTasks, isLoaded])
 
   const addTodo = useCallback(() => {
     if (!newTodoTitle.trim()) return
@@ -169,6 +224,36 @@ export function DailyTodoList() {
 
   const clearCompleted = useCallback(() => {
     setTodos((prev) => prev.filter((todo) => !todo.completed))
+  }, [])
+
+  // Pinned milestone task functions
+  const togglePinnedTask = useCallback((pinnedTask: PinnedMilestoneTask) => {
+    // Toggle the task in the goals context
+    toggleTask(pinnedTask.goalId, pinnedTask.milestoneId, pinnedTask.taskId)
+    
+    // Update the pinned task's completed date
+    setPinnedTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== pinnedTask.id) return task
+        
+        // Check if the task is currently completed in goals
+        const goal = goals.find((g) => g.id === pinnedTask.goalId)
+        const milestone = goal?.milestones.find((m) => m.id === pinnedTask.milestoneId)
+        const originalTask = milestone?.tasks.find((t) => t.id === pinnedTask.taskId)
+        
+        // We're toggling, so if it was completed, it will become not completed
+        const willBeCompleted = originalTask ? !originalTask.completed : false
+        
+        return {
+          ...task,
+          completedDate: willBeCompleted ? today : undefined,
+        }
+      })
+    )
+  }, [goals, toggleTask, today])
+
+  const unpinTask = useCallback((pinnedTaskId: string) => {
+    setPinnedTasks((prev) => prev.filter((task) => task.id !== pinnedTaskId))
   }, [])
 
   // Recurring task functions
@@ -275,13 +360,31 @@ export function DailyTodoList() {
     task.daysOfWeek.includes(todayDayOfWeek)
   )
 
+  // Get real-time status for pinned tasks from goals context
+  const getPinnedTaskStatus = useCallback((pinnedTask: PinnedMilestoneTask) => {
+    const goal = goals.find((g) => g.id === pinnedTask.goalId)
+    const milestone = goal?.milestones.find((m) => m.id === pinnedTask.milestoneId)
+    const task = milestone?.tasks.find((t) => t.id === pinnedTask.taskId)
+    return {
+      exists: !!task,
+      completed: task?.completed ?? false,
+      goalTitle: goal?.title ?? pinnedTask.goalTitle,
+      milestoneTitle: milestone?.title ?? pinnedTask.milestoneTitle,
+      taskTitle: task?.title ?? pinnedTask.taskTitle,
+    }
+  }, [goals])
+
+  // Filter pinned tasks that still exist in goals
+  const validPinnedTasks = pinnedTasks.filter((task) => getPinnedTaskStatus(task).exists)
+
   // Count completions
   const regularCompletedCount = todos.filter((t) => t.completed).length
   const recurringCompletedCount = todaysRecurringTasks.filter((t) =>
     t.completedDates.includes(today)
   ).length
-  const totalCompletedCount = regularCompletedCount + recurringCompletedCount
-  const totalCount = todos.length + todaysRecurringTasks.length
+  const pinnedCompletedCount = validPinnedTasks.filter((t) => getPinnedTaskStatus(t).completed).length
+  const totalCompletedCount = regularCompletedCount + recurringCompletedCount + pinnedCompletedCount
+  const totalCount = todos.length + todaysRecurringTasks.length + validPinnedTasks.length
 
   return (
     <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
@@ -313,6 +416,80 @@ export function DailyTodoList() {
         )}
       </div>
       </div>
+
+      {/* Pinned Milestone Tasks */}
+      {validPinnedTasks.length > 0 && (
+        <TooltipProvider>
+          <div className="space-y-1.5 mb-2">
+            {validPinnedTasks.map((pinnedTask) => {
+              const status = getPinnedTaskStatus(pinnedTask)
+              return (
+                <div
+                  key={pinnedTask.id}
+                  className="group flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-2 transition-colors hover:bg-emerald-500/10"
+                >
+                  <Checkbox
+                    id={`pinned-${pinnedTask.id}`}
+                    checked={status.completed}
+                    onCheckedChange={() => togglePinnedTask(pinnedTask)}
+                    className="h-4 w-4"
+                  />
+                  <label
+                    htmlFor={`pinned-${pinnedTask.id}`}
+                    className={cn(
+                      "flex-1 text-sm cursor-pointer min-w-0",
+                      status.completed && "line-through text-muted-foreground"
+                    )}
+                  >
+                    <span className="block truncate">{status.taskTitle}</span>
+                  </label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 shrink-0 max-w-[120px] cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                        onClick={() => {
+                          if (onNavigateToGoal) {
+                            // Store milestone ID to scroll to
+                            localStorage.setItem(SCROLL_TO_MILESTONE_KEY, pinnedTask.milestoneId)
+                            onNavigateToGoal(pinnedTask.goalId, pinnedTask.milestoneId)
+                          }
+                        }}
+                      >
+                        <Target className="h-2.5 w-2.5 mr-1 shrink-0" />
+                        <span className="truncate">{status.milestoneTitle}</span>
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        <span className="font-semibold">{status.goalTitle}</span>
+                        <span className="text-muted-foreground"> → </span>
+                        <span>{status.milestoneTitle}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Click to go to milestone</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => unpinTask(pinnedTask.id)}
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-emerald-600"
+                      >
+                        <PinOff className="h-3 w-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">Unpin from today</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )
+            })}
+          </div>
+        </TooltipProvider>
+      )}
 
       {/* Recurring Tasks for Today */}
       {todaysRecurringTasks.length > 0 && (

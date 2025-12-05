@@ -30,10 +30,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       dailyTodos: JSON.parse(localStorage.getItem("pathwise-daily-todos") || "[]"),
       dailyTodosLastReset: localStorage.getItem("pathwise-daily-todos-last-reset") || null,
       recurringTasks: JSON.parse(localStorage.getItem("pathwise-recurring-tasks") || "[]"),
+      pinnedMilestoneTasks: JSON.parse(localStorage.getItem("pathwise-pinned-milestone-tasks") || "[]"),
       lifePurpose: localStorage.getItem("pathwise-life-purpose") || null,
       openaiApiKey: localStorage.getItem("pathwise-openai-api-key") || null,
       exportedAt: new Date().toISOString(),
-      version: "1.4",
+      version: "1.5",
     }
 
     // Create blob and download
@@ -76,12 +77,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         // Build confirmation message
         const hasDailyTodos = data.dailyTodos && Array.isArray(data.dailyTodos) && data.dailyTodos.length > 0
         const hasRecurringTasks = data.recurringTasks && Array.isArray(data.recurringTasks) && data.recurringTasks.length > 0
+        const hasPinnedTasks = data.pinnedMilestoneTasks && Array.isArray(data.pinnedMilestoneTasks) && data.pinnedMilestoneTasks.length > 0
         let confirmMessage = `This will replace all your current data with ${data.goals.length} goals`
         if (hasDailyTodos) {
           confirmMessage += `, ${data.dailyTodos.length} daily tasks`
         }
         if (hasRecurringTasks) {
           confirmMessage += `, ${data.recurringTasks.length} recurring tasks`
+        }
+        if (hasPinnedTasks) {
+          confirmMessage += `, ${data.pinnedMilestoneTasks.length} pinned tasks`
         }
         confirmMessage += ` from the backup. This cannot be undone. Continue?`
 
@@ -109,6 +114,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           // Import recurring tasks if present
           if (data.recurringTasks && Array.isArray(data.recurringTasks)) {
             localStorage.setItem("pathwise-recurring-tasks", JSON.stringify(data.recurringTasks))
+          }
+
+          // Import pinned milestone tasks if present
+          if (data.pinnedMilestoneTasks && Array.isArray(data.pinnedMilestoneTasks)) {
+            localStorage.setItem("pathwise-pinned-milestone-tasks", JSON.stringify(data.pinnedMilestoneTasks))
           }
 
           // Import life purpose if present
