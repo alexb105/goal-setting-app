@@ -125,17 +125,22 @@ function SortableGroup({
     <div
       ref={setNodeRef}
       style={style}
-      className={isDragging ? "opacity-70 z-50" : ""}
+      className={isDragging ? "opacity-50 z-50" : ""}
     >
       <div className="space-y-4">
         <Collapsible open={!isCollapsed} onOpenChange={() => onToggleCollapse()}>
-          <div className="flex items-center gap-2 border-b border-border pb-2 transition-colors rounded-t-lg px-2 -mx-2">
+          <div 
+            className={`flex items-center gap-2 border-b border-border pb-2 transition-colors rounded-t-lg px-2 -mx-2 ${
+              isDragging ? "border-primary/50 bg-primary/5" : ""
+            }`}
+          >
             {/* Group drag handle */}
             <div
               {...attributes}
               {...listeners}
-              className="drag-handle p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-target flex items-center justify-center rounded hover:bg-muted"
+              className="drag-handle p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-target flex items-center justify-center rounded hover:bg-muted cursor-grab active:cursor-grabbing"
               onClick={(e) => e.stopPropagation()}
+              title="Drag to reorder group"
             >
               <GripVertical className="h-5 w-5" />
             </div>
@@ -785,8 +790,13 @@ export function GoalDashboard() {
     }
   }
 
-  // Get the active dragging goal for the overlay
-  const activeGoal = activeId ? goals.find((g) => g.id === activeId) : null
+  // Get the active dragging goal or group for the overlay
+  const activeGoal = activeId && !activeId.startsWith("group-") ? goals.find((g) => g.id === activeId) : null
+  const activeGroupName = activeId && activeId.startsWith("group-") ? activeId.replace("group-", "") : null
+  const activeGroup = activeGroupName ? {
+    name: activeGroupName,
+    goals: groupedGoals.groups[activeGroupName] || [],
+  } : null
 
   if (selectedGoal) {
     return (
@@ -1452,6 +1462,17 @@ export function GoalDashboard() {
                 {activeGoal ? (
                   <div className="opacity-80 shadow-lg">
                     <GoalListItem goal={activeGoal} onClick={() => {}} />
+                  </div>
+                ) : activeGroup ? (
+                  <div className="opacity-80 shadow-lg rounded-lg border border-border bg-card p-4 min-w-[300px]">
+                    <div className="flex items-center gap-2 border-b border-border pb-2">
+                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+                      <Folder className="h-5 w-5 text-muted-foreground" />
+                      <h2 className="text-xl font-semibold text-foreground flex-1">
+                        {activeGroup.name}
+                      </h2>
+                      <span className="text-sm text-muted-foreground">({activeGroup.goals.length})</span>
+                    </div>
                   </div>
                 ) : null}
               </DragOverlay>
