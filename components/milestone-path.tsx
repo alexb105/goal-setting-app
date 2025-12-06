@@ -780,7 +780,11 @@ interface TaskListProps {
 
 function TaskList({ tasks, goalId, goalTitle, milestoneId, milestoneTitle, toggleTask, updateTask, deleteTask, reorderTasks, displayStyle = "checkbox" }: TaskListProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -827,7 +831,11 @@ export function MilestonePath({ goalId, milestones, onNavigateToGoal }: Mileston
   const currentGoal = goals.find((g) => g.id === goalId)
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
