@@ -11,7 +11,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
-import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { GoalListItem } from "@/components/goal-list-item"
 import { CreateGoalDialog } from "@/components/create-goal-dialog"
 import { GoalDetailView } from "@/components/goal-detail-view"
@@ -261,9 +260,8 @@ function UngroupedSection({
 
 
 export function GoalDashboard() {
-  const { goals, getAllTags, renameGroup, updateGoal, isSyncing } = useGoals()
+  const { goals, getAllTags, renameGroup, updateGoal, isSyncing, triggerSync } = useGoals()
   const { user, isLoading: isAuthLoading } = useAuth()
-  const { triggerSync } = useSupabaseSync()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)

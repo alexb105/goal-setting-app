@@ -47,9 +47,10 @@ interface GoalsContextType {
   deleteRecurringTask: (goalId: string, groupId: string, taskId: string) => void
   resetRecurringTaskGroup: (goalId: string, groupId: string) => void
   reorderRecurringTasks: (goalId: string, groupId: string, activeId: string, overId: string) => void
-  // Sync status
+  // Sync status and trigger
   isSyncing: boolean
   syncError: string | null
+  triggerSync: () => void
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined)
@@ -854,6 +855,7 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         reorderRecurringTasks,
         isSyncing,
         syncError,
+        triggerSync: debouncedSyncToCloud,
       }}
     >
       {children}
