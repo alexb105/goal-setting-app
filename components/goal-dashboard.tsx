@@ -281,15 +281,40 @@ export function GoalDashboard() {
 
   // Load group order from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem("goal-group-order")
-    if (stored) {
-      try {
-        setGroupOrder(JSON.parse(stored))
-      } catch {
-        // Ignore parse errors
+    const loadGroupOrder = () => {
+      const stored = localStorage.getItem("goal-group-order")
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          setGroupOrder(parsed)
+        } catch {
+          // Ignore parse errors
+        }
       }
     }
+    
+    // Initial load
+    loadGroupOrder()
     setGroupOrderLoaded(true)
+    
+    // Listen for storage updates from sync (same window)
+    const handleStorageUpdate = () => {
+      loadGroupOrder()
+    }
+    window.addEventListener("goalritual-storage-updated", handleStorageUpdate)
+    
+    // Listen for storage changes from other tabs/windows
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "goal-group-order") {
+        loadGroupOrder()
+      }
+    }
+    window.addEventListener("storage", handleStorageChange)
+    
+    return () => {
+      window.removeEventListener("goalritual-storage-updated", handleStorageUpdate)
+      window.removeEventListener("storage", handleStorageChange)
+    }
   }, [])
 
   // Save group order to localStorage
