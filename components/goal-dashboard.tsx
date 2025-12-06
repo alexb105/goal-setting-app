@@ -25,10 +25,6 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   type DragStartEvent,
   type DragEndEvent,
   type DragOverEvent,
@@ -36,11 +32,11 @@ import {
 import {
   arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useDndSensors } from "@/hooks/use-dnd-sensors"
 
 // Sortable Goal Item Component
 interface SortableGoalItemProps {
@@ -138,7 +134,7 @@ function SortableGroup({
             <div
               {...attributes}
               {...listeners}
-              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              className="drag-handle p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-target flex items-center justify-center rounded hover:bg-muted"
               onClick={(e) => e.stopPropagation()}
             >
               <GripVertical className="h-5 w-5" />
@@ -336,17 +332,8 @@ export function GoalDashboard() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overGroupId, setOverGroupId] = useState<string | null>(null)
 
-  // Configure sensors for dnd-kit
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  )
+  // Configure sensors for dnd-kit with proper touch and mouse support
+  const sensors = useDndSensors()
 
   // Load group order from localStorage
   useEffect(() => {
@@ -1048,6 +1035,17 @@ export function GoalDashboard() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSettingsDialogOpen(true)} title="Settings">
                   <Settings className="h-4 w-4" />
                 </Button>
+                {user && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="h-8 gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-500/10" 
+                    onClick={() => signOut()}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="text-xs font-medium">Sign Out</span>
+                  </Button>
+                )}
               </div>
               
               {/* User section */}

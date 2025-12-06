@@ -1,7 +1,7 @@
 "use client"
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore, Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -29,6 +29,7 @@ export default function MilestonesPage() {
   const { goals, archiveMilestone, unarchiveMilestone } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
+  const [tagFilter, setTagFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [viewTab, setViewTab] = useState<ViewTab>("active")
 
@@ -43,12 +44,27 @@ export default function MilestonesPage() {
     return Array.from(groups).sort()
   }, [goals])
 
+  // Get all unique tags from goals
+  const allTags = useMemo(() => {
+    const tags = new Set<string>()
+    goals.forEach((goal) => {
+      goal.tags?.forEach((tag) => {
+        tags.add(tag)
+      })
+    })
+    return Array.from(tags).sort()
+  }, [goals])
+
   // Collect all milestones with their parent goal information
+  // Exclude linked goals (nested goals that act as milestones)
   const allMilestones = useMemo(() => {
     const milestones: Array<{ milestone: Milestone; goal: Goal }> = []
     goals.forEach((goal) => {
       goal.milestones.forEach((milestone) => {
-        milestones.push({ milestone, goal })
+        // Skip milestones that are actually links to other goals
+        if (!milestone.linkedGoalId) {
+          milestones.push({ milestone, goal })
+        }
       })
     })
     return milestones
@@ -75,6 +91,11 @@ export default function MilestonesPage() {
         } else {
           if (goal.group !== groupFilter) return false
         }
+      }
+
+      // Tag filter
+      if (tagFilter !== "all") {
+        if (!goal.tags || !goal.tags.includes(tagFilter)) return false
       }
 
       // Status filter (only for active milestones)
@@ -108,7 +129,7 @@ export default function MilestonesPage() {
 
       return true
     })
-  }, [activeMilestones, archivedMilestones, viewTab, groupFilter, statusFilter])
+  }, [activeMilestones, archivedMilestones, viewTab, groupFilter, tagFilter, statusFilter])
   
   // Count of active (non-completed, non-archived) milestones for display
   const activeMilestonesCount = useMemo(() => {
@@ -129,10 +150,11 @@ export default function MilestonesPage() {
     })
   }, [filteredMilestones])
 
-  const hasActiveFilters = groupFilter !== "all" || statusFilter !== "all"
+  const hasActiveFilters = groupFilter !== "all" || tagFilter !== "all" || statusFilter !== "all"
 
   const clearFilters = () => {
     setGroupFilter("all")
+    setTagFilter("all")
     setStatusFilter("all")
   }
 
@@ -226,6 +248,24 @@ export default function MilestonesPage() {
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Tag Filter */}
+            {allTags.length > 0 && (
+              <Select value={tagFilter} onValueChange={setTagFilter}>
+                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
+                  <Tag className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
+                  <SelectValue placeholder="All Tags" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tags</SelectItem>
+                  {allTags.map((tag) => (
+                    <SelectItem key={tag} value={tag}>
+                      {tag}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
@@ -360,6 +400,17 @@ export default function MilestonesPage() {
                           {goal.group}
                         </Badge>
                       )}
+                      {goal.tags && goal.tags.length > 0 && goal.tags.slice(0, 2).map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-[10px] sm:text-xs bg-primary/5 text-primary border-primary/20 hidden sm:flex">
+                          <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                          {tag}
+                        </Badge>
+                      ))}
+                      {goal.tags && goal.tags.length > 2 && (
+                        <Badge variant="outline" className="text-[10px] sm:text-xs bg-muted/50 hidden sm:flex">
+                          +{goal.tags.length - 2}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {/* Archive/Unarchive button */}
@@ -398,7 +449,7 @@ export default function MilestonesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Archive className="h-4 w-4" />

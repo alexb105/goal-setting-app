@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { User, LogOut, Mail, Lock, AlertCircle, Loader2 } from "lucide-react"
+import { User, Mail, Lock, AlertCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,8 +16,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -32,7 +30,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ syncStatus = "none" }: AuthModalProps) {
-  const { user, isLoading, signInWithEmail, signUpWithEmail, signOut } = useAuth()
+  const { user, isLoading, signInWithEmail, signUpWithEmail } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin")
   const [email, setEmail] = useState("")
@@ -99,12 +97,6 @@ export function AuthModal({ syncStatus = "none" }: AuthModalProps) {
     }
   }
 
-  const handleSignOut = async () => {
-    await signOut()
-    // Force reload to ensure clean state after sign out
-    window.location.reload()
-  }
-
   if (isLoading) {
     return (
       <Button variant="ghost" size="icon" disabled className="h-8 w-8 rounded-full">
@@ -155,14 +147,6 @@ export function AuthModal({ syncStatus = "none" }: AuthModalProps) {
               {syncStatus === "none" && "Signed in"}
             </p>
           </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={handleSignOut}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50 cursor-pointer"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     )
