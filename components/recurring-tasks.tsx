@@ -19,7 +19,23 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { useGoals } from "@/components/goals-context"
 import type { RecurringTaskGroup, RecurrenceType, RecurringTask } from "@/types"
 import { cn } from "@/lib/utils"
@@ -73,9 +89,8 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
   }
 }
 
-interface DraggableTaskItemProps {
+interface SortableTaskItemProps {
   task: RecurringTask
-  index: number
   groupId: string
   goalId: string
   isEditing: boolean
@@ -88,9 +103,8 @@ interface DraggableTaskItemProps {
   deleteRecurringTask: (goalId: string, groupId: string, taskId: string) => void
 }
 
-function DraggableTaskItem({
+function SortableTaskItem({
   task,
-  index,
   groupId,
   goalId,
   isEditing,
@@ -101,174 +115,182 @@ function DraggableTaskItem({
   handleStartEditTask,
   toggleRecurringTask,
   deleteRecurringTask,
-}: DraggableTaskItemProps) {
+}: SortableTaskItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   // Render separator/header differently
   if (task.isSeparator) {
     return (
-      <Draggable draggableId={task.id} index={index}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            className={cn(
-              "flex items-center gap-2 rounded-lg bg-muted/50 p-2.5 group",
-              snapshot.isDragging && "shadow-lg ring-2 ring-primary/20"
-            )}
-          >
-            <div
-              {...provided.dragHandleProps}
-              className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
-            >
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <Minus className="h-4 w-4 text-muted-foreground" />
-            {isEditing ? (
-              <>
-                <Input
-                  value={editingTaskTitle}
-                  onChange={(e) => setEditingTaskTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveEditTask(groupId, task.id)
-                    if (e.key === "Escape") handleCancelEditTask()
-                  }}
-                  className="flex-1 h-8 text-sm font-semibold"
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-green-600 hover:text-green-700"
-                  onClick={() => handleSaveEditTask(groupId, task.id)}
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                  onClick={handleCancelEditTask}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className="flex-1 text-sm font-semibold text-foreground">
-                  {task.title}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                  onClick={() => handleStartEditTask(task.id, task.title)}
-                  title="Edit header"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                  onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
-                  title="Delete header"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </>
-            )}
-          </div>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn(
+          "flex items-center gap-2 rounded-lg bg-muted/50 p-2.5 group",
+          isDragging && "shadow-lg ring-2 ring-primary/20 opacity-50"
         )}
-      </Draggable>
+      >
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <Minus className="h-4 w-4 text-muted-foreground" />
+        {isEditing ? (
+          <>
+            <Input
+              value={editingTaskTitle}
+              onChange={(e) => setEditingTaskTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveEditTask(groupId, task.id)
+                if (e.key === "Escape") handleCancelEditTask()
+              }}
+              className="flex-1 h-8 text-sm font-semibold"
+              autoFocus
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-green-600 hover:text-green-700"
+              onClick={() => handleSaveEditTask(groupId, task.id)}
+            >
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+              onClick={handleCancelEditTask}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-sm font-semibold text-foreground">
+              {task.title}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+              onClick={() => handleStartEditTask(task.id, task.title)}
+              title="Edit header"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
+              title="Delete header"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </>
+        )}
+      </div>
     )
   }
 
   // Regular task
   return (
-    <Draggable draggableId={task.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          className={cn(
-            "flex items-center gap-2 rounded-lg border bg-card/50 p-2.5 group",
-            snapshot.isDragging && "shadow-lg ring-2 ring-primary/20"
-          )}
-        >
-          <div
-            {...provided.dragHandleProps}
-            className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
-          >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <Checkbox
-            id={`recurring-${task.id}`}
-            checked={task.completed}
-            onCheckedChange={() => toggleRecurringTask(goalId, groupId, task.id)}
-            disabled={isEditing}
-          />
-          {isEditing ? (
-            <>
-              <Input
-                value={editingTaskTitle}
-                onChange={(e) => setEditingTaskTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveEditTask(groupId, task.id)
-                  if (e.key === "Escape") handleCancelEditTask()
-                }}
-                className="flex-1 h-8 text-sm"
-                autoFocus
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-green-600 hover:text-green-700"
-                onClick={() => handleSaveEditTask(groupId, task.id)}
-              >
-                <Check className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                onClick={handleCancelEditTask}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          ) : (
-            <>
-              <label
-                htmlFor={`recurring-${task.id}`}
-                className={cn(
-                  "flex-1 text-sm cursor-pointer",
-                  task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                )}
-              >
-                {task.title}
-              </label>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                onClick={() => handleStartEditTask(task.id, task.title)}
-                title="Edit task"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
-                title="Delete task"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </>
-          )}
-        </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 rounded-lg border bg-card/50 p-2.5 group",
+        isDragging && "shadow-lg ring-2 ring-primary/20 opacity-50"
       )}
-    </Draggable>
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <Checkbox
+        id={`recurring-${task.id}`}
+        checked={task.completed}
+        onCheckedChange={() => toggleRecurringTask(goalId, groupId, task.id)}
+        disabled={isEditing}
+      />
+      {isEditing ? (
+        <>
+          <Input
+            value={editingTaskTitle}
+            onChange={(e) => setEditingTaskTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveEditTask(groupId, task.id)
+              if (e.key === "Escape") handleCancelEditTask()
+            }}
+            className="flex-1 h-8 text-sm"
+            autoFocus
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-green-600 hover:text-green-700"
+            onClick={() => handleSaveEditTask(groupId, task.id)}
+          >
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={handleCancelEditTask}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </>
+      ) : (
+        <>
+          <label
+            htmlFor={`recurring-${task.id}`}
+            className={cn(
+              "flex-1 text-sm cursor-pointer",
+              task.completed ? "line-through text-muted-foreground" : "text-foreground"
+            )}
+          >
+            {task.title}
+          </label>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+            onClick={() => handleStartEditTask(task.id, task.title)}
+            title="Edit task"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
+            title="Delete task"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -417,24 +439,27 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
     return regularTasks.length > 0 && getCompletedCount(group) === regularTasks.length
   }
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return
+  // Sensors for dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
-    const { source, destination, draggableId } = result
-    
-    // Extract group ID from droppable ID (format: "recurring-tasks-{groupId}")
-    const groupId = source.droppableId.replace("recurring-tasks-", "")
-    
-    if (source.index === destination.index) return
+  const handleDragEnd = (groupId: string) => (event: DragEndEvent) => {
+    const { active, over } = event
 
-    // Find the task that was moved over
+    if (!over || active.id === over.id) return
+
     const group = groups.find((g) => g.id === groupId)
     if (!group) return
 
-    const overTaskId = group.tasks[destination.index]?.id
-    if (!overTaskId) return
-
-    reorderRecurringTasks(goalId, groupId, draggableId, overTaskId)
+    reorderRecurringTasks(goalId, groupId, active.id as string, over.id as string)
   }
 
   if (groups.length === 0 && !isAddingGroup) {
@@ -639,36 +664,35 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                 <div className="px-4 pb-4 pt-2 border-t border-border/50">
                   {/* Tasks with drag-and-drop */}
                   {group.tasks.length > 0 ? (
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                      <Droppable droppableId={`recurring-tasks-${group.id}`}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className="space-y-2 mb-3"
-                          >
-                            {group.tasks.map((task, index) => (
-                              <DraggableTaskItem
-                                key={task.id}
-                                task={task}
-                                index={index}
-                                groupId={group.id}
-                                goalId={goalId}
-                                isEditing={editingTaskId === task.id}
-                                editingTaskTitle={editingTaskTitle}
-                                setEditingTaskTitle={setEditingTaskTitle}
-                                handleSaveEditTask={handleSaveEditTask}
-                                handleCancelEditTask={handleCancelEditTask}
-                                handleStartEditTask={handleStartEditTask}
-                                toggleRecurringTask={toggleRecurringTask}
-                                deleteRecurringTask={deleteRecurringTask}
-                              />
-                            ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd(group.id)}
+                    >
+                      <SortableContext
+                        items={group.tasks.map((t) => t.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2 mb-3">
+                          {group.tasks.map((task) => (
+                            <SortableTaskItem
+                              key={task.id}
+                              task={task}
+                              groupId={group.id}
+                              goalId={goalId}
+                              isEditing={editingTaskId === task.id}
+                              editingTaskTitle={editingTaskTitle}
+                              setEditingTaskTitle={setEditingTaskTitle}
+                              handleSaveEditTask={handleSaveEditTask}
+                              handleCancelEditTask={handleCancelEditTask}
+                              handleStartEditTask={handleStartEditTask}
+                              toggleRecurringTask={toggleRecurringTask}
+                              deleteRecurringTask={deleteRecurringTask}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-3 mb-3">
                       No tasks yet. Add tasks to this recurring group.

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive, Brain } from "lucide-react"
+import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive, Brain, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,18 +22,65 @@ import { LifePurpose } from "@/components/life-purpose"
 import { AuthModal } from "@/components/auth-modal"
 import { useAuth } from "@/components/auth-context"
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  type DropResult,
-  type DraggableProvidedDragHandleProps,
-} from "@hello-pangea/dnd"
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-// Group Section Component (used inside Draggable)
-interface GroupSectionContentProps {
+// Sortable Goal Item Component
+interface SortableGoalItemProps {
+  goal: Goal
+  onGoalClick: (goalId: string) => void
+  onNavigateToGoal?: (goalId: string) => void
+}
+
+function SortableGoalItem({ goal, onGoalClick, onNavigateToGoal }: SortableGoalItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: goal.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`relative cursor-grab active:cursor-grabbing ${isDragging ? "opacity-50 z-50" : ""}`}
+    >
+      <GoalListItem goal={goal} onClick={() => onGoalClick(goal.id)} onNavigateToGoal={onNavigateToGoal} />
+    </div>
+  )
+}
+
+// Sortable Group Component
+interface SortableGroupProps {
   groupName: string
   groupGoals: Goal[]
-  droppableId: string
   isEditing: boolean
   editingValue: string
   isCollapsed: boolean
@@ -45,13 +92,12 @@ interface GroupSectionContentProps {
   onDelete: () => void
   onGoalClick: (goalId: string) => void
   onNavigateToGoal?: (goalId: string) => void
-  dragHandleProps?: DraggableProvidedDragHandleProps | null
+  isOver?: boolean
 }
 
-function GroupSectionContent({
+function SortableGroup({
   groupName,
   groupGoals,
-  droppableId,
   isEditing,
   editingValue,
   isCollapsed,
@@ -63,130 +109,144 @@ function GroupSectionContent({
   onDelete,
   onGoalClick,
   onNavigateToGoal,
-  dragHandleProps,
-}: GroupSectionContentProps) {
+  isOver,
+}: SortableGroupProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `group-${groupName}` })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   return (
-    <div className="space-y-4">
-      <Collapsible open={!isCollapsed} onOpenChange={() => onToggleCollapse()}>
-        <div className="flex items-center gap-2 border-b border-border pb-2 transition-colors rounded-t-lg px-2 -mx-2">
-          {/* Group drag handle */}
-          <div
-            {...dragHandleProps}
-            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-5 w-5" />
-          </div>
-          <CollapsibleTrigger asChild>
-            <div className="flex items-center gap-2 flex-1 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 py-1">
-              <ChevronDown
-                className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-              />
-              <Folder className="h-5 w-5 text-muted-foreground" />
-              {isEditing ? (
-                <Input
-                  value={editingValue}
-                  onChange={(e) => onValueChange(e.target.value)}
-                  onBlur={onRename}
-                  onKeyDown={onRenameKeyDown}
-                  className="text-xl font-semibold h-8 px-2 flex-1 max-w-md"
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                  onDoubleClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <>
-                  <h2
-                    className="text-xl font-semibold text-foreground hover:text-primary transition-colors flex-1"
-                    title="Click to collapse/expand"
-                  >
-                    {groupName}
-                  </h2>
-                </>
-              )}
-              <span className="text-sm text-muted-foreground">({groupGoals.length})</span>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-70 z-50" : ""}
+    >
+      <div className="space-y-4">
+        <Collapsible open={!isCollapsed} onOpenChange={() => onToggleCollapse()}>
+          <div className="flex items-center gap-2 border-b border-border pb-2 transition-colors rounded-t-lg px-2 -mx-2">
+            {/* Group drag handle */}
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-5 w-5" />
             </div>
-          </CollapsibleTrigger>
-          {!isEditing && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDoubleClick()
-                }}
-                title="Rename group"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center gap-2 flex-1 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 py-1">
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+                <Folder className="h-5 w-5 text-muted-foreground" />
+                {isEditing ? (
+                  <Input
+                    value={editingValue}
+                    onChange={(e) => onValueChange(e.target.value)}
+                    onBlur={onRename}
+                    onKeyDown={onRenameKeyDown}
+                    className="text-xl font-semibold h-8 px-2 flex-1 max-w-md"
+                    autoFocus
                     onClick={(e) => e.stopPropagation()}
-                    title="Delete group"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Group</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete the group &quot;{groupName}&quot;? All goals in this group will be moved to &quot;Ungrouped&quot;.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete()
-                      }}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onDoubleClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <h2
+                      className="text-xl font-semibold text-foreground hover:text-primary transition-colors flex-1"
+                      title="Click to collapse/expand"
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-        </div>
-        <CollapsibleContent>
-          <Droppable droppableId={droppableId} type="GOAL">
-            {(provided, snapshot) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`space-y-2 pt-4 min-h-[60px] rounded-lg transition-colors ${
-                  snapshot.isDraggingOver ? "bg-primary/5" : ""
-                }`}
-              >
-                {groupGoals.map((goal, index) => (
-                  <Draggable key={goal.id} draggableId={goal.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={`relative cursor-grab active:cursor-grabbing ${snapshot.isDragging ? "opacity-50" : ""}`}
-                      >
-                        <GoalListItem goal={goal} onClick={() => onGoalClick(goal.id)} onNavigateToGoal={onNavigateToGoal} />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+                      {groupName}
+                    </h2>
+                  </>
+                )}
+                <span className="text-sm text-muted-foreground">({groupGoals.length})</span>
               </div>
+            </CollapsibleTrigger>
+            {!isEditing && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDoubleClick()
+                  }}
+                  title="Rename group"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Delete group"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Group</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete the group &quot;{groupName}&quot;? All goals in this group will be moved to &quot;Ungrouped&quot;.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete()
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
             )}
-          </Droppable>
-        </CollapsibleContent>
-      </Collapsible>
+          </div>
+          <CollapsibleContent>
+            <SortableContext
+              items={groupGoals.map((g) => g.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div
+                className={`space-y-2 pt-4 min-h-[60px] rounded-lg transition-colors ${
+                  isOver ? "bg-primary/5" : ""
+                }`}
+                data-group={groupName}
+              >
+                {groupGoals.map((goal) => (
+                  <SortableGoalItem
+                    key={goal.id}
+                    goal={goal}
+                    onGoalClick={onGoalClick}
+                    onNavigateToGoal={onNavigateToGoal}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
     </div>
   )
 }
@@ -199,6 +259,7 @@ interface UngroupedSectionProps {
   onToggleCollapse: () => void
   onGoalClick: (goalId: string) => void
   onNavigateToGoal?: (goalId: string) => void
+  isOver?: boolean
 }
 
 function UngroupedSection({
@@ -208,6 +269,7 @@ function UngroupedSection({
   onToggleCollapse,
   onGoalClick,
   onNavigateToGoal,
+  isOver,
 }: UngroupedSectionProps) {
   return (
     <div className="space-y-4">
@@ -225,33 +287,26 @@ function UngroupedSection({
           </CollapsibleTrigger>
         )}
         <CollapsibleContent>
-          <Droppable droppableId="ungrouped" type="GOAL">
-            {(provided, snapshot) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`space-y-2 pt-4 min-h-[60px] rounded-lg transition-colors ${
-                  snapshot.isDraggingOver ? "bg-primary/5" : ""
-                }`}
-              >
-                {ungroupedGoals.map((goal, index) => (
-                  <Draggable key={goal.id} draggableId={goal.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={`relative cursor-grab active:cursor-grabbing ${snapshot.isDragging ? "opacity-50" : ""}`}
-                      >
-                        <GoalListItem goal={goal} onClick={() => onGoalClick(goal.id)} onNavigateToGoal={onNavigateToGoal} />
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+          <SortableContext
+            items={ungroupedGoals.map((g) => g.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div
+              className={`space-y-2 pt-4 min-h-[60px] rounded-lg transition-colors ${
+                isOver ? "bg-primary/5" : ""
+              }`}
+              data-group="ungrouped"
+            >
+              {ungroupedGoals.map((goal) => (
+                <SortableGoalItem
+                  key={goal.id}
+                  goal={goal}
+                  onGoalClick={onGoalClick}
+                  onNavigateToGoal={onNavigateToGoal}
+                />
+              ))}
+            </div>
+          </SortableContext>
         </CollapsibleContent>
       </Collapsible>
     </div>
@@ -261,7 +316,7 @@ function UngroupedSection({
 
 export function GoalDashboard() {
   const { goals, getAllTags, renameGroup, updateGoal, isSyncing, triggerSync } = useGoals()
-  const { user, isLoading: isAuthLoading } = useAuth()
+  const { user, isLoading: isAuthLoading, signOut } = useAuth()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
@@ -278,6 +333,20 @@ export function GoalDashboard() {
   const [groupOrder, setGroupOrder] = useState<string[]>([])
   const [groupOrderLoaded, setGroupOrderLoaded] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overGroupId, setOverGroupId] = useState<string | null>(null)
+
+  // Configure sensors for dnd-kit
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Load group order from localStorage
   useEffect(() => {
@@ -596,32 +665,82 @@ export function GoalDashboard() {
     })
   }
 
-  const handleDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId, type } = result
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
 
-    // Dropped outside a droppable area
-    if (!destination) return
-
-    // Dropped in the same position
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event
+    if (over) {
+      // Check if hovering over a group or a goal within a group
+      const overId = over.id as string
+      if (overId.startsWith("group-")) {
+        setOverGroupId(overId.replace("group-", ""))
+      } else {
+        // Find which group this goal belongs to
+        const goal = goals.find((g) => g.id === overId)
+        if (goal) {
+          setOverGroupId(goal.group || "ungrouped")
+        }
+      }
+    } else {
+      setOverGroupId(null)
     }
+  }
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    
+    setActiveId(null)
+    setOverGroupId(null)
+
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
 
     // Handle GROUP reordering
-    if (type === "GROUP") {
-      const newOrder = Array.from(sortedGroupNames)
-      const [removed] = newOrder.splice(source.index, 1)
-      newOrder.splice(destination.index, 0, removed)
-      setGroupOrder(newOrder)
+    if (activeId.startsWith("group-") && overId.startsWith("group-")) {
+      const activeGroupName = activeId.replace("group-", "")
+      const overGroupName = overId.replace("group-", "")
+      
+      if (activeGroupName !== overGroupName) {
+        const oldIndex = sortedGroupNames.indexOf(activeGroupName)
+        const newIndex = sortedGroupNames.indexOf(overGroupName)
+        const newOrder = arrayMove(sortedGroupNames, oldIndex, newIndex)
+        setGroupOrder(newOrder)
+      }
       return
     }
 
     // Handle GOAL reordering
-    const sourceGroupName = source.droppableId === "ungrouped" ? undefined : source.droppableId.replace("group-", "")
-    const destGroupName = destination.droppableId === "ungrouped" ? undefined : destination.droppableId.replace("group-", "")
+    // activeId is a goal id
+    const activeGoal = goals.find((g) => g.id === activeId)
+    if (!activeGoal) return
+
+    // Determine the source group
+    const sourceGroupName = activeGoal.group
+
+    // Determine the destination group
+    let destGroupName: string | undefined
+    let destIndex: number
+
+    if (overId.startsWith("group-")) {
+      // Dropped on a group header
+      destGroupName = overId.replace("group-", "")
+      destIndex = 0
+    } else {
+      // Dropped on a goal
+      const overGoal = goals.find((g) => g.id === overId)
+      if (!overGoal) return
+      destGroupName = overGoal.group
+
+      // Get the destination goals list
+      const destGoals = destGroupName
+        ? groupedGoals.groups[destGroupName] || []
+        : groupedGoals.ungrouped
+      destIndex = destGoals.findIndex((g) => g.id === overId)
+    }
 
     // Get the goals in the source and destination groups
     const sourceGoals = sourceGroupName
@@ -632,10 +751,11 @@ export function GoalDashboard() {
       : groupedGoals.ungrouped
 
     // Moving within the same group
-    if (source.droppableId === destination.droppableId) {
-      const newGoals = Array.from(sourceGoals)
-      const [removed] = newGoals.splice(source.index, 1)
-      newGoals.splice(destination.index, 0, removed)
+    if (sourceGroupName === destGroupName) {
+      const oldIndex = sourceGoals.findIndex((g) => g.id === activeId)
+      if (oldIndex === destIndex) return
+
+      const newGoals = arrayMove(sourceGoals, oldIndex, destIndex)
 
       // Update order for all goals in this group
       newGoals.forEach((goal, index) => {
@@ -643,14 +763,11 @@ export function GoalDashboard() {
       })
     } else {
       // Moving to a different group
-      const goal = goals.find((g) => g.id === draggableId)
-      if (!goal) return
-
       // Expand destination group if collapsed
       if (destGroupName && collapsedGroups.has(destGroupName)) {
         setCollapsedGroups((prev) => {
           const newSet = new Set(prev)
-          newSet.delete(destGroupName)
+          newSet.delete(destGroupName!)
           return newSet
         })
       }
@@ -658,30 +775,31 @@ export function GoalDashboard() {
         setUngroupedCollapsed(false)
       }
 
-      // Calculate new order based on destination index
-      const newOrder = destination.index
-
       // Update the goal's group and order
-      updateGoal(draggableId, {
+      updateGoal(activeId, {
         group: destGroupName,
-        order: newOrder,
+        order: destIndex,
       })
 
       // Reorder goals in destination group to make room
       destGoals.forEach((g, index) => {
-        if (index >= destination.index) {
+        if (index >= destIndex) {
           updateGoal(g.id, { order: index + 1 })
         }
       })
 
       // Reorder goals in source group to fill the gap
+      const sourceIndex = sourceGoals.findIndex((g) => g.id === activeId)
       sourceGoals.forEach((g, index) => {
-        if (g.id !== draggableId && index > source.index) {
+        if (g.id !== activeId && index > sourceIndex) {
           updateGoal(g.id, { order: index - 1 })
         }
       })
     }
   }
+
+  // Get the active dragging goal for the overlay
+  const activeGoal = activeId ? goals.find((g) => g.id === activeId) : null
 
   if (selectedGoal) {
     return (
@@ -1031,6 +1149,22 @@ export function GoalDashboard() {
                       <Settings className="h-4 w-4" />
                       Settings
                     </Button>
+                    {user && (
+                      <>
+                        <div className="h-px bg-border my-2" />
+                        <Button 
+                          variant="ghost" 
+                          className="w-full justify-start gap-3 h-11 text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            signOut()
+                          }}
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Sign Out
+                        </Button>
+                      </>
+                    )}
                   </nav>
                   
                   {/* Stats summary */}
@@ -1262,50 +1396,43 @@ export function GoalDashboard() {
                 </Button>
               </div>
             ) : (
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="groups-container" type="GROUP">
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className="space-y-8"
-                >
+          <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortedGroupNames.map((name) => `group-${name}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-8">
                   {/* Grouped Goals */}
-                  {sortedGroupNames.map((groupName, index) => {
+                  {sortedGroupNames.map((groupName) => {
                     const groupGoals = groupedGoals.groups[groupName] || []
                     const isEditing = editingGroup === groupName
                     const isCollapsed = collapsedGroups.has(groupName)
                     return (
-                      <Draggable key={groupName} draggableId={`group-drag-${groupName}`} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            className={snapshot.isDragging ? "opacity-70" : ""}
-                          >
-                            <GroupSectionContent
-                              groupName={groupName}
-                              groupGoals={groupGoals}
-                              droppableId={`group-${groupName}`}
-                              isEditing={isEditing}
-                              editingValue={editingGroupValue}
-                              isCollapsed={isCollapsed}
-                              onDoubleClick={() => handleGroupDoubleClick(groupName)}
-                              onRename={() => handleGroupRename(groupName)}
-                              onRenameKeyDown={(e) => handleGroupRenameKeyDown(e, groupName)}
-                              onValueChange={setEditingGroupValue}
-                              onToggleCollapse={() => toggleGroupCollapse(groupName)}
-                              onDelete={() => handleDeleteGroup(groupName)}
-                              onGoalClick={setSelectedGoalId}
-                              onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)}
-                              dragHandleProps={provided.dragHandleProps}
-                            />
-                          </div>
-                        )}
-                      </Draggable>
+                      <SortableGroup
+                        key={groupName}
+                        groupName={groupName}
+                        groupGoals={groupGoals}
+                        isEditing={isEditing}
+                        editingValue={editingGroupValue}
+                        isCollapsed={isCollapsed}
+                        onDoubleClick={() => handleGroupDoubleClick(groupName)}
+                        onRename={() => handleGroupRename(groupName)}
+                        onRenameKeyDown={(e) => handleGroupRenameKeyDown(e, groupName)}
+                        onValueChange={setEditingGroupValue}
+                        onToggleCollapse={() => toggleGroupCollapse(groupName)}
+                        onDelete={() => handleDeleteGroup(groupName)}
+                        onGoalClick={setSelectedGoalId}
+                        onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)}
+                        isOver={overGroupId === groupName}
+                      />
                     )
                   })}
-                  {provided.placeholder}
 
                   {/* Ungrouped Goals - Always show if there are groups so you can drop into it */}
                   {(groupedGoals.ungrouped.length > 0 || sortedGroupNames.length > 0) && (
@@ -1316,12 +1443,21 @@ export function GoalDashboard() {
                       onToggleCollapse={() => setUngroupedCollapsed(!ungroupedCollapsed)}
                       onGoalClick={setSelectedGoalId}
                       onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)}
+                      isOver={overGroupId === "ungrouped"}
                     />
                   )}
                 </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+              </SortableContext>
+
+              {/* Drag Overlay - Shows the dragging item */}
+              <DragOverlay>
+                {activeGoal ? (
+                  <div className="opacity-80 shadow-lg">
+                    <GoalListItem goal={activeGoal} onClick={() => {}} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
         )}
           </div>
         </div>
