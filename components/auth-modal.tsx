@@ -27,9 +27,10 @@ type SyncStatus = "synced" | "syncing" | "error" | "none"
 
 interface AuthModalProps {
   syncStatus?: SyncStatus
+  showEmailInline?: boolean
 }
 
-export function AuthModal({ syncStatus = "none" }: AuthModalProps) {
+export function AuthModal({ syncStatus = "none", showEmailInline = false }: AuthModalProps) {
   const { user, isLoading, signInWithEmail, signUpWithEmail } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin")
@@ -128,13 +129,24 @@ export function AuthModal({ syncStatus = "none" }: AuthModalProps) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" title={getSyncTooltip()}>
+          <Button 
+            variant="ghost" 
+            size={showEmailInline ? "default" : "icon"} 
+            className={cn(
+              showEmailInline ? "h-auto w-full justify-start gap-3 px-3 py-2" : "h-8 w-8 rounded-full"
+            )} 
+            title={getSyncTooltip()}
+          >
             <div className={cn(
-              "flex h-7 w-7 items-center justify-center rounded-full text-white transition-colors",
+              "flex items-center justify-center rounded-full text-white transition-colors flex-shrink-0",
+              showEmailInline ? "h-10 w-10" : "h-7 w-7",
               getSyncColor()
             )}>
-              <User className="h-4 w-4" />
+              <User className={cn(showEmailInline ? "h-5 w-5" : "h-4 w-4")} />
             </div>
+            {showEmailInline && (
+              <span className="text-sm font-medium truncate">{user.email}</span>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

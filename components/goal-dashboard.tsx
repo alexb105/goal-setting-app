@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive, Brain, LogOut } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -1070,27 +1071,63 @@ export function GoalDashboard() {
             <div className="flex md:hidden items-center gap-1">
               {/* Compact alert badges */}
               {lateMilestones > 0 && (
-                <button
-                  onClick={() => setShowLateMilestones(true)}
-                  className="flex items-center justify-center h-8 w-8 rounded-full bg-red-500 text-white"
-                >
-                  <span className="text-xs font-bold">{lateMilestones}</span>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowLateMilestones(true)}
+                        className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                        title={`${lateMilestones} overdue milestone${lateMilestones !== 1 ? 's' : ''}`}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span className="text-xs font-bold">{lateMilestones}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        {lateMilestones === 1 
+                          ? "1 overdue milestone"
+                          : `${lateMilestones} overdue milestones`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Tap to view details
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {expiringMilestones > 0 && (
-                <button
-                  onClick={() => setShowExpiringMilestones(true)}
-                  className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white"
-                >
-                  <span className="text-xs font-bold">{expiringMilestones}</span>
-                </button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowExpiringMilestones(true)}
+                        className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                        title={`${expiringMilestones} milestone${expiringMilestones !== 1 ? 's' : ''} due in the next 3 days`}
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        <span className="text-xs font-bold">{expiringMilestones}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-xs">
+                        {expiringMilestones === 1 
+                          ? "1 milestone due in the next 3 days"
+                          : `${expiringMilestones} milestones due in the next 3 days`}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Tap to view details
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               
               {/* Mobile menu */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Menu className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-12 w-12 md:h-8 md:w-8">
+                    <Menu className="h-7 w-7 md:h-4 md:w-4" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-72 p-0">
@@ -1103,7 +1140,10 @@ export function GoalDashboard() {
                   
                   {/* User section at top */}
                   <div className="p-3 border-b bg-muted/30">
-                    <AuthModal syncStatus={user ? (isSyncing ? "syncing" : "synced") : "none"} />
+                    <AuthModal 
+                      syncStatus={user ? (isSyncing ? "syncing" : "synced") : "none"} 
+                      showEmailInline={true}
+                    />
                   </div>
                   
                   <nav className="flex flex-col p-2">
