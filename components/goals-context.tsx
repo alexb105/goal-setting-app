@@ -1,9 +1,12 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from "react"
 import type { Goal, Milestone, Task, RecurringTaskGroup, RecurringTask, RecurrenceType } from "@/types"
 import { STORAGE_KEY } from "@/constants"
 import { getAllTags as getAllTagsUtil } from "@/utils/goals"
+import { createClient } from "@/lib/supabase/client"
+import { getSyncInstance } from "@/lib/supabase/sync"
+import type { User } from "@supabase/supabase-js"
 
 // Re-export types for backward compatibility
 export type { Goal, Milestone, Task } from "@/types"
@@ -44,25 +47,42 @@ interface GoalsContextType {
   deleteRecurringTask: (goalId: string, groupId: string, taskId: string) => void
   resetRecurringTaskGroup: (goalId: string, groupId: string) => void
   reorderRecurringTasks: (goalId: string, groupId: string, activeId: string, overId: string) => void
+  // Sync status
+  isSyncing: boolean
+  syncError: string | null
 }
 
 const GoalsContext = createContext<GoalsContextType | undefined>(undefined)
 
-// Migration function to move data from old "pathwise-" keys to new "goaladdict-" keys
+// Migration function to move data from old keys to new "goalritual-" keys
 function migrateLocalStorageKeys() {
   const migrations = [
-    { old: "pathwise-goals", new: "goaladdict-goals" },
-    { old: "pathwise-daily-todos", new: "goaladdict-daily-todos" },
-    { old: "pathwise-daily-todos-last-reset", new: "goaladdict-daily-todos-last-reset" },
-    { old: "pathwise-recurring-tasks", new: "goaladdict-recurring-tasks" },
-    { old: "pathwise-pinned-milestone-tasks", new: "goaladdict-pinned-milestone-tasks" },
-    { old: "pathwise-life-purpose", new: "goaladdict-life-purpose" },
-    { old: "pathwise-openai-api-key", new: "goaladdict-openai-api-key" },
-    { old: "pathwise-ai-analysis", new: "goaladdict-ai-analysis" },
-    { old: "pathwise-ai-applied-suggestions", new: "goaladdict-ai-applied-suggestions" },
-    { old: "pathwise-ai-dismissed-suggestions", new: "goaladdict-ai-dismissed-suggestions" },
-    { old: "pathwise-pinned-insights", new: "goaladdict-pinned-insights" },
-    { old: "pathwise-scroll-to-milestone", new: "goaladdict-scroll-to-milestone" },
+    // Migrate from pathwise
+    { old: "pathwise-goals", new: "goalritual-goals" },
+    { old: "pathwise-daily-todos", new: "goalritual-daily-todos" },
+    { old: "pathwise-daily-todos-last-reset", new: "goalritual-daily-todos-last-reset" },
+    { old: "pathwise-recurring-tasks", new: "goalritual-recurring-tasks" },
+    { old: "pathwise-pinned-milestone-tasks", new: "goalritual-pinned-milestone-tasks" },
+    { old: "pathwise-life-purpose", new: "goalritual-life-purpose" },
+    { old: "pathwise-openai-api-key", new: "goalritual-openai-api-key" },
+    { old: "pathwise-ai-analysis", new: "goalritual-ai-analysis" },
+    { old: "pathwise-ai-applied-suggestions", new: "goalritual-ai-applied-suggestions" },
+    { old: "pathwise-ai-dismissed-suggestions", new: "goalritual-ai-dismissed-suggestions" },
+    { old: "pathwise-pinned-insights", new: "goalritual-pinned-insights" },
+    { old: "pathwise-scroll-to-milestone", new: "goalritual-scroll-to-milestone" },
+    // Migrate from goaladdict
+    { old: "goaladdict-goals", new: "goalritual-goals" },
+    { old: "goaladdict-daily-todos", new: "goalritual-daily-todos" },
+    { old: "goaladdict-daily-todos-last-reset", new: "goalritual-daily-todos-last-reset" },
+    { old: "goaladdict-recurring-tasks", new: "goalritual-recurring-tasks" },
+    { old: "goaladdict-pinned-milestone-tasks", new: "goalritual-pinned-milestone-tasks" },
+    { old: "goaladdict-life-purpose", new: "goalritual-life-purpose" },
+    { old: "goaladdict-openai-api-key", new: "goalritual-openai-api-key" },
+    { old: "goaladdict-ai-analysis", new: "goalritual-ai-analysis" },
+    { old: "goaladdict-ai-applied-suggestions", new: "goalritual-ai-applied-suggestions" },
+    { old: "goaladdict-ai-dismissed-suggestions", new: "goalritual-ai-dismissed-suggestions" },
+    { old: "goaladdict-pinned-insights", new: "goalritual-pinned-insights" },
+    { old: "goaladdict-scroll-to-milestone", new: "goalritual-scroll-to-milestone" },
   ]
 
   migrations.forEach(({ old: oldKey, new: newKey }) => {
@@ -76,44 +96,204 @@ function migrateLocalStorageKeys() {
 
 export function GoalsProvider({ children }: { children: ReactNode }) {
   const [goals, setGoals] = useState<Goal[]>([])
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
   const hasLoadedFromStorage = useRef(false)
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const userRef = useRef<User | null>(null)
+  
+  // Initialize Supabase client and sync
+  const supabase = createClient()
+  const sync = getSyncInstance(supabase)
 
+  // Debounced sync to cloud
+  const debouncedSyncToCloud = useCallback(async () => {
+    if (!userRef.current) return
+    
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+    }
+    
+    syncTimeoutRef.current = setTimeout(async () => {
+      setIsSyncing(true)
+      setSyncError(null)
+      try {
+        await sync.syncToCloud()
+      } catch (error) {
+        console.error("Sync error:", error)
+        setSyncError("Failed to sync to cloud")
+      } finally {
+        setIsSyncing(false)
+      }
+    }, 1000) // Debounce for 1 second
+  }, [sync])
+
+  // Load from localStorage and set up auth listener
   useEffect(() => {
     // Migrate old localStorage keys to new ones (one-time migration)
     migrateLocalStorageKeys()
     
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsedGoals: Goal[] = JSON.parse(stored)
-      const migratedGoals = parsedGoals.map((goal, index) => ({
-        ...goal,
-        tags: goal.tags || [],
-        color: goal.color || undefined,
-        showProgress: goal.showProgress !== undefined ? goal.showProgress : true, // Default to true for existing goals
-        group: goal.group || undefined,
-        why: goal.why || undefined,
-        order: goal.order !== undefined ? goal.order : index, // Preserve existing order or use index
-        archived: goal.archived || false, // Default to false for existing goals
-        milestones: goal.milestones.map((m) => ({
-          ...m,
-          tasks: m.tasks || [],
-          linkedGoals: m.linkedGoals || [],
-          linkedGoalId: m.linkedGoalId || undefined,
-          taskDisplayStyle: m.taskDisplayStyle || undefined,
-          archived: m.archived || false,
-        })),
-      }))
-      setGoals(migratedGoals)
-    }
-    hasLoadedFromStorage.current = true
-  }, [])
+    const initializeData = async () => {
+      // Check if user is signed in
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
+      userRef.current = user
+      sync.setUser(user)
 
+      // Check if we're in an auth flow (user clicked sign up/sign in)
+      const pendingAuth = sessionStorage.getItem("goalritual-pending-auth")
+
+      if (user) {
+        // User is signed in - clear pending auth flags (both storage types for safety)
+        sessionStorage.removeItem("goalritual-pending-auth")
+        localStorage.removeItem("goalritual-pending-auth")
+        
+        // Check if we just imported data and need to force push to cloud
+        const forcePush = sessionStorage.getItem("goalritual-force-push-to-cloud")
+        if (forcePush) {
+          sessionStorage.removeItem("goalritual-force-push-to-cloud")
+          
+          // Load the imported data from localStorage first
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            const parsedGoals: Goal[] = JSON.parse(stored)
+            setGoals(parsedGoals)
+          }
+          
+          // Push to cloud
+          setIsSyncing(true)
+          try {
+            await sync.pushLocalToCloud()
+          } catch (error) {
+            console.error("Error pushing imported data to cloud:", error)
+            setSyncError("Failed to save imported data to cloud")
+          } finally {
+            setIsSyncing(false)
+          }
+          
+          hasLoadedFromStorage.current = true
+          return
+        }
+        
+        // Normal flow - load data from cloud
+        setIsSyncing(true)
+        try {
+          // Check if user has existing data in cloud
+          const remoteData = await sync.fetchFromSupabase()
+          
+          if (remoteData && remoteData.goals && remoteData.goals.length > 0) {
+            // User has cloud data - pull it to local (returning user)
+            await sync.pullCloudToLocal()
+          } else {
+            // User has no cloud data - push local data to cloud (new account)
+            await sync.pushLocalToCloud()
+          }
+          
+          // Load goals from localStorage after sync
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            const parsedGoals: Goal[] = JSON.parse(stored)
+            setGoals(parsedGoals)
+          }
+        } catch (error) {
+          console.error("Error loading from cloud:", error)
+          setSyncError("Failed to load from cloud")
+        } finally {
+          setIsSyncing(false)
+        }
+      } else {
+        // User is NOT signed in
+        // Check if they're in the middle of signing up (pendingAuth flag in localStorage)
+        const pendingAuthLocal = localStorage.getItem("goalritual-pending-auth")
+        
+        if (pendingAuthLocal) {
+          // User is signing up - keep their localStorage data
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            try {
+              const parsedGoals: Goal[] = JSON.parse(stored)
+              setGoals(parsedGoals)
+            } catch {
+              setGoals([])
+            }
+          } else {
+            setGoals([])
+          }
+        } else {
+          // User is not signed in and not signing up - clear localStorage
+          sync.clearLocalData()
+          setGoals([])
+        }
+      }
+      
+      hasLoadedFromStorage.current = true
+    }
+
+    initializeData()
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        const user = session?.user ?? null
+        userRef.current = user
+        sync.setUser(user)
+
+        if (event === "SIGNED_IN" && user) {
+          // Clear pending auth flags (both storage types)
+          sessionStorage.removeItem("goalritual-pending-auth")
+          localStorage.removeItem("goalritual-pending-auth")
+          
+          // Check if we already handled this sign-in (prevent duplicate handling)
+          const signInHandled = sessionStorage.getItem("goalritual-signin-handled")
+          if (signInHandled) {
+            // Clear the flag - initializeData has already loaded data
+            sessionStorage.removeItem("goalritual-signin-handled")
+            return
+          }
+          
+          // First sign-in event - set flag and reload to let initializeData handle sync cleanly
+          sessionStorage.setItem("goalritual-signin-handled", "true")
+          window.location.reload()
+        } else if (event === "SIGNED_OUT") {
+          // User signed out - clear localStorage and refresh
+          sync.clearLocalData()
+          window.location.reload()
+        }
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current)
+      }
+    }
+  }, [supabase.auth, sync])
+
+  // Save to localStorage and sync to cloud whenever goals change
   useEffect(() => {
-    // Only write to localStorage after we've loaded from it
     if (hasLoadedFromStorage.current) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(goals))
+      debouncedSyncToCloud()
     }
-  }, [goals])
+  }, [goals, debouncedSyncToCloud])
+
+  // Listen for external storage changes (e.g., from sync)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const newGoals = JSON.parse(e.newValue)
+          setGoals(newGoals)
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    window.addEventListener("storage", handleStorageChange)
+    return () => window.removeEventListener("storage", handleStorageChange)
+  }, [])
 
   const addGoal = (goal: Omit<Goal, "id" | "createdAt">) => {
     setGoals((prev) => {
@@ -122,11 +302,11 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         ...goal,
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
-        tags: goal.tags || [], // Use tags from input or default to empty array
-        color: goal.color || undefined, // Use color from input or default to undefined
-        showProgress: goal.showProgress !== undefined ? goal.showProgress : true, // Default to true if not specified
-        group: goal.group || undefined, // Use group from input or default to undefined
-        order: goal.order !== undefined ? goal.order : maxOrder + 1, // Set order to be after all existing goals
+        tags: goal.tags || [],
+        color: goal.color || undefined,
+        showProgress: goal.showProgress !== undefined ? goal.showProgress : true,
+        group: goal.group || undefined,
+        order: goal.order !== undefined ? goal.order : maxOrder + 1,
       }
       return [...prev, newGoal]
     })
@@ -672,6 +852,8 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         deleteRecurringTask,
         resetRecurringTaskGroup,
         reorderRecurringTasks,
+        isSyncing,
+        syncError,
       }}
     >
       {children}

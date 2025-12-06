@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { GoalListItem } from "@/components/goal-list-item"
 import { CreateGoalDialog } from "@/components/create-goal-dialog"
 import { GoalDetailView } from "@/components/goal-detail-view"
@@ -19,6 +20,8 @@ import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue, getMi
 import { isGoalCompleted } from "@/utils/goals"
 import { DailyTodoList } from "@/components/daily-todo-list"
 import { LifePurpose } from "@/components/life-purpose"
+import { AuthModal } from "@/components/auth-modal"
+import { useAuth } from "@/components/auth-context"
 import {
   DragDropContext,
   Droppable,
@@ -258,7 +261,9 @@ function UngroupedSection({
 
 
 export function GoalDashboard() {
-  const { goals, getAllTags, renameGroup, updateGoal } = useGoals()
+  const { goals, getAllTags, renameGroup, updateGoal, isSyncing } = useGoals()
+  const { user, isLoading: isAuthLoading } = useAuth()
+  const { triggerSync } = useSupabaseSync()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
@@ -294,8 +299,9 @@ export function GoalDashboard() {
     // Only save after initial load to prevent overwriting with empty array
     if (groupOrderLoaded) {
       localStorage.setItem("goal-group-order", JSON.stringify(groupOrder))
+      triggerSync()
     }
-  }, [groupOrder, groupOrderLoaded])
+  }, [groupOrder, groupOrderLoaded, triggerSync])
 
   const allTags = getAllTags()
 
@@ -824,114 +830,118 @@ export function GoalDashboard() {
 
   return (
     <div className="min-h-screen safe-area-top">
+      {/* Sign-in Warning Banner */}
+      {!isAuthLoading && !user && (
+        <div className="bg-red-600 text-white px-4 py-2.5 text-center text-sm">
+          <span className="font-medium">⚠️ Your changes won't be saved! Sign in or create an account to keep your data.</span>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-2.5 sm:py-3">
-          <div className="flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-2 sm:py-2.5">
+          <div className="flex items-center justify-between gap-3">
             {/* Logo */}
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
-                <Target className="h-5 w-5 text-primary-foreground" />
+            <Link href="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+                <Target className="h-4 w-4 text-primary-foreground" />
               </div>
-              <h1 className="text-lg font-bold text-foreground">GoalAddict</h1>
-            </div>
+              <span className="text-base font-bold text-foreground hidden sm:block">GoalRitual</span>
+            </Link>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center flex-1 justify-center">
-              <nav className="flex items-center bg-muted/50 rounded-lg p-1">
-                <Link href="/milestones" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
-                  <List className="h-4 w-4" />
-                  <span>Milestones</span>
-                </Link>
-                <Link href="/recurring-tasks" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
-                  <Repeat className="h-4 w-4" />
-                  <span>Recurring</span>
-                </Link>
-                <Link href="/completed" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>Completed</span>
-                </Link>
-                <Link href="/archived" className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-background transition-all">
-                  <Archive className="h-4 w-4" />
-                  <span>Archived</span>
-                </Link>
-              </nav>
-            </div>
+            {/* Desktop Navigation - Compact pill style */}
+            <nav className="hidden md:flex items-center gap-1 bg-muted/40 rounded-full px-1 py-0.5">
+              <Link href="/milestones" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                Milestones
+              </Link>
+              <Link href="/recurring-tasks" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                Recurring
+              </Link>
+              <Link href="/completed" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                Completed
+              </Link>
+              <Link href="/archived" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                Archived
+              </Link>
+            </nav>
 
-            {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-2">
-              {/* Status badges */}
-              {lateMilestones > 0 && (
-                <button
-                  onClick={() => setShowLateMilestones(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors text-xs font-medium"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  <span>{lateMilestones} late</span>
-                </button>
-              )}
-              {expiringMilestones > 0 && (
-                <button
-                  onClick={() => setShowExpiringMilestones(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors text-xs font-medium"
-                >
-                  <Bell className="h-3.5 w-3.5" />
-                  <span>{expiringMilestones} soon</span>
-                </button>
+            {/* Desktop Actions - Grouped and cleaner */}
+            <div className="hidden md:flex items-center gap-1.5">
+              {/* Alert indicators - compact */}
+              {(lateMilestones > 0 || expiringMilestones > 0) && (
+                <div className="flex items-center gap-1 mr-1">
+                  {lateMilestones > 0 && (
+                    <button
+                      onClick={() => setShowLateMilestones(true)}
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                      title={`${lateMilestones} late milestone${lateMilestones !== 1 ? 's' : ''}`}
+                    >
+                      <span className="text-xs font-bold">{lateMilestones}</span>
+                    </button>
+                  )}
+                  {expiringMilestones > 0 && (
+                    <button
+                      onClick={() => setShowExpiringMilestones(true)}
+                      className="flex items-center justify-center h-7 w-7 rounded-full bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors"
+                      title={`${expiringMilestones} milestone${expiringMilestones !== 1 ? 's' : ''} due soon`}
+                    >
+                      <span className="text-xs font-bold">{expiringMilestones}</span>
+                    </button>
+                  )}
+                </div>
               )}
               
-              <Link href="/ai-guidance">
-                <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-500/10">
-                  <Brain className="h-4 w-4" />
-                  <span>AI</span>
+              {/* Icon buttons group */}
+              <div className="flex items-center">
+                {user ? (
+                  <Link href="/ai-guidance">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-500/10" title="AI Guidance">
+                      <Brain className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/50 cursor-not-allowed" title="Sign in to use AI Guidance" disabled>
+                    <Brain className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSettingsDialogOpen(true)} title="Settings">
+                  <Settings className="h-4 w-4" />
                 </Button>
-              </Link>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSettingsDialogOpen(true)}>
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="h-8 gap-1.5">
-                <Plus className="h-4 w-4" />
-                <span>New Goal</span>
-              </Button>
+              </div>
+              
+              {/* User section */}
+              {user ? (
+                <AuthModal syncStatus={isSyncing ? "syncing" : "synced"} />
+              ) : (
+                <AuthModal />
+              )}
             </div>
 
             {/* Mobile Actions */}
-            <div className="flex md:hidden items-center gap-1.5">
-              {/* Late milestones badge */}
+            <div className="flex md:hidden items-center gap-1">
+              {/* Compact alert badges */}
               {lateMilestones > 0 && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-9 px-2.5 gap-1.5"
+                <button
                   onClick={() => setShowLateMilestones(true)}
+                  className="flex items-center justify-center h-8 w-8 rounded-full bg-red-500 text-white"
                 >
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>{lateMilestones}</span>
-                </Button>
+                  <span className="text-xs font-bold">{lateMilestones}</span>
+                </button>
               )}
-              {/* Expiring milestones badge */}
               {expiringMilestones > 0 && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 relative"
+                <button
                   onClick={() => setShowExpiringMilestones(true)}
+                  className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white"
                 >
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-orange-500 text-[10px] font-semibold text-white">
-                    {expiringMilestones}
-                  </span>
-                </Button>
+                  <span className="text-xs font-bold">{expiringMilestones}</span>
+                </button>
               )}
-              {/* New Goal button */}
-              <Button onClick={() => setCreateDialogOpen(true)} size="icon" className="h-9 w-9">
-                <Plus className="h-5 w-5" />
-              </Button>
+              
               {/* Mobile menu */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
-                    <Menu className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Menu className="h-4 w-4" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-72 p-0">
@@ -941,59 +951,74 @@ export function GoalDashboard() {
                       Menu
                     </SheetTitle>
                   </SheetHeader>
+                  
+                  {/* User section at top */}
+                  <div className="p-3 border-b bg-muted/30">
+                    <AuthModal syncStatus={user ? (isSyncing ? "syncing" : "synced") : "none"} />
+                  </div>
+                  
                   <nav className="flex flex-col p-2">
                     <Link href="/milestones" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
-                        <List className="h-5 w-5" />
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
+                        <List className="h-4 w-4" />
                         All Milestones
                       </Button>
                     </Link>
                     <Link href="/recurring-tasks" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
-                        <Repeat className="h-5 w-5" />
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
+                        <Repeat className="h-4 w-4" />
                         Recurring Tasks
                       </Button>
                     </Link>
                     <Link href="/completed" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
-                        <CheckCircle2 className="h-5 w-5" />
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
+                        <CheckCircle2 className="h-4 w-4" />
                         Completed Goals
                       </Button>
                     </Link>
                     <Link href="/archived" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base">
-                        <Archive className="h-5 w-5" />
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
+                        <Archive className="h-4 w-4" />
                         Archived Goals
                       </Button>
                     </Link>
-                    <Link href="/ai-guidance" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-12 text-base text-purple-600">
-                        <Brain className="h-5 w-5" />
-                        AI Guidance
-                      </Button>
-                    </Link>
                     <div className="h-px bg-border my-2" />
+                    {user ? (
+                      <Link href="/ai-guidance" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="ghost" className="w-full justify-start gap-3 h-11 text-purple-600">
+                          <Brain className="h-4 w-4" />
+                          AI Guidance
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button variant="ghost" className="w-full justify-start gap-3 h-11 text-muted-foreground/50" disabled>
+                        <Brain className="h-4 w-4" />
+                        AI Guidance
+                        <span className="ml-auto text-xs">(Members only)</span>
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
-                      className="w-full justify-start gap-3 h-12 text-base"
+                      className="w-full justify-start gap-3 h-11"
                       onClick={() => {
                         setMobileMenuOpen(false)
                         setSettingsDialogOpen(true)
                       }}
                     >
-                      <Settings className="h-5 w-5" />
+                      <Settings className="h-4 w-4" />
                       Settings
                     </Button>
                   </nav>
-                  {/* Stats summary in mobile menu */}
+                  
+                  {/* Stats summary */}
                   <div className="mt-auto p-4 border-t bg-muted/30">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-foreground">{activeGoals.length}</p>
+                    <div className="grid grid-cols-2 gap-3 text-center">
+                      <div>
+                        <p className="text-xl font-bold text-foreground">{activeGoals.length}</p>
                         <p className="text-xs text-muted-foreground">Active Goals</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-bold text-primary">{overallProgress}%</p>
+                      <div>
+                        <p className="text-xl font-bold text-primary">{overallProgress}%</p>
                         <p className="text-xs text-muted-foreground">Progress</p>
                       </div>
                     </div>

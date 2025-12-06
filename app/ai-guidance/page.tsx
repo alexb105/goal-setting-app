@@ -2,25 +2,22 @@
 
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, Key, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, Star, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot, Pencil, Plus, Check, X, Wand2, Pin, PinOff } from "lucide-react"
+import { ArrowLeft, Sparkles, Brain, Target, Compass, AlertTriangle, CheckCircle2, Lightbulb, RefreshCw, TrendingUp, AlertCircle, ArrowRight, Clock, Flame, ThumbsUp, Zap, Heart, Calendar, Link2, BarChart3, Shield, Crosshair, Timer, Rocket, BookOpen, Layers, PlusCircle, CircleDot, Pencil, Plus, Check, X, Wand2, Pin, PinOff } from "lucide-react"
 import type { PinnedInsight } from "@/types"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { useGoals } from "@/components/goals-context"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { isGoalCompleted, calculateProgress } from "@/utils/goals"
 import { isMilestoneOverdue, isMilestoneDueSoon } from "@/utils/date"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-const API_KEY_STORAGE = "goaladdict-openai-api-key"
-const LIFE_PURPOSE_STORAGE = "goaladdict-life-purpose"
-const AI_ANALYSIS_STORAGE = "goaladdict-ai-analysis"
-const AI_APPLIED_SUGGESTIONS = "goaladdict-ai-applied-suggestions"
-const AI_DISMISSED_SUGGESTIONS = "goaladdict-ai-dismissed-suggestions"
-const PINNED_INSIGHTS_STORAGE = "goaladdict-pinned-insights"
+const LIFE_PURPOSE_STORAGE = "goalritual-life-purpose"
+const AI_ANALYSIS_STORAGE = "goalritual-ai-analysis"
+const AI_APPLIED_SUGGESTIONS = "goalritual-ai-applied-suggestions"
+const AI_DISMISSED_SUGGESTIONS = "goalritual-ai-dismissed-suggestions"
+const PINNED_INSIGHTS_STORAGE = "goalritual-pinned-insights"
 
 // Life Purpose Area - key areas needed to achieve purpose
 interface PurposeArea {
@@ -159,25 +156,18 @@ interface AnalysisResult {
 
 export default function AIGuidancePage() {
   const { goals, updateGoal, addGoal, addMilestone, updateMilestone, addTask, updateTask } = useGoals()
-  const [apiKey, setApiKey] = useState("")
-  const [apiKeyInput, setApiKeyInput] = useState("")
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const { triggerSync } = useSupabaseSync()
   const [lifePurpose, setLifePurpose] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("suggestions")
+  const [activeTab, setActiveTab] = useState("overview")
   const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set())
   const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
   const [pinnedInsights, setPinnedInsights] = useState<PinnedInsight[]>([])
   const [dataLoaded, setDataLoaded] = useState(false)
 
   useEffect(() => {
-    const storedKey = localStorage.getItem(API_KEY_STORAGE)
-    if (storedKey) {
-      setApiKey(storedKey)
-      setApiKeyInput(storedKey)
-    }
     const storedPurpose = localStorage.getItem(LIFE_PURPOSE_STORAGE)
     if (storedPurpose) {
       setLifePurpose(storedPurpose)
@@ -223,26 +213,30 @@ export default function AIGuidancePage() {
     if (!dataLoaded) return
     if (analysis) {
       localStorage.setItem(AI_ANALYSIS_STORAGE, JSON.stringify(analysis))
+      triggerSync()
     }
-  }, [analysis, dataLoaded])
+  }, [analysis, dataLoaded, triggerSync])
 
   // Persist applied suggestions to localStorage
   useEffect(() => {
     if (!dataLoaded) return
     localStorage.setItem(AI_APPLIED_SUGGESTIONS, JSON.stringify([...appliedSuggestions]))
-  }, [appliedSuggestions, dataLoaded])
+    triggerSync()
+  }, [appliedSuggestions, dataLoaded, triggerSync])
 
   // Persist dismissed suggestions to localStorage
   useEffect(() => {
     if (!dataLoaded) return
     localStorage.setItem(AI_DISMISSED_SUGGESTIONS, JSON.stringify([...dismissedSuggestions]))
-  }, [dismissedSuggestions, dataLoaded])
+    triggerSync()
+  }, [dismissedSuggestions, dataLoaded, triggerSync])
 
   // Persist pinned insights to localStorage
   useEffect(() => {
     if (!dataLoaded) return
     localStorage.setItem(PINNED_INSIGHTS_STORAGE, JSON.stringify(pinnedInsights))
-  }, [pinnedInsights, dataLoaded])
+    triggerSync()
+  }, [pinnedInsights, dataLoaded, triggerSync])
 
   const pinInsight = (
     goalId: string,
@@ -298,20 +292,6 @@ export default function AIGuidancePage() {
     const total = activeGoals.reduce((acc, goal) => acc + calculateProgress(goal), 0)
     return Math.round(total / activeGoals.length)
   }, [activeGoals])
-
-  const saveApiKey = () => {
-    if (apiKeyInput.trim()) {
-      localStorage.setItem(API_KEY_STORAGE, apiKeyInput.trim())
-      setApiKey(apiKeyInput.trim())
-      setShowApiKeyDialog(false)
-    }
-  }
-
-  const clearApiKey = () => {
-    localStorage.removeItem(API_KEY_STORAGE)
-    setApiKey("")
-    setApiKeyInput("")
-  }
 
   const buildAnalysisPrompt = () => {
     const goalsData = activeGoals.map((goal) => ({
@@ -586,11 +566,6 @@ QUALITY STANDARDS:
   }
 
   const runAnalysis = async () => {
-    if (!apiKey) {
-      setShowApiKeyDialog(true)
-      return
-    }
-
     setIsAnalyzing(true)
     setError(null)
     setAnalysis(null)
@@ -598,14 +573,12 @@ QUALITY STANDARDS:
     setDismissedSuggestions(new Set())
 
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: "You are an expert life coach. Respond with valid JSON only." },
             { role: "user", content: buildAnalysisPrompt() },
@@ -617,7 +590,7 @@ QUALITY STANDARDS:
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(response.status === 401 ? "Invalid API key" : errorData.error?.message || `Error: ${response.status}`)
+        throw new Error(errorData.error || `Error: ${response.status}`)
       }
 
       const data = await response.json()
@@ -757,9 +730,6 @@ QUALITY STANDARDS:
                 <p className="text-xs sm:text-sm text-muted-foreground">Purpose-driven insights</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setShowApiKeyDialog(true)} className="gap-2">
-              <Key className="h-4 w-4" /><span className="hidden sm:inline">{apiKey ? "✓" : "Set Key"}</span>
-            </Button>
           </div>
         </div>
       </header>
@@ -1659,26 +1629,6 @@ QUALITY STANDARDS:
         )}
       </div>
 
-      {/* API Key Dialog */}
-      <Dialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Key className="h-5 w-5" />OpenAI API Key</DialogTitle>
-            <DialogDescription>Stored locally on your device.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="api-key">API Key</Label>
-              <Input id="api-key" type="password" placeholder="sk-..." value={apiKeyInput} onChange={(e) => setApiKeyInput(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Get from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">platform.openai.com</a></p>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={saveApiKey} disabled={!apiKeyInput.trim()} className="flex-1">Save</Button>
-              {apiKey && <Button variant="destructive" onClick={clearApiKey}>Remove</Button>}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

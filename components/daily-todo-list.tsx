@@ -34,12 +34,13 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useGoals } from "@/components/goals-context"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import type { DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask } from "@/types"
 
-const STORAGE_KEY = "goaladdict-daily-todos"
-const RECURRING_STORAGE_KEY = "goaladdict-recurring-tasks"
-const PINNED_TASKS_STORAGE_KEY = "goaladdict-pinned-milestone-tasks"
-const LAST_RESET_KEY = "goaladdict-daily-todos-last-reset"
+const STORAGE_KEY = "goalritual-daily-todos"
+const RECURRING_STORAGE_KEY = "goalritual-recurring-tasks"
+const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
+const LAST_RESET_KEY = "goalritual-daily-todos-last-reset"
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sun", fullLabel: "Sunday" },
@@ -80,7 +81,7 @@ function formatDays(days: number[]): string {
   return sortedDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(", ")
 }
 
-const SCROLL_TO_MILESTONE_KEY = "goaladdict-scroll-to-milestone"
+const SCROLL_TO_MILESTONE_KEY = "goalritual-scroll-to-milestone"
 
 interface DailyTodoListProps {
   onNavigateToGoal?: (goalId: string, milestoneId?: string) => void
@@ -88,6 +89,7 @@ interface DailyTodoListProps {
 
 export function DailyTodoList({ onNavigateToGoal }: DailyTodoListProps) {
   const { goals, toggleTask } = useGoals()
+  const { triggerSync } = useSupabaseSync()
   const [todos, setTodos] = useState<DailyTodo[]>([])
   const [recurringTasks, setRecurringTasks] = useState<StandaloneRecurringTask[]>([])
   const [pinnedTasks, setPinnedTasks] = useState<PinnedMilestoneTask[]>([])
@@ -155,10 +157,34 @@ export function DailyTodoList({ onNavigateToGoal }: DailyTodoListProps) {
     setIsLoaded(true)
   }, [today])
 
-  // Listen for storage events (when pinned tasks are changed from other components)
+  // Listen for storage events (when data is changed from other components or cloud sync)
   useEffect(() => {
     const handleStorageChange = () => {
+      // Reload all data from localStorage
+      const storedTodos = localStorage.getItem(STORAGE_KEY)
+      const storedRecurring = localStorage.getItem(RECURRING_STORAGE_KEY)
       const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
+      
+      if (storedTodos) {
+        try {
+          setTodos(JSON.parse(storedTodos))
+        } catch {
+          // Ignore parse errors
+        }
+      } else {
+        setTodos([])
+      }
+      
+      if (storedRecurring) {
+        try {
+          setRecurringTasks(JSON.parse(storedRecurring))
+        } catch {
+          // Ignore parse errors
+        }
+      } else {
+        setRecurringTasks([])
+      }
+      
       if (storedPinned) {
         try {
           setPinnedTasks(JSON.parse(storedPinned))
@@ -170,30 +196,38 @@ export function DailyTodoList({ onNavigateToGoal }: DailyTodoListProps) {
       }
     }
 
+    // Listen for both standard storage events (cross-tab) and custom events (same window)
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('goalritual-storage-updated', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('goalritual-storage-updated', handleStorageChange)
+    }
   }, [])
 
   // Save todos to localStorage whenever they change
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
+      triggerSync()
     }
-  }, [todos, isLoaded])
+  }, [todos, isLoaded, triggerSync])
 
   // Save recurring tasks to localStorage whenever they change
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(RECURRING_STORAGE_KEY, JSON.stringify(recurringTasks))
+      triggerSync()
     }
-  }, [recurringTasks, isLoaded])
+  }, [recurringTasks, isLoaded, triggerSync])
 
   // Save pinned tasks to localStorage whenever they change
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(pinnedTasks))
+      triggerSync()
     }
-  }, [pinnedTasks, isLoaded])
+  }, [pinnedTasks, isLoaded, triggerSync])
 
   const addTodo = useCallback(() => {
     if (!newTodoTitle.trim()) return

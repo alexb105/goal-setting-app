@@ -13,10 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { DateQuickSelect } from "@/components/shared/date-quick-select"
-import { Sparkles, RefreshCw, CheckCircle2, Lightbulb } from "lucide-react"
+import { Sparkles, RefreshCw, Lightbulb } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-
-const API_KEY_STORAGE = "goaladdict-openai-api-key"
 
 interface SuggestedMilestone {
   title: string
@@ -43,13 +41,6 @@ export function AddMilestoneDialog({ goalId, open, onOpenChange }: AddMilestoneD
   const [suggestions, setSuggestions] = useState<SuggestedMilestone[]>([])
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [apiKey, setApiKey] = useState("")
-
-  // Load API key
-  useEffect(() => {
-    const storedKey = localStorage.getItem(API_KEY_STORAGE)
-    if (storedKey) setApiKey(storedKey)
-  }, [])
 
   // Get the current goal
   const currentGoal = goals.find((g) => g.id === goalId)
@@ -76,7 +67,7 @@ export function AddMilestoneDialog({ goalId, open, onOpenChange }: AddMilestoneD
   }
 
   const getAISuggestions = async () => {
-    if (!apiKey || !currentGoal) return
+    if (!currentGoal) return
 
     setIsLoadingSuggestions(true)
     setShowSuggestions(true)
@@ -117,14 +108,12 @@ Respond with ONLY valid JSON (no markdown):
   ]
 }`
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: "You are a helpful goal planning assistant. Respond with valid JSON only." },
             { role: "user", content: prompt },
@@ -288,7 +277,7 @@ Respond with ONLY valid JSON (no markdown):
           )}
 
           {/* AI Suggestions Section */}
-          {mode === "new" && apiKey && (
+          {mode === "new" && (
             <div className="space-y-2">
               <Button
                 type="button"
@@ -335,12 +324,6 @@ Respond with ONLY valid JSON (no markdown):
                 <p className="text-xs text-muted-foreground text-center py-2">No suggestions available</p>
               )}
             </div>
-          )}
-
-          {mode === "new" && !apiKey && (
-            <p className="text-xs text-muted-foreground text-center py-1">
-              Set your OpenAI API key in AI Guidance to get milestone suggestions
-            </p>
           )}
 
           <div className="space-y-2">

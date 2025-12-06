@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import type { Goal, Milestone, Task, PinnedMilestoneTask } from "@/types"
 
-const PINNED_TASKS_STORAGE_KEY = "goaladdict-pinned-milestone-tasks"
+const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
 import { useGoals } from "@/components/goals-context"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { EditMilestoneDialog } from "@/components/edit-milestone-dialog"
 import { AITaskSuggestions } from "@/components/ai-task-suggestions"
 import { cn } from "@/lib/utils"
@@ -56,6 +57,7 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [isPinned, setIsPinned] = useState(false)
+  const { triggerSync } = useSupabaseSync()
   
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
@@ -118,6 +120,8 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
     setIsPinned(!isPinned)
     // Dispatch storage event to notify other components
     window.dispatchEvent(new Event('storage'))
+    // Trigger cloud sync
+    triggerSync()
   }
 
   const handleSave = () => {

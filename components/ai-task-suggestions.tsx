@@ -5,11 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, RefreshCw, Plus, CheckCircle2 } from "lucide-react"
+import { Sparkles, RefreshCw, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Goal, Milestone } from "@/types"
-
-const API_KEY_STORAGE = "goaladdict-openai-api-key"
 
 interface SuggestedTask {
   title: string
@@ -29,23 +27,15 @@ export function AITaskSuggestions({ open, onOpenChange, goal, milestone, onAddTa
   const [suggestions, setSuggestions] = useState<SuggestedTask[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set())
-  const [apiKey, setApiKey] = useState("")
   const [error, setError] = useState("")
 
   useEffect(() => {
-    const storedKey = localStorage.getItem(API_KEY_STORAGE)
-    if (storedKey) setApiKey(storedKey)
-  }, [])
-
-  useEffect(() => {
-    if (open && apiKey) {
+    if (open) {
       getSuggestions()
     }
   }, [open])
 
   const getSuggestions = async () => {
-    if (!apiKey) return
-
     setIsLoading(true)
     setSuggestions([])
     setSelectedTasks(new Set())
@@ -84,14 +74,12 @@ Respond with ONLY valid JSON (no markdown):
   ]
 }`
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
           messages: [
             { role: "system", content: "You are a helpful productivity assistant. Respond with valid JSON only." },
             { role: "user", content: prompt },
@@ -102,7 +90,8 @@ Respond with ONLY valid JSON (no markdown):
       })
 
       if (!response.ok) {
-        throw new Error("API request failed")
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "API request failed")
       }
 
       const data = await response.json()
@@ -115,7 +104,7 @@ Respond with ONLY valid JSON (no markdown):
       }
     } catch (err) {
       console.error("Failed to get suggestions:", err)
-      setError("Failed to get suggestions. Please try again.")
+      setError(err instanceof Error ? err.message : "Failed to get suggestions. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -170,14 +159,7 @@ Respond with ONLY valid JSON (no markdown):
           </DialogDescription>
         </DialogHeader>
 
-        {!apiKey ? (
-          <div className="text-center py-8">
-            <Sparkles className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">
-              Set your OpenAI API key in AI Guidance to get task suggestions
-            </p>
-          </div>
-        ) : isLoading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center py-12">
             <RefreshCw className="h-8 w-8 text-purple-600 animate-spin mb-3" />
             <p className="text-sm text-muted-foreground">Analyzing milestone and generating tasks...</p>

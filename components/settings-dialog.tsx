@@ -23,18 +23,48 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleExport = () => {
-    // Get all data from localStorage
+    // Helper to safely parse JSON from localStorage
+    const getJson = (key: string, fallback: unknown = null) => {
+      try {
+        const data = localStorage.getItem(key)
+        return data ? JSON.parse(data) : fallback
+      } catch {
+        return fallback
+      }
+    }
+
+    // Get ALL user data from localStorage
+    // This matches all keys from lib/supabase/sync.ts STORAGE_KEYS (except openaiApiKey which is server-side now)
     const exportData = {
+      // Core data
       goals: goals,
-      groupOrder: JSON.parse(localStorage.getItem("goal-group-order") || "[]"),
-      dailyTodos: JSON.parse(localStorage.getItem("goaladdict-daily-todos") || "[]"),
-      dailyTodosLastReset: localStorage.getItem("goaladdict-daily-todos-last-reset") || null,
-      recurringTasks: JSON.parse(localStorage.getItem("goaladdict-recurring-tasks") || "[]"),
-      pinnedMilestoneTasks: JSON.parse(localStorage.getItem("goaladdict-pinned-milestone-tasks") || "[]"),
-      lifePurpose: localStorage.getItem("goaladdict-life-purpose") || null,
-      openaiApiKey: localStorage.getItem("goaladdict-openai-api-key") || null,
+      groupOrder: getJson("goal-group-order", []),
+      
+      // Daily tasks
+      dailyTodos: getJson("goalritual-daily-todos", []),
+      dailyTodosLastReset: localStorage.getItem("goalritual-daily-todos-last-reset") || null,
+      
+      // Recurring tasks
+      recurringTasks: getJson("goalritual-recurring-tasks", []),
+      
+      // Pinned milestone tasks
+      pinnedMilestoneTasks: getJson("goalritual-pinned-milestone-tasks", []),
+      
+      // Life purpose
+      lifePurpose: localStorage.getItem("goalritual-life-purpose") || null,
+      
+      // AI data
+      aiAnalysis: getJson("goalritual-ai-analysis", null),
+      aiAppliedSuggestions: getJson("goalritual-ai-applied-suggestions", []),
+      aiDismissedSuggestions: getJson("goalritual-ai-dismissed-suggestions", []),
+      pinnedInsights: getJson("goalritual-pinned-insights", []),
+      
+      // Note: openaiApiKey is intentionally NOT exported (moved to server-side)
+      // Note: scroll-to-milestone is temporary UI state, not user data
+      
+      // Metadata
       exportedAt: new Date().toISOString(),
-      version: "1.5",
+      version: "2.0",
     }
 
     // Create blob and download
@@ -42,7 +72,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `goaladdict-backup-${new Date().toISOString().split("T")[0]}.json`
+    link.download = `goalritual-backup-${new Date().toISOString().split("T")[0]}.json`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -74,64 +104,98 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           return
         }
 
-        // Build confirmation message
+        // Check what's in the backup
         const hasDailyTodos = data.dailyTodos && Array.isArray(data.dailyTodos) && data.dailyTodos.length > 0
         const hasRecurringTasks = data.recurringTasks && Array.isArray(data.recurringTasks) && data.recurringTasks.length > 0
         const hasPinnedTasks = data.pinnedMilestoneTasks && Array.isArray(data.pinnedMilestoneTasks) && data.pinnedMilestoneTasks.length > 0
-        let confirmMessage = `This will replace all your current data with ${data.goals.length} goals`
-        if (hasDailyTodos) {
-          confirmMessage += `, ${data.dailyTodos.length} daily tasks`
-        }
-        if (hasRecurringTasks) {
-          confirmMessage += `, ${data.recurringTasks.length} recurring tasks`
-        }
-        if (hasPinnedTasks) {
-          confirmMessage += `, ${data.pinnedMilestoneTasks.length} pinned tasks`
-        }
-        confirmMessage += ` from the backup. This cannot be undone. Continue?`
+        const hasAiAnalysis = !!data.aiAnalysis
+        const hasPinnedInsights = data.pinnedInsights && Array.isArray(data.pinnedInsights) && data.pinnedInsights.length > 0
+        
+        // Build confirmation message
+        let confirmMessage = `This will import:\n\n`
+        confirmMessage += `• ${data.goals.length} goals\n`
+        if (hasDailyTodos) confirmMessage += `• ${data.dailyTodos.length} daily tasks\n`
+        if (hasRecurringTasks) confirmMessage += `• ${data.recurringTasks.length} recurring tasks\n`
+        if (hasPinnedTasks) confirmMessage += `• ${data.pinnedMilestoneTasks.length} pinned milestone tasks\n`
+        if (hasAiAnalysis) confirmMessage += `• AI analysis data\n`
+        if (hasPinnedInsights) confirmMessage += `• ${data.pinnedInsights.length} pinned insights\n`
+        
+        // Note about preserved data
+        confirmMessage += `\n✓ Your existing AI insights, pinned insights, and suggestions will be preserved if not in backup.\n`
+        
+        confirmMessage += `\nThis cannot be undone. Continue?`
 
         const confirmImport = confirm(confirmMessage)
 
         if (confirmImport) {
+          // Helper to set JSON data
+          const setJson = (key: string, value: unknown) => {
+            if (value !== null && value !== undefined) {
+              localStorage.setItem(key, JSON.stringify(value))
+            }
+          }
+          
+          // Helper to set string data
+          const setString = (key: string, value: string | null) => {
+            if (value) {
+              localStorage.setItem(key, value)
+            } else {
+              localStorage.removeItem(key)
+            }
+          }
+
           // Import goals using the correct storage key
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data.goals))
           
           // Import group order if present
           if (data.groupOrder) {
-            localStorage.setItem("goal-group-order", JSON.stringify(data.groupOrder))
+            setJson("goal-group-order", data.groupOrder)
           }
 
           // Import daily todos if present
           if (data.dailyTodos && Array.isArray(data.dailyTodos)) {
-            localStorage.setItem("goaladdict-daily-todos", JSON.stringify(data.dailyTodos))
+            setJson("goalritual-daily-todos", data.dailyTodos)
           }
           
           // Import daily todos last reset date if present
-          if (data.dailyTodosLastReset) {
-            localStorage.setItem("goaladdict-daily-todos-last-reset", data.dailyTodosLastReset)
-          }
+          setString("goalritual-daily-todos-last-reset", data.dailyTodosLastReset)
 
           // Import recurring tasks if present
           if (data.recurringTasks && Array.isArray(data.recurringTasks)) {
-            localStorage.setItem("goaladdict-recurring-tasks", JSON.stringify(data.recurringTasks))
+            setJson("goalritual-recurring-tasks", data.recurringTasks)
           }
 
           // Import pinned milestone tasks if present
           if (data.pinnedMilestoneTasks && Array.isArray(data.pinnedMilestoneTasks)) {
-            localStorage.setItem("goaladdict-pinned-milestone-tasks", JSON.stringify(data.pinnedMilestoneTasks))
+            setJson("goalritual-pinned-milestone-tasks", data.pinnedMilestoneTasks)
           }
 
           // Import life purpose if present
-          if (data.lifePurpose) {
-            localStorage.setItem("goaladdict-life-purpose", data.lifePurpose)
-          } else {
-            localStorage.removeItem("goaladdict-life-purpose")
+          setString("goalritual-life-purpose", data.lifePurpose)
+
+          // Import AI analysis data if present (only if backup has data)
+          if (data.aiAnalysis) {
+            setJson("goalritual-ai-analysis", data.aiAnalysis)
+          }
+          
+          // Import AI applied suggestions if present and has data
+          if (data.aiAppliedSuggestions && Array.isArray(data.aiAppliedSuggestions) && data.aiAppliedSuggestions.length > 0) {
+            setJson("goalritual-ai-applied-suggestions", data.aiAppliedSuggestions)
+          }
+          
+          // Import AI dismissed suggestions if present and has data
+          if (data.aiDismissedSuggestions && Array.isArray(data.aiDismissedSuggestions) && data.aiDismissedSuggestions.length > 0) {
+            setJson("goalritual-ai-dismissed-suggestions", data.aiDismissedSuggestions)
+          }
+          
+          // Import pinned insights if present and has data
+          // Don't overwrite existing pinned insights with empty array
+          if (data.pinnedInsights && Array.isArray(data.pinnedInsights) && data.pinnedInsights.length > 0) {
+            setJson("goalritual-pinned-insights", data.pinnedInsights)
           }
 
-          // Import OpenAI API key if present
-          if (data.openaiApiKey) {
-            localStorage.setItem("goaladdict-openai-api-key", data.openaiApiKey)
-          }
+          // Set flag to tell the app to push this imported data to cloud (not pull from cloud)
+          sessionStorage.setItem("goalritual-force-push-to-cloud", "true")
 
           // Reload page to apply changes
           window.location.reload()

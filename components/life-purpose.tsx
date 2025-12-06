@@ -5,10 +5,12 @@ import { Sparkles, Pencil, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 
-const STORAGE_KEY = "goaladdict-life-purpose"
+const STORAGE_KEY = "goalritual-life-purpose"
 
 export function LifePurpose() {
+  const { triggerSync } = useSupabaseSync()
   const [lifePurpose, setLifePurpose] = useState("")
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState("")
@@ -16,15 +18,29 @@ export function LifePurpose() {
 
   // Load life purpose from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try {
+    const loadFromStorage = () => {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
         setLifePurpose(stored)
-      } catch {
-        // Ignore parse errors
+      } else {
+        setLifePurpose("")
       }
     }
+    
+    loadFromStorage()
     setIsLoaded(true)
+    
+    // Listen for storage updates from cloud sync
+    const handleStorageUpdate = () => {
+      loadFromStorage()
+    }
+    
+    window.addEventListener('goalritual-storage-updated', handleStorageUpdate)
+    window.addEventListener('storage', handleStorageUpdate)
+    return () => {
+      window.removeEventListener('goalritual-storage-updated', handleStorageUpdate)
+      window.removeEventListener('storage', handleStorageUpdate)
+    }
   }, [])
 
   // Save life purpose to localStorage
@@ -35,8 +51,9 @@ export function LifePurpose() {
       } else {
         localStorage.removeItem(STORAGE_KEY)
       }
+      triggerSync()
     }
-  }, [lifePurpose, isLoaded])
+  }, [lifePurpose, isLoaded, triggerSync])
 
   const handleStartEdit = () => {
     setEditValue(lifePurpose)

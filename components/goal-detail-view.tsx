@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import type { Goal } from "@/types"
 import { useGoals } from "@/components/goals-context"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { Textarea } from "@/components/ui/textarea"
 import { MilestonePath } from "@/components/milestone-path"
 import { AddMilestoneDialog } from "@/components/add-milestone-dialog"
@@ -28,8 +29,8 @@ import { RecurringTasks } from "@/components/recurring-tasks"
 import { useGoalDate } from "@/hooks/use-goal-date"
 import { calculateProgress, getNegativelyImpactedBy, getNegativelyImpacts, getSupportingGoals } from "@/utils/goals"
 
-const PINNED_INSIGHTS_STORAGE = "goaladdict-pinned-insights"
-const SCROLL_TO_MILESTONE_KEY = "goaladdict-scroll-to-milestone"
+const PINNED_INSIGHTS_STORAGE = "goalritual-pinned-insights"
+const SCROLL_TO_MILESTONE_KEY = "goalritual-scroll-to-milestone"
 
 interface GoalDetailViewProps {
   goal: Goal
@@ -39,6 +40,7 @@ interface GoalDetailViewProps {
 
 export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailViewProps) {
   const { deleteGoal, goals, updateGoal, archiveGoal, unarchiveGoal } = useGoals()
+  const { triggerSync } = useSupabaseSync()
   const [addMilestoneOpen, setAddMilestoneOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -91,6 +93,7 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
         const updated = allPinned.filter(p => p.id !== insightId)
         localStorage.setItem(PINNED_INSIGHTS_STORAGE, JSON.stringify(updated))
         setPinnedInsights(updated.filter(p => p.goalId === goal.id))
+        triggerSync()
       } catch {
         // Ignore parse errors
       }
