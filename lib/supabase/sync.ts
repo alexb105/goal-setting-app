@@ -128,19 +128,30 @@ export class SupabaseSync {
 
   // Push local data to cloud (for new account sign up)
   async pushLocalToCloud(): Promise<boolean> {
-    if (!this.user) return false
+    if (!this.user) {
+      console.warn("Cannot push to cloud: no user")
+      return false
+    }
     const localData = this.getLocalData()
-    return await this.saveToSupabase(localData)
+    const result = await this.saveToSupabase(localData)
+    if (!result) {
+      console.error("Failed to push local data to cloud for user:", this.user.id)
+    }
+    return result
   }
 
   // Pull cloud data and overwrite local (for sign in)
   async pullCloudToLocal(): Promise<boolean> {
-    if (!this.user) return false
+    if (!this.user) {
+      console.warn("Cannot pull from cloud: no user")
+      return false
+    }
 
     const remoteData = await this.fetchFromSupabase()
 
     if (remoteData) {
       // Remote data exists - overwrite local with it
+      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0)
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
@@ -155,9 +166,11 @@ export class SupabaseSync {
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
       })
+      console.log("Successfully pulled cloud data to local storage")
       return true
     } else {
       // No remote data exists - clear local data (new account with no data)
+      console.log("No cloud data found, clearing local data")
       this.clearLocalData()
       return true
     }
@@ -166,6 +179,13 @@ export class SupabaseSync {
   // Fetch user data from Supabase
   async fetchFromSupabase(): Promise<UserData | null> {
     if (!this.user) return null
+
+    // Verify we have a valid session
+    const { data: { session }, error: sessionError } = await this.supabase.auth.getSession()
+    if (sessionError || !session) {
+      console.warn("No valid session when trying to fetch:", sessionError)
+      return null
+    }
 
     try {
       const { data, error } = await this.supabase
@@ -177,49 +197,116 @@ export class SupabaseSync {
       if (error) {
         // No data exists yet - this is normal for new users
         if (error.code === "PGRST116") {
+          console.log("No user_data row found for user (new user):", this.user.id)
           return null
         }
-        console.error("Error fetching from Supabase:", error)
+        console.error("Error fetching from Supabase:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          user_id: this.user.id,
+        })
         return null
       }
 
+      if (data) {
+        console.log("Fetched data from Supabase. Goals:", (data as UserData).goals?.length || 0, "User ID:", this.user.id)
+      }
       return data as UserData
     } catch (error) {
-      console.error("Error fetching from Supabase:", error)
+      console.error("Exception fetching from Supabase:", error)
       return null
     }
   }
 
   // Save user data to Supabase
   async saveToSupabase(data: Omit<UserData, "updated_at">): Promise<boolean> {
-    if (!this.user) return false
+    if (!this.user) {
+      console.warn("Cannot save to Supabase: no user")
+      return false
+    }
+
+    // Verify we have a valid session
+    const { data: { session }, error: sessionError } = await this.supabase.auth.getSession()
+    if (sessionError || !session) {
+      console.error("No valid session when trying to save:", sessionError)
+      return false
+    }
+
+    if (session.user.id !== this.user.id) {
+      console.error("Session user ID mismatch:", session.user.id, "vs", this.user.id)
+      return false
+    }
+
+    // Check if email is confirmed (RLS policies may require this)
+    if (session.user.email && !session.user.email_confirmed_at) {
+      console.warn("User email not confirmed yet. RLS policies may block data insertion. User ID:", this.user.id)
+      // Still try to save - some Supabase configs allow unconfirmed users
+    }
 
     try {
-      const { error } = await this.supabase
+      // First, check if a row exists for this user
+      const { data: existingData, error: fetchError } = await this.supabase
         .from("user_data")
-        .upsert({
-          user_id: this.user.id,
-          ...data,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: "user_id",
-        })
+        .select("user_id")
+        .eq("user_id", this.user.id)
+        .maybeSingle()
+
+      if (fetchError && fetchError.code !== "PGRST116") {
+        // PGRST116 is "no rows returned" which is fine
+        console.error("Error checking existing data:", fetchError.message, fetchError.details, fetchError.hint)
+      }
+
+      const payload = {
+        user_id: this.user.id,
+        ...data,
+        updated_at: new Date().toISOString(),
+      }
+
+      let error
+      if (existingData) {
+        // Row exists - update it
+        const { error: updateError } = await this.supabase
+          .from("user_data")
+          .update(payload)
+          .eq("user_id", this.user.id)
+        error = updateError
+      } else {
+        // Row doesn't exist - insert it
+        const { error: insertError } = await this.supabase
+          .from("user_data")
+          .insert(payload)
+        error = insertError
+      }
 
       if (error) {
-        console.error("Error saving to Supabase:", error.message, error.details, error.hint)
+        console.error("Error saving to Supabase:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          user_id: this.user.id,
+          hasData: !!data.goals && data.goals.length > 0,
+          operation: existingData ? "update" : "insert",
+        })
         return false
       }
 
+      console.log("Successfully saved data to Supabase for user:", this.user.id)
       return true
     } catch (error) {
-      console.error("Error saving to Supabase:", error)
+      console.error("Exception saving to Supabase:", error)
       return false
     }
   }
 
   // Sync local data to Supabase (called when data changes locally)
   async syncToCloud(): Promise<void> {
-    if (!this.user) return
+    if (!this.user) {
+      console.warn("Cannot sync to cloud: no user")
+      return
+    }
 
     // Prevent concurrent syncs
     if (this.isSyncing) {
@@ -231,7 +318,14 @@ export class SupabaseSync {
 
     try {
       const localData = this.getLocalData()
-      await this.saveToSupabase(localData)
+      const result = await this.saveToSupabase(localData)
+      if (!result) {
+        console.error("Failed to sync to cloud for user:", this.user.id)
+        throw new Error("Failed to save data to Supabase")
+      }
+    } catch (error) {
+      console.error("Error in syncToCloud:", error)
+      throw error
     } finally {
       this.isSyncing = false
 

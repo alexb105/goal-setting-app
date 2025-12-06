@@ -179,26 +179,63 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
         // Normal flow - load data from cloud
         setIsSyncing(true)
         try {
-          // Check if user has existing data in cloud
+          // Always check if user has existing data in cloud first
           const remoteData = await sync.fetchFromSupabase()
           
-          if (remoteData && remoteData.goals && remoteData.goals.length > 0) {
-            // User has cloud data - pull it to local (returning user)
+          if (remoteData) {
+            // User has cloud data (even if goals array is empty) - pull it to local
+            console.log("Found cloud data, pulling to local. Goals count:", remoteData.goals?.length || 0)
             await sync.pullCloudToLocal()
           } else {
-            // User has no cloud data - push local data to cloud (new account)
-            await sync.pushLocalToCloud()
+            // User has no cloud data - check if they have local data to push
+            const localData = localStorage.getItem(STORAGE_KEY)
+            if (localData) {
+              try {
+                const parsedLocalGoals: Goal[] = JSON.parse(localData)
+                // Only push to cloud if there's actual data
+                if (parsedLocalGoals && parsedLocalGoals.length > 0) {
+                  console.log("No cloud data, pushing local data to cloud. Goals count:", parsedLocalGoals.length)
+                  await sync.pushLocalToCloud()
+                }
+              } catch {
+                // Invalid local data - ignore and start fresh
+              }
+            }
+            // If no local data, don't push empty data to cloud - just start fresh
           }
           
-          // Load goals from localStorage after sync
+          // Load goals from localStorage after sync (or initialize empty if none exists)
           const stored = localStorage.getItem(STORAGE_KEY)
           if (stored) {
-            const parsedGoals: Goal[] = JSON.parse(stored)
-            setGoals(parsedGoals)
+            try {
+              const parsedGoals: Goal[] = JSON.parse(stored)
+              console.log("Loaded goals from localStorage after sync. Count:", parsedGoals.length)
+              setGoals(parsedGoals)
+            } catch {
+              // Invalid data - start with empty array
+              console.warn("Invalid data in localStorage, starting with empty array")
+              setGoals([])
+            }
+          } else {
+            // No stored data - initialize with empty array
+            console.log("No data in localStorage, initializing with empty array")
+            setGoals([])
           }
         } catch (error) {
           console.error("Error loading from cloud:", error)
           setSyncError("Failed to load from cloud")
+          // On error, still try to load from localStorage or initialize empty
+          const stored = localStorage.getItem(STORAGE_KEY)
+          if (stored) {
+            try {
+              const parsedGoals: Goal[] = JSON.parse(stored)
+              setGoals(parsedGoals)
+            } catch {
+              setGoals([])
+            }
+          } else {
+            setGoals([])
+          }
         } finally {
           setIsSyncing(false)
         }
