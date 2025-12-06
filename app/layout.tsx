@@ -172,15 +172,29 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Additional PWA meta tags for maximum compatibility */}
-        <meta name="mobile-web-app-capable" content="yes" />
+        {/* iOS PWA optimizations */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="GoalRitual" />
         <meta name="apple-touch-fullscreen" content="yes" />
+        
+        {/* Android PWA optimizations */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#000000" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-tap-highlight" content="no" />
+        <meta name="msapplication-navbutton-color" content="#000000" />
+        
+        {/* Android Chrome specific */}
+        <meta name="application-name" content="GoalRitual" />
         
         {/* Preconnect to external resources */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        
+        {/* DNS prefetch for better performance */}
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
       </head>
       <body className={`${geist.className} antialiased`} suppressHydrationWarning>
         <GoalsProviderWrapper>

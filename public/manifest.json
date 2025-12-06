@@ -4,15 +4,19 @@
   "description": "Set long-term goals and build a clear path to achieve them. Track milestones, daily tasks, and recurring habits.",
   "start_url": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "any",
+  "dir": "ltr",
+  "lang": "en",
   "scope": "/",
   "id": "/",
   "categories": ["productivity", "lifestyle", "utilities"],
-  "lang": "en",
-  "dir": "ltr",
   "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
