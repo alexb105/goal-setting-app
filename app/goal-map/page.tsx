@@ -136,55 +136,86 @@ export default function GoalMapPage() {
       why: goal.why || "Not specified",
       progress: calculateProgress(goal),
       tags: goal.tags,
+      milestones: goal.milestones.map(m => ({
+        title: m.title,
+        description: m.description,
+        completed: m.completed,
+      })),
     }))
 
-    return `You are an expert life coach. Analyze the life purpose and break it down into distinct areas/themes, then map each goal to the relevant area(s).
+    return `You are an analytical life coach. Your task is to SYSTEMATICALLY analyze the life purpose statement and categorize goals based on evidence.
 
-## LIFE PURPOSE
+## STEP 1: ANALYZE THE LIFE PURPOSE
 "${lifePurpose}"
 
-## CURRENT GOALS
+Extract the distinct themes/areas mentioned or implied in this purpose statement. Look for:
+- Career/professional aspirations
+- Personal development areas
+- Relationships/family goals
+- Health/wellness aspects
+- Financial objectives
+- Creative/passion pursuits
+- Impact/legacy goals
+
+## STEP 2: ANALYZE THESE GOALS AND THEIR MILESTONES
 ${JSON.stringify(goalsData, null, 2)}
 
-Your task:
-1. Break down the life purpose into 3-5 distinct areas/themes (like a Venn diagram)
-2. For each goal, determine which area(s) it contributes to
-3. Goals can belong to multiple areas if they serve multiple purposes
+For each goal, examine:
+- The goal title and description
+- The "why" statement
+- The milestones and what they involve
+- The tags
+
+## STEP 3: MAP GOALS TO PURPOSE AREAS
+
+Based on your analysis, determine which purpose area(s) each goal DIRECTLY contributes to.
+A goal belongs to an area if its milestones and activities BUILD TOWARDS that area.
 
 Respond with this EXACT JSON structure (no markdown):
 {
-  "purposeSummary": "<1-2 sentence interpretation of the overall life purpose>",
+  "purposeSummary": "<factual summary of what the life purpose encompasses>",
   "purposeAreas": [
     {
+      "id": "area-0",
+      "name": "<2-3 word name derived from the purpose statement>",
+      "description": "<what this area represents based on the purpose>",
+      "color": "purple",
+      "importance": "critical|important|supporting"
+    },
+    {
       "id": "area-1",
-      "name": "<short name, 2-3 words max, e.g. 'Financial Freedom', 'Health & Energy', 'Creative Expression'>",
-      "description": "<1 sentence explaining this area's role in the purpose>",
-      "color": "<one of: purple, blue, emerald, amber, pink, indigo>",
+      "name": "<second area name>",
+      "description": "<description>",
+      "color": "blue",
       "importance": "critical|important|supporting"
     }
   ],
   "goalPlacements": [
     {
-      "goalId": "<exact goal id>",
-      "areas": ["<area-1>", "<area-2>", "<area-3 if applicable>"],
-      "primaryArea": "<main area id where goal is most relevant>",
-      "contribution": "<1 sentence: how this goal specifically builds towards ALL the listed areas>",
-      "strength": <0-100 how strongly this goal contributes>
+      "goalId": "<exact goal id from the data>",
+      "areas": ["area-0", "area-1"],
+      "primaryArea": "area-0",
+      "contribution": "<specific explanation of HOW this goal's milestones build towards the listed areas>",
+      "strength": <0-100 based on how directly the goal serves the purpose>
     }
   ],
-  "overallAlignment": <0-100>,
-  "keyInsight": "<most important observation about how goals map to purpose areas>",
-  "motivation": "<encouraging message about their progress>"
+  "overallAlignment": <0-100 how well all goals cover the purpose>,
+  "keyInsight": "<analytical observation about goal coverage>",
+  "motivation": "<encouraging note>"
 }
 
-Guidelines:
-- Create 3-5 purpose areas maximum (for clear visualization)
-- Area names should be SHORT (2-3 words)
-- IMPORTANT: List ALL areas each goal contributes to in the "areas" array (can be 1, 2, or 3 areas)
-- If a goal serves multiple purpose areas, include ALL of them - don't limit to just 2
-- Be specific about how each goal contributes to ALL its listed areas
-- ALL goals should be placed in at least one area - find the best fit even if loose
-- strength: 90-100 = directly essential, 70-89 = strongly supports, 50-69 = moderately supports, 30-49 = loosely connected`
+CRITICAL ID RULES:
+- purposeAreas IDs MUST be: "area-0", "area-1", "area-2", "area-3", "area-4" (sequential, starting from 0)
+- goalPlacements.areas MUST use these EXACT same IDs (e.g., ["area-0", "area-2"])
+- goalPlacements.primaryArea MUST be one of the IDs from the areas array
+
+ANALYSIS RULES:
+- Only create areas that are ACTUALLY mentioned or clearly implied in the purpose statement
+- A goal belongs to an area ONLY if its milestones demonstrate work towards that area
+- List ALL areas a goal contributes to (1, 2, or 3) - don't skip any
+- The "contribution" field must reference SPECIFIC milestones or goal content
+- Strength is based on how CENTRAL the goal is to that purpose area
+- Be consistent: same goals should always map to same areas`
   }, [lifePurpose, allRelevantGoals])
 
   const runAnalysis = async () => {
@@ -201,10 +232,10 @@ Guidelines:
         },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "You are an expert life coach. Respond with valid JSON only." },
+            { role: "system", content: "You are an analytical assistant. Respond with valid JSON only. Be systematic and consistent." },
             { role: "user", content: buildMapPrompt() },
           ],
-          temperature: 0.7,
+          temperature: 0,
           max_tokens: 4000,
         }),
       })
@@ -234,17 +265,49 @@ Guidelines:
     }
   }
 
-  // Get goals for a specific area
-  const getGoalsInArea = useCallback((areaId: string) => {
-    if (!analysis) return []
+  // Get goals for a specific area (by index to handle ID mismatches)
+  const getGoalsInArea = useCallback((areaId: string | null | undefined, areaIndex?: number) => {
+    if (!analysis || !areaId) return []
+    
     return analysis.goalPlacements
-      .filter(p => p.areas.includes(areaId))
+      .filter(p => {
+        if (!p.areas || !Array.isArray(p.areas)) return false
+        // Check by exact ID match
+        if (p.areas.includes(areaId)) return true
+        // Also check by area index (area-0, area-1, etc.) in case of ID format differences
+        if (areaIndex !== undefined) {
+          const indexBasedId = `area-${areaIndex}`
+          if (p.areas.includes(indexBasedId)) return true
+          if (p.primaryArea === indexBasedId) return true
+        }
+        return false
+      })
       .map(p => {
         const goal = allRelevantGoals.find(g => g.id === p.goalId)
         return goal ? { ...p, goal } : null
       })
       .filter(Boolean)
   }, [analysis, allRelevantGoals])
+
+  // Helper to find area index by ID (handles different ID formats)
+  const findAreaIndex = useCallback((areaId: string | null | undefined) => {
+    if (!analysis || !areaId) return -1
+    
+    // Try exact match first
+    let idx = analysis.purposeAreas.findIndex(a => a.id === areaId)
+    if (idx >= 0) return idx
+    
+    // Try matching "area-N" format to index (0-based)
+    const match = areaId.match(/area-(\d+)/)
+    if (match) {
+      const num = parseInt(match[1], 10)
+      if (num >= 0 && num < analysis.purposeAreas.length) {
+        return num
+      }
+    }
+    
+    return -1
+  }, [analysis])
 
   // Get all goal positions (calculated once, placed at intersection of their areas)
   const allGoalPositions = useMemo(() => {
@@ -261,24 +324,29 @@ Guidelines:
       let x = 0
       let y = 0
       let validAreas = 0
+      const areaIndices: number[] = []
       
-      placement.areas.forEach(areaId => {
-        const idx = analysis.purposeAreas.findIndex(a => a.id === areaId)
+      const areas = placement.areas || []
+      areas.forEach(areaId => {
+        if (!areaId) return
+        const idx = findAreaIndex(areaId)
         if (idx >= 0 && layout[idx]) {
           x += layout[idx].cx
           y += layout[idx].cy
           validAreas++
+          areaIndices.push(idx)
         }
       })
       
       // Fallback: if no valid areas found, use primary area or first area
       if (validAreas === 0) {
-        const primaryIdx = analysis.purposeAreas.findIndex(a => a.id === placement.primaryArea)
+        const primaryIdx = findAreaIndex(placement.primaryArea)
         const fallbackIdx = primaryIdx >= 0 ? primaryIdx : 0
         if (layout[fallbackIdx]) {
           x = layout[fallbackIdx].cx
           y = layout[fallbackIdx].cy
           validAreas = 1
+          areaIndices.push(fallbackIdx)
         }
       }
       
@@ -287,16 +355,20 @@ Guidelines:
         x = x / validAreas
         y = y / validAreas
         
-        // Add slight offset based on index to prevent overlap
-        const offsetAngle = (i / Math.max(analysis.goalPlacements.length, 1)) * 2 * Math.PI + Math.PI / 4
-        const offsetDistance = 4 + (i % 3) * 3
+        // Add offset based on goal index within its area group to spread them out
+        const offsetAngle = (i * 2.39996) // Golden angle for better distribution
+        const offsetDistance = 6 + (i % 4) * 3
         x += Math.cos(offsetAngle) * offsetDistance
         y += Math.sin(offsetAngle) * offsetDistance
+        
+        // Keep within bounds
+        x = Math.max(8, Math.min(92, x))
+        y = Math.max(8, Math.min(92, y))
       }
       
       // Get color from primary area
-      const primaryIdx = analysis.purposeAreas.findIndex(a => a.id === placement.primaryArea)
-      const colorIdx = primaryIdx >= 0 ? primaryIdx : 0
+      const primaryIdx = findAreaIndex(placement.primaryArea)
+      const colorIdx = primaryIdx >= 0 ? primaryIdx : (areaIndices[0] ?? 0)
       
       return {
         goalId: placement.goalId,
@@ -305,9 +377,10 @@ Guidelines:
         placement,
         goal,
         colorIdx,
+        areaIndices,
       }
     }).filter(Boolean)
-  }, [analysis, allRelevantGoals])
+  }, [analysis, allRelevantGoals, findAreaIndex])
 
   const selectedGoalData = selectedGoal ? allRelevantGoals.find(g => g.id === selectedGoal) : null
   const selectedPlacement = selectedGoal && analysis ? analysis.goalPlacements.find(p => p.goalId === selectedGoal) : null
@@ -582,7 +655,8 @@ Guidelines:
               {analysis.purposeAreas.map((area, i) => {
                 const colorSet = getAreaColor(i)
                 const isSelected = selectedArea === area.id
-                const goalsInArea = getGoalsInArea(area.id)
+                // Count goals using both exact ID and index-based matching
+                const goalsInArea = getGoalsInArea(area.id, i)
                 
                 return (
                   <button
@@ -649,7 +723,7 @@ Guidelines:
             
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">Goals in this area:</p>
-              {getGoalsInArea(selectedAreaData.id).map((item) => {
+              {getGoalsInArea(selectedAreaData.id, analysis?.purposeAreas.findIndex(a => a.id === selectedAreaData.id)).map((item) => {
                 if (!item) return null
                 const placement = item as GoalPlacement & { goal: typeof goals[0] }
                 const goal = placement.goal
@@ -853,3 +927,4 @@ Guidelines:
     </div>
   )
 }
+

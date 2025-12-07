@@ -94,7 +94,7 @@ const withPWA = withPWAInit({
     ],
   },
   fallbacks: {
-    document: "/_offline",
+    document: "/offline",
   },
 });
 
