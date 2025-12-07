@@ -152,7 +152,7 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
           {...attributes}
           {...listeners}
           className={cn(
-            "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors",
+            "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block",
             isDragging && "cursor-grabbing",
           )}
           aria-label="Drag to reorder"
@@ -198,7 +198,7 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
         {...attributes}
         {...listeners}
         className={cn(
-          "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors",
+          "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block",
           isDragging && "cursor-grabbing",
         )}
         aria-label="Drag to reorder"
@@ -515,7 +515,7 @@ function SortableMilestoneItem({
               {...attributes}
               {...listeners}
               className={cn(
-                "cursor-grab active:cursor-grabbing p-1 sm:p-1.5 rounded hover:bg-muted transition-colors mt-0.5 flex-shrink-0",
+                "cursor-grab active:cursor-grabbing p-1 sm:p-1.5 rounded hover:bg-muted transition-colors mt-0.5 flex-shrink-0 hidden md:block",
                 isDragging && "cursor-grabbing",
               )}
               aria-label="Drag to reorder"

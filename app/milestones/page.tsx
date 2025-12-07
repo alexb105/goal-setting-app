@@ -1,11 +1,10 @@
 "use client"
 import { useState, useMemo } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore, Tag } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,12 +16,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { cn } from "@/lib/utils"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue } from "@/utils/date"
 
-type StatusFilter = "all" | "in-progress" | "completed" | "overdue" | "due-soon" | "pending"
+type StatusFilter = "all" | "in-progress" | "completed" | "overdue" | "due-soon"
 type ViewTab = "active" | "archived"
 
 export default function MilestonesPage() {
@@ -32,6 +32,7 @@ export default function MilestonesPage() {
   const [tagFilter, setTagFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [viewTab, setViewTab] = useState<ViewTab>("active")
+  const [showFilters, setShowFilters] = useState(false)
 
   // Get all unique groups from goals
   const allGroups = useMemo(() => {
@@ -100,14 +101,14 @@ export default function MilestonesPage() {
 
       // Status filter (only for active milestones)
       if (viewTab === "active") {
-      const isOverdue = isMilestoneOverdue(milestone)
-      const isDueSoon = isMilestoneDueSoon(milestone)
+        const isOverdue = isMilestoneOverdue(milestone)
+        const isDueSoon = isMilestoneDueSoon(milestone)
 
-      // By default ("all"), hide completed milestones
-      if (statusFilter === "all") {
-        if (milestone.completed) return false
-      } else {
         switch (statusFilter) {
+          case "all":
+            // Show all non-completed
+            if (milestone.completed) return false
+            break
           case "in-progress":
             if (!milestone.inProgress || milestone.completed) return false
             break
@@ -115,15 +116,11 @@ export default function MilestonesPage() {
             if (!milestone.completed) return false
             break
           case "overdue":
-            if (!isOverdue) return false
+            if (!isOverdue || milestone.completed) return false
             break
           case "due-soon":
             if (!isDueSoon || milestone.completed) return false
             break
-          case "pending":
-            if (milestone.completed || milestone.inProgress) return false
-            break
-          }
         }
       }
 
@@ -170,141 +167,199 @@ export default function MilestonesPage() {
     )
   }
 
+  // Count filters for badge
+  const activeFilterCount = [
+    groupFilter !== "all" ? 1 : 0,
+    tagFilter !== "all" ? 1 : 0,
+  ].reduce((a, b) => a + b, 0)
+
   return (
     <div className="min-h-screen safe-area-top">
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-4">
+          {/* Top row: Back button + Title + Filter button (mobile) */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Link href="/">
-                <Button variant="ghost" className="gap-2 -ml-2 h-9 px-2 sm:px-3">
+                <Button variant="ghost" className="gap-2 -ml-2 h-9 px-2 sm:px-3 active:scale-95">
                   <ArrowLeft className="h-4 w-4" />
                   <span className="hidden sm:inline">Back</span>
                 </Button>
               </Link>
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">All Milestones</h1>
+                <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">Milestones</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  {viewTab === "archived" 
-                    ? `${sortedMilestones.length} archived milestone${sortedMilestones.length !== 1 ? "s" : ""}`
-                    : statusFilter === "completed" 
-                    ? `${sortedMilestones.length} completed milestone${sortedMilestones.length !== 1 ? "s" : ""}`
-                    : `${sortedMilestones.length} of ${activeMilestonesCount} active milestone${activeMilestonesCount !== 1 ? "s" : ""}`
-                  }
-                  {hasActiveFilters && viewTab === "active" && statusFilter !== "completed" && " (filtered)"}
+                  {sortedMilestones.length} {viewTab === "archived" ? "archived" : statusFilter === "completed" ? "completed" : "active"}
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="mt-3 sm:mt-4">
-            <Tabs value={viewTab} onValueChange={(v) => setViewTab(v as ViewTab)}>
-              <TabsList className="grid w-full max-w-[300px] grid-cols-2">
-                <TabsTrigger value="active" className="gap-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  Active
-                  {activeMilestones.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-                      {activeMilestones.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="archived" className="gap-1.5">
-                  <Archive className="h-3.5 w-3.5" />
-                  Archived
-                  {archivedMilestones.length > 0 && (
-                    <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-                      {archivedMilestones.length}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Filters - Only show for active tab */}
-          {viewTab === "active" && (
-          <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-              <Filter className="h-4 w-4" />
-              <span className="hidden sm:inline">Filters:</span>
-            </div>
-
-            {/* Group Filter */}
-            <Select value={groupFilter} onValueChange={setGroupFilter}>
-              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                <SelectValue placeholder="All Groups" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Groups</SelectItem>
-                <SelectItem value="ungrouped">Ungrouped</SelectItem>
-                {allGroups.map((group) => (
-                  <SelectItem key={group} value={group}>
-                    {group}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Tag Filter */}
-            {allTags.length > 0 && (
-              <Select value={tagFilter} onValueChange={setTagFilter}>
-                <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                  <Tag className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                  <SelectValue placeholder="All Tags" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Tags</SelectItem>
-                  {allTags.map((tag) => (
-                    <SelectItem key={tag} value={tag}>
-                      {tag}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="w-[120px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                <SelectValue placeholder="Active" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Active</SelectItem>
-                <SelectItem value="in-progress">
-                  <span className="flex items-center gap-2">
-                    <Play className="h-3 w-3 fill-current text-amber-500" />
-                    In Progress
-                  </span>
-                </SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="due-soon">Due Soon</SelectItem>
-                <SelectItem value="overdue">Overdue</SelectItem>
-                <SelectItem value="completed">
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    Completed
-                  </span>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Clear Filters */}
-            {hasActiveFilters && (
+            
+            {/* Mobile filter button */}
+            {viewTab === "active" && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={clearFilters}
-                className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
+                className="md:hidden h-9 gap-1.5 active:scale-95"
+                onClick={() => setShowFilters(!showFilters)}
               >
-                <X className="h-4 w-4" />
-                <span className="hidden sm:inline">Clear</span>
+                <SlidersHorizontal className="h-4 w-4" />
+                {activeFilterCount > 0 && (
+                  <Badge className="h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                    {activeFilterCount}
+                  </Badge>
+                )}
               </Button>
             )}
           </div>
+
+          {/* Active/Archived toggle - simplified segmented control */}
+          <div className="mt-3 flex items-center gap-1 p-1 bg-muted/50 rounded-lg w-fit">
+            <button
+              onClick={() => setViewTab("active")}
+              className={cn(
+                "px-4 py-2 rounded-md text-sm font-medium transition-all active:scale-95",
+                viewTab === "active" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Active
+              {activeMilestonesCount > 0 && (
+                <span className="ml-1.5 text-xs opacity-70">({activeMilestonesCount})</span>
+              )}
+            </button>
+            <button
+              onClick={() => setViewTab("archived")}
+              className={cn(
+                "px-4 py-2 rounded-md text-sm font-medium transition-all active:scale-95",
+                viewTab === "archived" 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Archived
+              {archivedMilestones.length > 0 && (
+                <span className="ml-1.5 text-xs opacity-70">({archivedMilestones.length})</span>
+              )}
+            </button>
+          </div>
+
+          {/* Status filter chips - horizontal scroll on mobile */}
+          {viewTab === "active" && (
+            <div className="mt-3 overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
+              <div className="flex items-center gap-2 min-w-max">
+                {[
+                  { value: "all", label: "All Active" },
+                  { value: "in-progress", label: "In Progress", icon: Play, color: "text-amber-600" },
+                  { value: "due-soon", label: "Due Soon", color: "text-orange-600" },
+                  { value: "overdue", label: "Overdue", color: "text-red-600" },
+                  { value: "completed", label: "Completed", icon: CheckCircle2, color: "text-green-600" },
+                ].map((status) => (
+                  <button
+                    key={status.value}
+                    onClick={() => setStatusFilter(status.value as StatusFilter)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 whitespace-nowrap",
+                      statusFilter === status.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/70 text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {status.icon && <status.icon className={cn("h-3.5 w-3.5", statusFilter !== status.value && status.color)} />}
+                    {status.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Expandable filters section - mobile */}
+          {viewTab === "active" && showFilters && (
+            <div className="mt-3 p-3 bg-muted/30 rounded-lg border border-border md:hidden space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Filters</span>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
+                    Clear all
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={groupFilter} onValueChange={setGroupFilter}>
+                  <SelectTrigger className="h-10 text-sm">
+                    <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Groups</SelectItem>
+                    <SelectItem value="ungrouped">Ungrouped</SelectItem>
+                    {allGroups.map((group) => (
+                      <SelectItem key={group} value={group}>{group}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {allTags.length > 0 && (
+                  <Select value={tagFilter} onValueChange={setTagFilter}>
+                    <SelectTrigger className="h-10 text-sm">
+                      <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <SelectValue placeholder="Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tags</SelectItem>
+                      {allTags.map((tag) => (
+                        <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Desktop filters - inline */}
+          {viewTab === "active" && (allGroups.length > 0 || allTags.length > 0) && (
+            <div className="mt-3 hidden md:flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Filter by:</span>
+              
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger className="w-[160px] h-9 text-sm">
+                  <Folder className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <SelectValue placeholder="Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Groups</SelectItem>
+                  <SelectItem value="ungrouped">Ungrouped</SelectItem>
+                  {allGroups.map((group) => (
+                    <SelectItem key={group} value={group}>{group}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {allTags.length > 0 && (
+                <Select value={tagFilter} onValueChange={setTagFilter}>
+                  <SelectTrigger className="w-[160px] h-9 text-sm">
+                    <Tag className="h-4 w-4 mr-2 text-muted-foreground" />
+                    <SelectValue placeholder="Tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {allTags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 gap-1.5">
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </header>

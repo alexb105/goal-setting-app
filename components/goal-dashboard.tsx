@@ -2,14 +2,13 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, List, Folder, GripVertical, Pencil, Trash2, Repeat, Menu, Archive, Brain, LogOut } from "lucide-react"
+import { Plus, Target, TrendingUp, Calendar, CheckCircle2, Tag, X, Settings, ArrowLeft, AlertTriangle, ChevronRight, Bell, ChevronDown, ArrowUpDown, Folder, GripVertical, Pencil, Trash2, Brain, LogOut } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalListItem } from "@/components/goal-list-item"
@@ -22,6 +21,7 @@ import { DailyTodoList } from "@/components/daily-todo-list"
 import { LifePurpose } from "@/components/life-purpose"
 import { AuthModal } from "@/components/auth-modal"
 import { useAuth } from "@/components/auth-context"
+import { MobileFab } from "@/components/mobile-fab"
 import {
   DndContext,
   DragOverlay,
@@ -135,11 +135,11 @@ function SortableGroup({
               isDragging ? "border-primary/50 bg-primary/5" : ""
             }`}
           >
-            {/* Group drag handle */}
+            {/* Group drag handle - hidden on mobile */}
             <div
               {...attributes}
               {...listeners}
-              className="drag-handle p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-target flex items-center justify-center rounded hover:bg-muted cursor-grab active:cursor-grabbing"
+              className="drag-handle p-1.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 touch-target hidden md:flex items-center justify-center rounded hover:bg-muted cursor-grab active:cursor-grabbing"
               onClick={(e) => e.stopPropagation()}
               title="Drag to reorder group"
             >
@@ -334,9 +334,9 @@ export function GoalDashboard() {
   const [knownGroupNames, setKnownGroupNames] = useState<Set<string>>(new Set())
   const [groupOrder, setGroupOrder] = useState<string[]>([])
   const [groupOrderLoaded, setGroupOrderLoaded] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overGroupId, setOverGroupId] = useState<string | null>(null)
+  const [triggerAddTask, setTriggerAddTask] = useState(false)
 
   // Configure sensors for dnd-kit with proper touch and mouse support
   const sensors = useDndSensors()
@@ -1067,169 +1067,64 @@ export function GoalDashboard() {
               )}
             </div>
 
-            {/* Mobile Actions */}
-            <div className="flex md:hidden items-center gap-1">
-              {/* Compact alert badges */}
-              {lateMilestones > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setShowLateMilestones(true)}
-                        className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
-                        title={`${lateMilestones} overdue milestone${lateMilestones !== 1 ? 's' : ''}`}
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <span className="text-xs font-bold">{lateMilestones}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">
-                        {lateMilestones === 1 
-                          ? "1 overdue milestone"
-                          : `${lateMilestones} overdue milestones`}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Tap to view details
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              {expiringMilestones > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setShowExpiringMilestones(true)}
-                        className="flex items-center justify-center gap-1.5 h-8 px-2.5 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-                        title={`${expiringMilestones} milestone${expiringMilestones !== 1 ? 's' : ''} due in the next 3 days`}
-                      >
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <span className="text-xs font-bold">{expiringMilestones}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">
-                        {expiringMilestones === 1 
-                          ? "1 milestone due in the next 3 days"
-                          : `${expiringMilestones} milestones due in the next 3 days`}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Tap to view details
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            {/* Mobile Actions - Simplified since we have bottom nav */}
+            <div className="flex md:hidden items-center gap-1.5">
+              {/* Alert badges - compact pill style */}
+              {(lateMilestones > 0 || expiringMilestones > 0) && (
+                <div className="flex items-center gap-1.5">
+                  {lateMilestones > 0 && (
+                    <button
+                      onClick={() => setShowLateMilestones(true)}
+                      className="flex items-center justify-center gap-1 h-8 px-2.5 rounded-full bg-red-500 text-white active:scale-95 transition-transform"
+                    >
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      <span className="text-xs font-bold">{lateMilestones}</span>
+                    </button>
+                  )}
+                  {expiringMilestones > 0 && (
+                    <button
+                      onClick={() => setShowExpiringMilestones(true)}
+                      className="flex items-center justify-center gap-1 h-8 px-2.5 rounded-full bg-amber-500 text-white active:scale-95 transition-transform"
+                    >
+                      <Bell className="h-3.5 w-3.5" />
+                      <span className="text-xs font-bold">{expiringMilestones}</span>
+                    </button>
+                  )}
+                </div>
               )}
               
-              {/* Mobile menu */}
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-12 w-12 md:h-8 md:w-8">
-                    <Menu className="h-7 w-7 md:h-4 md:w-4" />
+              {/* AI Guidance button */}
+              {user ? (
+                <Link href="/ai-guidance">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-10 w-10 active:scale-95 text-purple-600"
+                  >
+                    <Brain className="h-5 w-5" />
                   </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-72 p-0">
-                  <SheetHeader className="p-4 border-b">
-                    <SheetTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-primary" />
-                      Menu
-                    </SheetTitle>
-                  </SheetHeader>
-                  
-                  {/* User section at top */}
-                  <div className="p-3 border-b bg-muted/30">
-                    <AuthModal 
-                      syncStatus={user ? (isSyncing ? "syncing" : "synced") : "none"} 
-                      showEmailInline={true}
-                    />
-                  </div>
-                  
-                  <nav className="flex flex-col p-2">
-                    <Link href="/milestones" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
-                        <List className="h-4 w-4" />
-                        All Milestones
-                      </Button>
-                    </Link>
-                    <Link href="/recurring-tasks" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
-                        <Repeat className="h-4 w-4" />
-                        Recurring Tasks
-                      </Button>
-                    </Link>
-                    <Link href="/completed" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Completed Goals
-                      </Button>
-                    </Link>
-                    <Link href="/archived" onClick={() => setMobileMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-11">
-                        <Archive className="h-4 w-4" />
-                        Archived Goals
-                      </Button>
-                    </Link>
-                    <div className="h-px bg-border my-2" />
-                    {user ? (
-                      <Link href="/ai-guidance" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start gap-3 h-11 text-purple-600">
-                          <Brain className="h-4 w-4" />
-                          AI Guidance
-                        </Button>
-                      </Link>
-                    ) : (
-                      <Button variant="ghost" className="w-full justify-start gap-3 h-11 text-muted-foreground/50" disabled>
-                        <Brain className="h-4 w-4" />
-                        AI Guidance
-                        <span className="ml-auto text-xs">(Members only)</span>
-                      </Button>
-                    )}
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start gap-3 h-11"
-                      onClick={() => {
-                        setMobileMenuOpen(false)
-                        setSettingsDialogOpen(true)
-                      }}
-                    >
-                      <Settings className="h-4 w-4" />
-                      Settings
-                    </Button>
-                    {user && (
-                      <>
-                        <div className="h-px bg-border my-2" />
-                        <Button 
-                          variant="ghost" 
-                          className="w-full justify-start gap-3 h-11 text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
-                          onClick={() => {
-                            setMobileMenuOpen(false)
-                            signOut()
-                          }}
-                        >
-                          <LogOut className="h-4 w-4" />
-                          Sign Out
-                        </Button>
-                      </>
-                    )}
-                  </nav>
-                  
-                  {/* Stats summary */}
-                  <div className="mt-auto p-4 border-t bg-muted/30">
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div>
-                        <p className="text-xl font-bold text-foreground">{activeGoals.length}</p>
-                        <p className="text-xs text-muted-foreground">Active Goals</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-primary">{overallProgress}%</p>
-                        <p className="text-xs text-muted-foreground">Progress</p>
-                      </div>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+                </Link>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-10 w-10 text-muted-foreground/40"
+                  disabled
+                  title="Sign in to use AI Guidance"
+                >
+                  <Brain className="h-5 w-5" />
+                </Button>
+              )}
+              
+              {/* Settings button */}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-10 w-10 active:scale-95"
+                onClick={() => setSettingsDialogOpen(true)}
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
             </div>
           </div>
         </div>
@@ -1241,7 +1136,11 @@ export function GoalDashboard() {
 
         {/* Daily Todo List */}
         <div className="mb-6">
-          <DailyTodoList onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)} />
+          <DailyTodoList 
+            onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)} 
+            triggerAddTask={triggerAddTask}
+            onAddTaskTriggered={() => setTriggerAddTask(false)}
+          />
         </div>
 
         {/* Goals Panel */}
@@ -1521,6 +1420,12 @@ export function GoalDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Mobile FAB */}
+      <MobileFab 
+        onCreateGoal={() => setCreateDialogOpen(true)}
+        onCreateTask={() => setTriggerAddTask(true)}
+      />
 
       <CreateGoalDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
       <SettingsDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen} />

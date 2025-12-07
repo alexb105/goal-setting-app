@@ -226,4 +226,86 @@
   .active-scale:active {
     transform: scale(0.97);
   }
+  
+  /* Touch feedback ripple effect */
+  .touch-ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  .touch-ripple:active::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0.1;
+    animation: ripple 0.3s ease-out;
+  }
+  
+  /* Swipe hint animation */
+  .swipe-hint {
+    animation: swipe-hint 2s ease-in-out infinite;
+  }
+  
+  /* Slide in from bottom */
+  .slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+  
+  /* Fade in */
+  .fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+}
+
+@keyframes ripple {
+  from {
+    transform: scale(0);
+    opacity: 0.2;
+  }
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes swipe-hint {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(-8px);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Improved checkbox sizing on mobile */
+@media (max-width: 640px) {
+  [data-slot="checkbox"] {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  /* Larger buttons on mobile for better touch */
+  button[data-slot="button"]:not([data-size="icon"]) {
+    min-height: 40px;
+  }
 }

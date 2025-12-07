@@ -145,7 +145,7 @@ function SortableTaskItem({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
+          className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block"
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
@@ -221,7 +221,7 @@ function SortableTaskItem({
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors"
+        className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block"
       >
         <GripVertical className="h-4 w-4 text-muted-foreground" />
       </div>
