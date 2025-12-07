@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import Link from "next/link"
 import { ArrowLeft, Sparkles, Brain, Target, Compass, RefreshCw, AlertCircle, Zap, Heart, TrendingUp, AlertTriangle, Eye, EyeOff, Crown, Flame, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -91,6 +91,13 @@ export default function GoalMapPage() {
   const [selectedArea, setSelectedArea] = useState<string | null>(null)
   const [showLabels, setShowLabels] = useState(true)
   const [dataLoaded, setDataLoaded] = useState(false)
+  
+  // Zoom and pan state
+  const [scale, setScale] = useState(1)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isPanning, setIsPanning] = useState(false)
+  const lastTouchRef = useRef<{ x: number; y: number; distance?: number } | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Load life purpose and analysis from localStorage
   useEffect(() => {
@@ -393,6 +400,120 @@ ANALYSIS RULES:
 
   const getAreaColor = (index: number) => AREA_COLORS[index % AREA_COLORS.length]
 
+  // Touch handlers for zoom and pan
+  const getDistance = (touches: TouchList) => {
+    if (touches.length < 2) return 0
+    const dx = touches[0].clientX - touches[1].clientX
+    const dy = touches[0].clientY - touches[1].clientY
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      lastTouchRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      }
+      setIsPanning(true)
+    } else if (e.touches.length === 2) {
+      lastTouchRef.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        distance: getDistance(e.touches),
+      }
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!lastTouchRef.current) return
+
+    if (e.touches.length === 1 && isPanning && scale > 1) {
+      // Pan
+      const dx = e.touches[0].clientX - lastTouchRef.current.x
+      const dy = e.touches[0].clientY - lastTouchRef.current.y
+      
+      setPosition(prev => ({
+        x: Math.max(Math.min(prev.x + dx, 100), -100),
+        y: Math.max(Math.min(prev.y + dy, 100), -100),
+      }))
+      
+      lastTouchRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      }
+    } else if (e.touches.length === 2 && lastTouchRef.current.distance) {
+      // Pinch to zoom
+      const newDistance = getDistance(e.touches)
+      const delta = newDistance / lastTouchRef.current.distance
+      
+      setScale(prev => Math.max(1, Math.min(prev * delta, 3)))
+      
+      lastTouchRef.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        distance: newDistance,
+      }
+    }
+  }, [isPanning, scale])
+
+  const handleTouchEnd = useCallback(() => {
+    lastTouchRef.current = null
+    setIsPanning(false)
+  }, [])
+
+  // Mouse handlers for click and drag
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (scale > 1) {
+      e.preventDefault()
+      lastTouchRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+      }
+      setIsPanning(true)
+    }
+  }, [scale])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isPanning || !lastTouchRef.current || scale <= 1) return
+    
+    const dx = e.clientX - lastTouchRef.current.x
+    const dy = e.clientY - lastTouchRef.current.y
+    
+    setPosition(prev => ({
+      x: Math.max(Math.min(prev.x + dx, 150), -150),
+      y: Math.max(Math.min(prev.y + dy, 150), -150),
+    }))
+    
+    lastTouchRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+    }
+  }, [isPanning, scale])
+
+  const handleMouseUp = useCallback(() => {
+    lastTouchRef.current = null
+    setIsPanning(false)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    if (isPanning) {
+      lastTouchRef.current = null
+      setIsPanning(false)
+    }
+  }, [isPanning])
+
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    setScale(prev => Math.max(1, Math.min(prev * delta, 3)))
+  }, [])
+
+  const resetZoom = useCallback(() => {
+    setScale(1)
+    setPosition({ x: 0, y: 0 })
+  }, [])
+
   return (
     <div className="min-h-screen safe-area-top bg-gradient-to-b from-background to-muted/30 pb-24">
       <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40">
@@ -502,11 +623,62 @@ ANALYSIS RULES:
         {/* Venn Diagram Visualization */}
         {analysis && analysis.purposeAreas.length > 0 && (
           <div className="rounded-xl border border-border bg-card/50 p-2 sm:p-4 mb-4">
-            <div className="relative aspect-square max-w-lg mx-auto">
+            {/* Zoom controls */}
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] text-muted-foreground">
+                {scale > 1 ? `${Math.round(scale * 100)}% - Pinch or use buttons to zoom` : "Pinch to zoom"}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setScale(s => Math.min(s + 0.5, 3))}
+                >
+                  +
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0"
+                  onClick={() => setScale(s => Math.max(s - 0.5, 1))}
+                >
+                  −
+                </Button>
+                {scale > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={resetZoom}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <div 
+              ref={containerRef}
+              className={`relative aspect-square max-w-lg mx-auto overflow-hidden rounded-lg ${scale > 1 ? "cursor-grab" : ""} ${isPanning ? "cursor-grabbing" : ""}`}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              onWheel={handleWheel}
+            >
               <svg
                 viewBox="0 0 100 100"
                 className="w-full h-full"
-                style={{ touchAction: "none" }}
+                style={{ 
+                  touchAction: "none",
+                  transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
+                  transformOrigin: "center center",
+                  transition: isPanning ? "none" : "transform 0.1s ease-out",
+                }}
               >
                 {/* Layer 1: Purpose Area Circles (Venn diagram) */}
                 {analysis.purposeAreas.map((area, i) => {
