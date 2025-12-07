@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Trophy, Plus } from "lucide-react"
+import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -477,12 +477,6 @@ export default function RecurringTasksPage() {
                                 <Badge variant="outline" className="text-[10px] sm:text-xs bg-green-500/10 text-green-700 dark:text-green-500 border-green-500/20">
                                   <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                   Done
-                                </Badge>
-                              )}
-                              {(group.completionCount || 0) > 0 && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20 hidden sm:flex">
-                                  <Trophy className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  {group.completionCount}x
                                 </Badge>
                               )}
                             </div>

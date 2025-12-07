@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, Trophy, GripVertical } from "lucide-react"
+import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -592,12 +592,6 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                           {isComplete && (
                             <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-500 border-green-500/20">
                               ✓ Complete
-                            </Badge>
-                          )}
-                          {(group.completionCount || 0) > 0 && (
-                            <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                              <Trophy className="h-3 w-3 mr-1" />
-                              {group.completionCount}x
                             </Badge>
                           )}
                           {group.startDate && (
