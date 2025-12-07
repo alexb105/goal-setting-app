@@ -1,10 +1,21 @@
 "use client"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, Filter, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,18 +32,107 @@ import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue } from "@/utils/date"
+import { STANDALONE_MILESTONES_GOAL_TITLE } from "@/constants"
 
-type StatusFilter = "all" | "in-progress" | "completed" | "overdue" | "due-soon"
+type StatusFilter = "all" | "in-progress" | "overdue" | "due-soon"
 type ViewTab = "active" | "archived"
 
 export default function MilestonesPage() {
-  const { goals, archiveMilestone, unarchiveMilestone } = useGoals()
+  const { goals, addGoal, addMilestone, archiveMilestone, unarchiveMilestone } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
   const [tagFilter, setTagFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [viewTab, setViewTab] = useState<ViewTab>("active")
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Add milestone dialog state
+  const [addMilestoneOpen, setAddMilestoneOpen] = useState(false)
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState("")
+  const [newMilestoneDescription, setNewMilestoneDescription] = useState("")
+  const [newMilestoneDate, setNewMilestoneDate] = useState("")
+  const [newMilestoneGoalId, setNewMilestoneGoalId] = useState<string>("standalone")
+  const [pendingMilestone, setPendingMilestone] = useState<{
+    title: string
+    description: string
+    targetDate: string
+  } | null>(null)
+
+  // Find the standalone goal by title (since ID is auto-generated)
+  const standaloneGoal = useMemo(() => {
+    return goals.find(g => g.title === STANDALONE_MILESTONES_GOAL_TITLE)
+  }, [goals])
+
+  // Get active goals for the dropdown (excluding standalone and archived)
+  const selectableGoals = useMemo(() => {
+    return goals.filter(g => 
+      g.title !== STANDALONE_MILESTONES_GOAL_TITLE && 
+      !g.archived
+    )
+  }, [goals])
+
+  // Effect to add pending milestone after standalone goal is created
+  useEffect(() => {
+    if (pendingMilestone && standaloneGoal) {
+      addMilestone(standaloneGoal.id, {
+        title: pendingMilestone.title,
+        description: pendingMilestone.description,
+        targetDate: pendingMilestone.targetDate,
+        completed: false,
+        linkedGoals: [],
+      })
+      setPendingMilestone(null)
+    }
+  }, [standaloneGoal, pendingMilestone, addMilestone])
+
+  const handleAddMilestone = () => {
+    if (!newMilestoneTitle.trim()) return
+
+    const milestoneData = {
+      title: newMilestoneTitle.trim(),
+      description: newMilestoneDescription.trim(),
+      targetDate: newMilestoneDate,
+    }
+
+    if (newMilestoneGoalId === "standalone") {
+      if (standaloneGoal) {
+        // Standalone goal exists, add milestone directly
+        addMilestone(standaloneGoal.id, {
+          ...milestoneData,
+          completed: false,
+          linkedGoals: [],
+        })
+      } else {
+        // Create standalone goal first, then add milestone via effect
+        setPendingMilestone(milestoneData)
+        addGoal({
+          title: STANDALONE_MILESTONES_GOAL_TITLE,
+          description: "Quick milestones not tied to any specific goal",
+          tags: [],
+          targetDate: "",
+          milestones: [],
+          showProgress: false,
+        })
+      }
+    } else {
+      // Add to specific goal
+      addMilestone(newMilestoneGoalId, {
+        ...milestoneData,
+        completed: false,
+        linkedGoals: [],
+      })
+    }
+
+    resetAddMilestoneForm()
+  }
+
+  const resetAddMilestoneForm = () => {
+    setAddMilestoneOpen(false)
+    setNewMilestoneTitle("")
+    setNewMilestoneDescription("")
+    setNewMilestoneDate("")
+    setNewMilestoneGoalId("standalone")
+  }
 
   // Get all unique groups from goals
   const allGroups = useMemo(() => {
@@ -101,25 +201,21 @@ export default function MilestonesPage() {
 
       // Status filter (only for active milestones)
       if (viewTab === "active") {
+        // Always hide completed milestones
+        if (milestone.completed) return false
+        
         const isOverdue = isMilestoneOverdue(milestone)
         const isDueSoon = isMilestoneDueSoon(milestone)
 
         switch (statusFilter) {
-          case "all":
-            // Show all non-completed
-            if (milestone.completed) return false
-            break
           case "in-progress":
-            if (!milestone.inProgress || milestone.completed) return false
-            break
-          case "completed":
-            if (!milestone.completed) return false
+            if (!milestone.inProgress) return false
             break
           case "overdue":
-            if (!isOverdue || milestone.completed) return false
+            if (!isOverdue) return false
             break
           case "due-soon":
-            if (!isDueSoon || milestone.completed) return false
+            if (!isDueSoon) return false
             break
         }
       }
@@ -155,6 +251,14 @@ export default function MilestonesPage() {
     setStatusFilter("all")
   }
 
+  // Convert hex color to rgba with opacity for subtle background
+  const getColorWithOpacity = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+
   const selectedGoal = goals.find((g) => g.id === selectedGoalId)
 
   if (selectedGoal) {
@@ -178,7 +282,7 @@ export default function MilestonesPage() {
       {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-4">
-          {/* Top row: Back button + Title + Filter button (mobile) */}
+          {/* Top row: Back button + Title + Actions */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <Link href="/">
@@ -190,27 +294,39 @@ export default function MilestonesPage() {
               <div className="min-w-0">
                 <h1 className="text-lg sm:text-2xl font-bold text-foreground truncate">Milestones</h1>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  {sortedMilestones.length} {viewTab === "archived" ? "archived" : statusFilter === "completed" ? "completed" : "active"}
+                  {sortedMilestones.length} {viewTab === "archived" ? "archived" : "active"}
                 </p>
               </div>
             </div>
             
-            {/* Mobile filter button */}
-            {viewTab === "active" && (
+            <div className="flex items-center gap-2">
+              {/* Add Milestone button */}
               <Button
-                variant="outline"
                 size="sm"
-                className="md:hidden h-9 gap-1.5 active:scale-95"
-                onClick={() => setShowFilters(!showFilters)}
+                className="h-9 gap-1.5 active:scale-95"
+                onClick={() => setAddMilestoneOpen(true)}
               >
-                <SlidersHorizontal className="h-4 w-4" />
-                {activeFilterCount > 0 && (
-                  <Badge className="h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                    {activeFilterCount}
-                  </Badge>
-                )}
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add</span>
               </Button>
-            )}
+              
+              {/* Mobile filter button */}
+              {viewTab === "active" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden h-9 gap-1.5 active:scale-95"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <Badge className="h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                      {activeFilterCount}
+                    </Badge>
+                  )}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Active/Archived toggle - simplified segmented control */}
@@ -250,11 +366,10 @@ export default function MilestonesPage() {
             <div className="mt-3 overflow-x-auto scrollbar-hide -mx-3 px-3 sm:mx-0 sm:px-0">
               <div className="flex items-center gap-2 min-w-max">
                 {[
-                  { value: "all", label: "All Active" },
+                  { value: "all", label: "All" },
                   { value: "in-progress", label: "In Progress", icon: Play, color: "text-amber-600" },
                   { value: "due-soon", label: "Due Soon", color: "text-orange-600" },
                   { value: "overdue", label: "Overdue", color: "text-red-600" },
-                  { value: "completed", label: "Completed", icon: CheckCircle2, color: "text-green-600" },
                 ].map((status) => (
                   <button
                     key={status.value}
@@ -394,19 +509,26 @@ export default function MilestonesPage() {
               return (
                 <div
                   key={`${goal.id}-${milestone.id}`}
-                  className={`group flex flex-col rounded-xl border p-3 sm:p-5 text-left transition-all hover:shadow-lg ${
+                  className={cn(
+                    "group flex flex-col rounded-xl border p-3 sm:p-5 text-left transition-all shadow-sm hover:shadow-md hover:brightness-95 active:brightness-90",
                     milestone.archived
                       ? "border-border/50 bg-muted/30 opacity-80"
                       : milestone.completed
                       ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
-                      : milestone.inProgress
-                        ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500 hover:shadow-amber-500/5"
-                        : isOverdue
-                          ? "border-destructive/50 bg-destructive/5 hover:border-destructive hover:shadow-destructive/5"
-                          : isDueSoon
-                            ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500 hover:shadow-orange-500/5"
-                            : "border-border bg-card hover:border-primary/30 hover:shadow-primary/5"
-                  }`}
+                      : milestone.inProgress && !goal.color
+                        ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500"
+                        : isOverdue && !goal.color
+                          ? "border-destructive/50 bg-destructive/5 hover:border-destructive"
+                          : isDueSoon && !goal.color
+                            ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500"
+                            : !goal.color
+                              ? "border-border bg-card hover:border-primary/30"
+                              : ""
+                  )}
+                  style={goal.color && !milestone.archived && !milestone.completed ? {
+                    backgroundColor: getColorWithOpacity(goal.color, 0.5),
+                    borderColor: getColorWithOpacity(goal.color, 0.6),
+                  } : undefined}
                 >
                   <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">
                     <div 
@@ -568,6 +690,94 @@ export default function MilestonesPage() {
           </div>
         )}
       </div>
+
+      {/* Add Milestone Dialog */}
+      <Dialog open={addMilestoneOpen} onOpenChange={setAddMilestoneOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Milestone</DialogTitle>
+            <DialogDescription>
+              Create a new milestone. You can optionally assign it to a goal.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="milestone-title">Title *</Label>
+              <Input
+                id="milestone-title"
+                placeholder="What do you want to achieve?"
+                value={newMilestoneTitle}
+                onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="milestone-description">Description</Label>
+              <Textarea
+                id="milestone-description"
+                placeholder="Add more details (optional)"
+                value={newMilestoneDescription}
+                onChange={(e) => setNewMilestoneDescription(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="milestone-date">Target Date</Label>
+              <Input
+                id="milestone-date"
+                type="date"
+                value={newMilestoneDate}
+                onChange={(e) => setNewMilestoneDate(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="milestone-goal">Assign to Goal</Label>
+              <Select value={newMilestoneGoalId} onValueChange={setNewMilestoneGoalId}>
+                <SelectTrigger id="milestone-goal">
+                  <SelectValue placeholder="Select a goal (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standalone">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-muted-foreground" />
+                      <span>Quick Milestone (no goal)</span>
+                    </div>
+                  </SelectItem>
+                  {selectableGoals.map((goal) => (
+                    <SelectItem key={goal.id} value={goal.id}>
+                      <div className="flex items-center gap-2">
+                        {goal.color && (
+                          <div 
+                            className="h-3 w-3 rounded-full" 
+                            style={{ backgroundColor: goal.color }}
+                          />
+                        )}
+                        <span className="truncate">{goal.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Quick milestones appear in the list but aren't tied to a specific goal.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={resetAddMilestoneForm}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddMilestone} disabled={!newMilestoneTitle.trim()}>
+              Add Milestone
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

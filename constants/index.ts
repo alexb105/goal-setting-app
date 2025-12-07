@@ -13,6 +13,10 @@ export const PASTEL_COLORS = [
 
 export const STORAGE_KEY = "goalritual-goals"
 
+// Special goal ID for standalone milestones (not tied to any specific goal)
+export const STANDALONE_MILESTONES_GOAL_ID = "standalone-milestones"
+export const STANDALONE_MILESTONES_GOAL_TITLE = "Quick Milestones"
+
 export const PRIORITY_COLORS: Record<number, string> = {
   0: "bg-gray-400 hover:bg-gray-500",
   1: "bg-red-500 hover:bg-red-600",

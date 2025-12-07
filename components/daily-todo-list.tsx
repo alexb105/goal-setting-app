@@ -431,57 +431,55 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   const totalCount = todos.length + todaysRecurringTasks.length + validPinnedTasks.length
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
-      <div className="flex items-center justify-between gap-2 mb-3">
+    <div className="rounded-xl border border-border bg-card p-2.5 sm:p-4">
+      <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10">
-            <Sun className="h-4 w-4 text-amber-600" />
+          <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-500/10 flex-shrink-0">
+            <Sun className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Today's Tasks</h3>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">
+          <div className="min-w-0">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground">Today's Tasks</h3>
+            <p className="text-[10px] text-muted-foreground">
               {totalCount === 0
-                ? "No tasks for today"
-                : `${totalCompletedCount}/${totalCount} completed`}
+                ? "No tasks yet"
+                : `${totalCompletedCount}/${totalCount} done`}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          {regularCompletedCount > 0 && (
+        {regularCompletedCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearCompleted}
-            className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
+            className="h-7 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
           >
             <Trash2 className="h-3 w-3" />
-            <span className="hidden sm:inline">Clear done</span>
+            <span className="hidden sm:inline">Clear</span>
           </Button>
         )}
-      </div>
       </div>
 
       {/* Pinned Milestone Tasks */}
       {validPinnedTasks.length > 0 && (
         <TooltipProvider>
-          <div className="space-y-2 mb-3">
+          <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
             {validPinnedTasks.map((pinnedTask) => {
               const status = getPinnedTaskStatus(pinnedTask)
               return (
                 <div
                   key={pinnedTask.id}
-                  className="group flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-3 transition-all hover:bg-emerald-500/10 active:bg-emerald-500/15 active:scale-[0.99]"
+                  className="group flex items-center gap-2 sm:gap-3 rounded-lg sm:rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-2.5 sm:px-3 py-2 sm:py-3 transition-all hover:bg-emerald-500/10 active:bg-emerald-500/15 active:scale-[0.99]"
                 >
                   <Checkbox
                     id={`pinned-${pinnedTask.id}`}
                     checked={status.completed}
                     onCheckedChange={() => togglePinnedTask(pinnedTask)}
-                    className="h-5 w-5 flex-shrink-0"
+                    className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
                   />
                   <label
                     htmlFor={`pinned-${pinnedTask.id}`}
                     className={cn(
-                      "flex-1 text-sm sm:text-base cursor-pointer min-w-0 py-0.5",
+                      "flex-1 text-xs sm:text-base cursor-pointer min-w-0",
                       status.completed && "line-through text-muted-foreground"
                     )}
                   >
@@ -491,16 +489,15 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                     <TooltipTrigger asChild>
                       <Badge
                         variant="outline"
-                        className="text-[10px] sm:text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 shrink-0 max-w-[100px] sm:max-w-[120px] cursor-pointer hover:bg-emerald-500/20 transition-colors py-1 px-2"
+                        className="text-[9px] sm:text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 shrink-0 max-w-[80px] sm:max-w-[120px] cursor-pointer hover:bg-emerald-500/20 transition-colors py-0.5 sm:py-1 px-1.5 sm:px-2"
                         onClick={() => {
                           if (onNavigateToGoal) {
-                            // Store milestone ID to scroll to
                             localStorage.setItem(SCROLL_TO_MILESTONE_KEY, pinnedTask.milestoneId)
                             onNavigateToGoal(pinnedTask.goalId, pinnedTask.milestoneId)
                           }
                         }}
                       >
-                        <Target className="h-3 w-3 mr-1 shrink-0" />
+                        <Target className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 shrink-0" />
                         <span className="truncate">{status.milestoneTitle}</span>
                       </Badge>
                     </TooltipTrigger>
@@ -519,9 +516,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                         variant="ghost"
                         size="icon"
                         onClick={() => unpinTask(pinnedTask.id)}
-                        className="h-9 w-9 sm:h-7 sm:w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-emerald-600 active:scale-90"
+                        className="h-7 w-7 sm:h-7 sm:w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-emerald-600 active:scale-90"
                       >
-                        <PinOff className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                        <PinOff className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -537,24 +534,24 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
 
       {/* Recurring Tasks for Today */}
       {todaysRecurringTasks.length > 0 && (
-        <div className="space-y-2 mb-3">
+        <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           {todaysRecurringTasks.map((task) => {
             const isCompletedToday = task.completedDates.includes(today)
             return (
               <div
                 key={task.id}
-                className="group flex items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/5 px-3 py-3 transition-all hover:bg-purple-500/10 active:bg-purple-500/15 active:scale-[0.99]"
+                className="group flex items-center gap-2 sm:gap-3 rounded-lg sm:rounded-xl border border-purple-500/30 bg-purple-500/5 px-2.5 sm:px-3 py-2 sm:py-3 transition-all hover:bg-purple-500/10 active:bg-purple-500/15 active:scale-[0.99]"
               >
                 <Checkbox
                   id={`recurring-${task.id}`}
                   checked={isCompletedToday}
                   onCheckedChange={() => toggleRecurringTask(task.id)}
-                  className="h-5 w-5 flex-shrink-0"
+                  className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
                 />
                 <label
                   htmlFor={`recurring-${task.id}`}
                   className={cn(
-                    "flex-1 text-sm sm:text-base cursor-pointer py-0.5",
+                    "flex-1 text-xs sm:text-base cursor-pointer",
                     isCompletedToday && "line-through text-muted-foreground"
                   )}
                 >
@@ -562,10 +559,10 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                 </label>
                 <Badge
                   variant="outline"
-                  className="text-[10px] sm:text-xs bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 cursor-pointer hover:bg-purple-500/20 py-1 px-2"
+                  className="text-[9px] sm:text-xs bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 cursor-pointer hover:bg-purple-500/20 py-0.5 sm:py-1 px-1.5 sm:px-2"
                   onClick={() => openEditRecurringTask(task)}
                 >
-                  <Repeat className="h-3 w-3 mr-1" />
+                  <Repeat className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                   <span className="hidden sm:inline">{formatDays(task.daysOfWeek)}</span>
                   <span className="sm:hidden">{task.daysOfWeek.length}d</span>
                 </Badge>
@@ -574,9 +571,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 sm:h-7 sm:w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive active:scale-90"
+                      className="h-7 w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive active:scale-90"
                     >
-                      <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                      <X className="h-3.5 w-3.5" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -604,22 +601,22 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       )}
 
       {/* Regular Todo List */}
-      <div className="space-y-2">
+      <div className="space-y-1.5 sm:space-y-2">
         {todos.map((todo) => (
           <div
             key={todo.id}
-            className="group flex items-center gap-3 rounded-xl border border-border/50 bg-background/50 px-3 py-3 transition-all hover:bg-muted/30 active:bg-muted/50 active:scale-[0.99]"
+            className="group flex items-center gap-2 sm:gap-3 rounded-lg sm:rounded-xl border border-border/50 bg-background/50 px-2.5 sm:px-3 py-2 sm:py-3 transition-all hover:bg-muted/30 active:bg-muted/50 active:scale-[0.99]"
           >
             <Checkbox
               id={`daily-todo-${todo.id}`}
               checked={todo.completed}
               onCheckedChange={() => toggleTodo(todo.id)}
-              className="h-5 w-5 flex-shrink-0"
+              className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0"
             />
             <label
               htmlFor={`daily-todo-${todo.id}`}
               className={cn(
-                "flex-1 text-sm sm:text-base cursor-pointer py-0.5",
+                "flex-1 text-xs sm:text-base cursor-pointer",
                 todo.completed && "line-through text-muted-foreground"
               )}
             >
@@ -629,9 +626,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
               variant="ghost"
               size="icon"
               onClick={() => deleteTodo(todo.id)}
-              className="h-9 w-9 sm:h-7 sm:w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive active:scale-90"
+              className="h-7 w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive active:scale-90"
             >
-              <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <X className="h-3.5 w-3.5" />
             </Button>
           </div>
         ))}
@@ -639,9 +636,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
 
       {/* Add Todo */}
       {isAdding ? (
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-1.5 sm:gap-2">
           <Input
-            placeholder="What needs to be done today?"
+            placeholder="What needs to be done?"
             value={newTodoTitle}
             onChange={(e) => setNewTodoTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -651,10 +648,10 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                 setNewTodoTitle("")
               }
             }}
-            className="h-9 text-sm flex-1"
+            className="h-8 sm:h-9 text-xs sm:text-sm flex-1"
             autoFocus
           />
-          <Button size="sm" onClick={addTodo} disabled={!newTodoTitle.trim()} className="h-9">
+          <Button size="sm" onClick={addTodo} disabled={!newTodoTitle.trim()} className="h-8 sm:h-9 px-3 text-xs">
             Add
           </Button>
           <Button
@@ -664,22 +661,23 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
               setIsAdding(false)
               setNewTodoTitle("")
             }}
-            className="h-9"
+            className="h-8 sm:h-9 px-2 text-xs"
           >
-            Cancel
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       ) : (
-        <div className="mt-2 flex gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsAdding(true)}
-            className="flex-1 h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add a task for today
-        </Button>
+        <div className="mt-2 flex gap-1.5 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsAdding(true)}
+            className="flex-1 h-8 sm:h-9 text-[11px] sm:text-xs text-muted-foreground hover:text-foreground justify-start gap-1.5"
+          >
+            <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="sm:hidden">Add task</span>
+            <span className="hidden sm:inline">Add a task for today</span>
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -690,16 +688,16 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
               setRecurringDialogTab(recurringTasks.length > 0 ? "manage" : "new")
               setIsRecurringDialogOpen(true)
             }}
-            className="h-9 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-500/10 gap-1.5"
+            className="h-8 sm:h-9 text-[11px] sm:text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-500/10 gap-1 sm:gap-1.5 px-2 sm:px-3"
           >
-            <Repeat className="h-3.5 w-3.5" />
+            <Repeat className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             <span className="hidden sm:inline">Recurring</span>
           </Button>
         </div>
       )}
 
-      {/* Info text */}
-      <p className="mt-2 text-[10px] text-muted-foreground/70 text-center">
+      {/* Info text - hidden on mobile to save space */}
+      <p className="mt-2 text-[10px] text-muted-foreground/70 text-center hidden sm:block">
         Completed tasks clear at midnight. Recurring tasks reset each day.
       </p>
 

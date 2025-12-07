@@ -325,7 +325,10 @@ export function GoalDashboard() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [showLateMilestones, setShowLateMilestones] = useState(false)
   const [showExpiringMilestones, setShowExpiringMilestones] = useState(false)
-  const [statsOpen, setStatsOpen] = useState(true)
+  // Stats collapsed by default on mobile for less overwhelming UX
+  const [statsOpen, setStatsOpen] = useState(false)
+  // Tag filters collapsed by default to reduce visual clutter
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [sortBy, setSortBy] = useState<"date" | "priority">("date")
   const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [editingGroupValue, setEditingGroupValue] = useState<string>("")
@@ -390,9 +393,13 @@ export function GoalDashboard() {
 
   const allTags = getAllTags()
 
-  // Filter out completed and archived goals from the main dashboard
+  // Filter out completed, archived, and standalone milestones goal from the main dashboard
   const activeGoals = useMemo(() => {
-    return goals.filter((goal) => !isGoalCompleted(goal) && !goal.archived)
+    return goals.filter((goal) => 
+      !isGoalCompleted(goal) && 
+      !goal.archived && 
+      goal.title !== "Quick Milestones" // Hide standalone milestones goal
+    )
   }, [goals])
 
   const filteredGoals = useMemo(() => {
@@ -1135,7 +1142,7 @@ export function GoalDashboard() {
         <LifePurpose />
 
         {/* Daily Todo List */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <DailyTodoList 
             onNavigateToGoal={(goalId) => setSelectedGoalId(goalId)} 
             triggerAddTask={triggerAddTask}
@@ -1144,20 +1151,20 @@ export function GoalDashboard() {
         </div>
 
         {/* Goals Panel */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          {/* Panel Header */}
-          <div className="border-b border-border bg-muted/30 px-4 sm:px-6 py-3 sm:py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Target className="h-5 w-5 text-primary" />
+        <div className="rounded-xl sm:rounded-2xl border border-border bg-card overflow-hidden">
+          {/* Panel Header - Compact on mobile */}
+          <div className="border-b border-border bg-muted/30 px-3 sm:px-6 py-2.5 sm:py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-primary/10 flex-shrink-0">
+                  <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                 </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-foreground">My Goals</h2>
-                  <p className="text-xs text-muted-foreground">{activeGoals.length} active • {overallProgress}% complete</p>
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-lg font-semibold text-foreground">My Goals</h2>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">{activeGoals.length} active</p>
                 </div>
               </div>
-              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-2">
+              <Button onClick={() => setCreateDialogOpen(true)} size="sm" className="gap-1.5 h-8 px-3 sm:px-4">
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">New Goal</span>
               </Button>
@@ -1165,153 +1172,120 @@ export function GoalDashboard() {
           </div>
           
           {/* Panel Content */}
-          <div className="p-4 sm:p-6">
-            {/* Stats - Collapsible */}
-            <Collapsible open={statsOpen} onOpenChange={setStatsOpen} className="mb-4 sm:mb-6">
-              <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between gap-2 mb-3 cursor-pointer hover:opacity-80 transition-opacity active-scale">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {statsOpen ? "Stats" : "Show stats"}
-                  </span>
-                  <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${statsOpen ? "rotate-180" : ""}`} />
-                </div>
-              </CollapsibleTrigger>
+          <div className="p-3 sm:p-6">
+            {/* Mobile: Compact controls row */}
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              {/* Stats toggle - pill button */}
+              <button
+                onClick={() => setStatsOpen(!statsOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  statsOpen 
+                    ? "bg-primary/10 text-primary" 
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Stats</span>
+                <span className="sm:hidden">{overallProgress}%</span>
+              </button>
+              
+              {/* Filter toggle - pill button */}
+              {allTags.length > 0 && (
+                <button
+                  onClick={() => setFiltersOpen(!filtersOpen)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    filtersOpen || selectedTags.length > 0
+                      ? "bg-primary/10 text-primary" 
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  {selectedTags.length > 0 ? (
+                    <span>{selectedTags.length} filter{selectedTags.length !== 1 ? 's' : ''}</span>
+                  ) : (
+                    <span>Filter</span>
+                  )}
+                </button>
+              )}
+              
+              {/* Clear filters - show when filters active */}
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={clearTagFilters}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              
+              {/* Sort - pushed to right */}
+              <div className="ml-auto">
+                <Select value={sortBy} onValueChange={(value: "date" | "priority") => setSortBy(value)}>
+                  <SelectTrigger className="w-[110px] sm:w-[140px] h-8 text-xs">
+                    <ArrowUpDown className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Stats - Collapsible panel */}
+            <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
               <CollapsibleContent>
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
-                        <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-lg sm:text-xl font-bold text-foreground">{activeGoals.length}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Active</p>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+                  <div className="rounded-lg border border-border bg-background p-2 sm:p-3 text-center">
+                    <p className="text-base sm:text-xl font-bold text-foreground">{activeGoals.length}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground">Goals</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-accent/50 flex-shrink-0">
-                        <Calendar className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-lg sm:text-xl font-bold text-foreground">{totalMilestones}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Milestones</p>
-                      </div>
-                    </div>
+                  <div className="rounded-lg border border-border bg-background p-2 sm:p-3 text-center">
+                    <p className="text-base sm:text-xl font-bold text-foreground">{totalMilestones}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground">Milestones</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-green-500/10 flex-shrink-0">
-                        <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-lg sm:text-xl font-bold text-foreground">{completedMilestones}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Completed</p>
-                      </div>
-                    </div>
+                  <div className="rounded-lg border border-border bg-background p-2 sm:p-3 text-center">
+                    <p className="text-base sm:text-xl font-bold text-green-600">{completedMilestones}</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground">Done</p>
                   </div>
-                  <div className="rounded-lg border border-border bg-background p-2.5 sm:p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-md bg-primary/10 flex-shrink-0">
-                        <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-lg sm:text-xl font-bold text-foreground">{overallProgress}%</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground truncate">Progress</p>
-                      </div>
-                    </div>
+                  <div className="rounded-lg border border-border bg-background p-2 sm:p-3 text-center">
+                    <p className="text-base sm:text-xl font-bold text-primary">{overallProgress}%</p>
+                    <p className="text-[9px] sm:text-xs text-muted-foreground">Progress</p>
                   </div>
                 </div>
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Sort and Tag Filter Section */}
-            <div className="mb-4 sm:mb-6 space-y-3">
-              {/* Sort Section */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-foreground">Sort by</span>
-                </div>
-                <Select value={sortBy} onValueChange={(value: "date" | "priority") => setSortBy(value)}>
-                  <SelectTrigger className="w-[140px] sm:w-[160px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date">Date Created</SelectItem>
-                    <SelectItem value="priority">Priority</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Tag Filter Section */}
-              <div className="rounded-lg border border-border bg-background p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Tag className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  <span className="text-xs font-medium text-foreground">Filter by tags</span>
-                  {selectedTags.length > 0 && (
-                    <button
-                      onClick={clearTagFilters}
-                      className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors active-scale touch-target"
-                    >
-                      <X className="h-3 w-3" />
-                      <span>Clear</span>
-                    </button>
-                  )}
-                </div>
-                {allTags.length > 0 ? (
-                <>
-                  <div className="flex flex-wrap gap-1.5 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-1">
-                    {allTags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => toggleTagFilter(tag)}
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium transition-all whitespace-nowrap active-scale ${
-                          selectedTags.includes(tag)
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "bg-muted text-muted-foreground hover:bg-muted-foreground/20 hover:text-foreground"
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                  {selectedTags.length > 0 && (
-                    <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        Showing <span className="font-medium text-foreground">{sortedGoals.length}</span> of{" "}
-                        <span className="font-medium text-foreground">{activeGoals.length}</span> goals
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
-                          >
-                            {tag}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                toggleTagFilter(tag)
-                              }}
-                              className="hover:bg-primary/20 rounded-full p-0.5 transition-colors"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
+            {/* Tag Filter - Collapsible panel */}
+            <Collapsible open={filtersOpen || selectedTags.length > 0} onOpenChange={setFiltersOpen}>
+              <CollapsibleContent>
+                <div className="mb-3 sm:mb-4">
+                  {allTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {allTags.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => toggleTagFilter(tag)}
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium transition-all active-scale ${
+                            selectedTags.includes(tag)
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "bg-muted text-muted-foreground hover:bg-muted-foreground/20"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
                     </div>
                   )}
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  No tags yet. Add tags to your goals to filter them.
-                </p>
-              )}
-              </div>
-            </div>
+                  {selectedTags.length > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Showing {sortedGoals.length} of {activeGoals.length} goals
+                    </p>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Goals Grid */}
             {goals.length === 0 ? (

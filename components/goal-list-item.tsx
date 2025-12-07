@@ -32,6 +32,14 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
   const currentPriority = goal.priority !== undefined ? goal.priority : 0
   const priorityColorClass = PRIORITY_COLORS[currentPriority] || PRIORITY_COLORS[0]
 
+  // Convert hex color to rgba with opacity for subtle background
+  const getColorWithOpacity = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+
   return (
     <div
       onClick={onClick}
@@ -44,12 +52,17 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
           }
         }
       }}
-      className={`group flex items-start sm:items-center gap-2 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3 text-left transition-all hover:bg-muted/50 active:bg-muted/70 cursor-pointer active-scale ${
+      className={`group flex items-start sm:items-center gap-2 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3 text-left transition-all cursor-pointer active-scale hover:brightness-95 active:brightness-90 shadow-sm hover:shadow-md ${
         negativelyImpacts.length > 0
           ? "border-destructive/50 hover:border-destructive"
-          : "border-border hover:border-primary/30"
-      } ${goal.color ? "" : "bg-card"}`}
-      style={goal.color ? { borderLeftColor: goal.color, borderLeftWidth: "4px" } : undefined}
+          : goal.color 
+            ? "" 
+            : "border-border hover:border-primary/30 bg-card"
+      }`}
+      style={goal.color ? { 
+        backgroundColor: getColorWithOpacity(goal.color, 0.5),
+        borderColor: getColorWithOpacity(goal.color, 0.6),
+      } : undefined}
     >
       {/* Priority Indicator */}
       <Tooltip>

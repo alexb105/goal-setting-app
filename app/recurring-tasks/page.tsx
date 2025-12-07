@@ -2,17 +2,28 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Trophy } from "lucide-react"
+import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Trophy, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import type { Goal, RecurringTaskGroup, RecurrenceType } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { cn } from "@/lib/utils"
+import { STANDALONE_MILESTONES_GOAL_TITLE } from "@/constants"
 
 type RecurrenceFilter = "all" | "daily" | "weekly" | "monthly"
 type StatusFilter = "all" | "complete" | "incomplete"
@@ -62,12 +73,80 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
 }
 
 export default function RecurringTasksPage() {
-  const { goals, toggleRecurringTask, resetRecurringTaskGroup } = useGoals()
+  const { goals, addGoal, addRecurringTaskGroup, toggleRecurringTask, resetRecurringTaskGroup } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
   const [recurrenceFilter, setRecurrenceFilter] = useState<RecurrenceFilter>("all")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string> | null>(null) // null = not initialized yet
+  
+  // Add recurring task group dialog state
+  const [addGroupOpen, setAddGroupOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState("")
+  const [newGroupRecurrence, setNewGroupRecurrence] = useState<RecurrenceType>("daily")
+  const [newGroupGoalId, setNewGroupGoalId] = useState<string>("standalone")
+  const [pendingGroup, setPendingGroup] = useState<{
+    name: string
+    recurrence: RecurrenceType
+  } | null>(null)
+
+  // Find the standalone goal by title
+  const standaloneGoal = useMemo(() => {
+    return goals.find(g => g.title === STANDALONE_MILESTONES_GOAL_TITLE)
+  }, [goals])
+
+  // Get active goals for the dropdown (excluding standalone and archived)
+  const selectableGoals = useMemo(() => {
+    return goals.filter(g => 
+      g.title !== STANDALONE_MILESTONES_GOAL_TITLE && 
+      !g.archived
+    )
+  }, [goals])
+
+  // Effect to add pending recurring group after standalone goal is created
+  useEffect(() => {
+    if (pendingGroup && standaloneGoal) {
+      addRecurringTaskGroup(standaloneGoal.id, pendingGroup.name, pendingGroup.recurrence)
+      setPendingGroup(null)
+    }
+  }, [standaloneGoal, pendingGroup, addRecurringTaskGroup])
+
+  const handleAddGroup = () => {
+    if (!newGroupName.trim()) return
+
+    if (newGroupGoalId === "standalone") {
+      if (standaloneGoal) {
+        // Standalone goal exists, add group directly
+        addRecurringTaskGroup(standaloneGoal.id, newGroupName.trim(), newGroupRecurrence)
+      } else {
+        // Create standalone goal first, then add group via effect
+        setPendingGroup({
+          name: newGroupName.trim(),
+          recurrence: newGroupRecurrence,
+        })
+        addGoal({
+          title: STANDALONE_MILESTONES_GOAL_TITLE,
+          description: "Quick milestones not tied to any specific goal",
+          tags: [],
+          targetDate: "",
+          milestones: [],
+          showProgress: false,
+        })
+      }
+    } else {
+      // Add to specific goal
+      addRecurringTaskGroup(newGroupGoalId, newGroupName.trim(), newGroupRecurrence)
+    }
+
+    resetAddGroupForm()
+  }
+
+  const resetAddGroupForm = () => {
+    setAddGroupOpen(false)
+    setNewGroupName("")
+    setNewGroupRecurrence("daily")
+    setNewGroupGoalId("standalone")
+  }
 
   // Get all unique groups from goals
   const allGroups = useMemo(() => {
@@ -230,6 +309,16 @@ export default function RecurringTasksPage() {
                 </p>
               </div>
             </div>
+            
+            {/* Add Recurring Group button */}
+            <Button
+              size="sm"
+              className="h-9 gap-1.5 active:scale-95"
+              onClick={() => setAddGroupOpen(true)}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add</span>
+            </Button>
           </div>
 
           {/* Stats - Compact on mobile */}
@@ -499,6 +588,102 @@ export default function RecurringTasksPage() {
           </div>
         )}
       </div>
+
+      {/* Add Recurring Group Dialog */}
+      <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Recurring Task Group</DialogTitle>
+            <DialogDescription>
+              Create a new recurring task group to track habits.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="group-name">Group Name *</Label>
+              <Input
+                id="group-name"
+                placeholder="e.g., Morning Routine, Exercise"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="group-recurrence">Recurrence</Label>
+              <Select value={newGroupRecurrence} onValueChange={(v) => setNewGroupRecurrence(v as RecurrenceType)}>
+                <SelectTrigger id="group-recurrence">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.daily)}>Daily</Badge>
+                      <span className="text-muted-foreground text-xs">Resets every day</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="weekly">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.weekly)}>Weekly</Badge>
+                      <span className="text-muted-foreground text-xs">Resets every week</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="monthly">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.monthly)}>Monthly</Badge>
+                      <span className="text-muted-foreground text-xs">Resets every month</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="group-goal">Assign to Goal</Label>
+              <Select value={newGroupGoalId} onValueChange={setNewGroupGoalId}>
+                <SelectTrigger id="group-goal">
+                  <SelectValue placeholder="Select a goal (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standalone">
+                    <div className="flex items-center gap-2">
+                      <Repeat className="h-4 w-4 text-muted-foreground" />
+                      <span>Quick Habits (no goal)</span>
+                    </div>
+                  </SelectItem>
+                  {selectableGoals.map((goal) => (
+                    <SelectItem key={goal.id} value={goal.id}>
+                      <div className="flex items-center gap-2">
+                        {goal.color && (
+                          <div 
+                            className="h-3 w-3 rounded-full" 
+                            style={{ backgroundColor: goal.color }}
+                          />
+                        )}
+                        <span className="truncate">{goal.title}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Quick habits are stored separately and aren't tied to a specific goal.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={resetAddGroupForm}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddGroup} disabled={!newGroupName.trim()}>
+              Add Group
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

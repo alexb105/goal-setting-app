@@ -28,6 +28,7 @@ import { EditGoalDialog } from "@/components/edit-goal-dialog"
 import { RecurringTasks } from "@/components/recurring-tasks"
 import { useGoalDate } from "@/hooks/use-goal-date"
 import { calculateProgress, getNegativelyImpactedBy, getNegativelyImpacts, getSupportingGoals } from "@/utils/goals"
+import { STANDALONE_MILESTONES_GOAL_TITLE } from "@/constants"
 
 const PINNED_INSIGHTS_STORAGE = "goalritual-pinned-insights"
 const SCROLL_TO_MILESTONE_KEY = "goalritual-scroll-to-milestone"
@@ -105,6 +106,9 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
   const supportingGoals = getSupportingGoals(goals, goal)
   const progress = calculateProgress(goal)
   const { goalDate, daysRemaining, formatted: daysRemainingFormatted } = useGoalDate(goal)
+  
+  // Check if this is the special Quick Milestones goal (protected from editing/deleting)
+  const isQuickMilestonesGoal = goal.title === STANDALONE_MILESTONES_GOAL_TITLE
 
   const handleDelete = () => {
     deleteGoal(goal.id)
@@ -122,49 +126,52 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
               <span className="hidden sm:inline">Back to Goals</span>
               <span className="sm:hidden">Back</span>
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditDialogOpen(true)} className="h-10">
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Goal
-                </DropdownMenuItem>
-                {goal.archived ? (
-                  <DropdownMenuItem
-                    onClick={() => {
-                      unarchiveGoal(goal.id)
-                      onBack()
-                    }}
-                    className="h-10"
-                  >
-                    <ArchiveRestore className="mr-2 h-4 w-4" />
-                    Unarchive Goal
+            {/* Hide menu for Quick Milestones goal */}
+            {!isQuickMilestonesGoal && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditDialogOpen(true)} className="h-10">
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Goal
                   </DropdownMenuItem>
-                ) : (
+                  {goal.archived ? (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        unarchiveGoal(goal.id)
+                        onBack()
+                      }}
+                      className="h-10"
+                    >
+                      <ArchiveRestore className="mr-2 h-4 w-4" />
+                      Unarchive Goal
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        archiveGoal(goal.id)
+                        onBack()
+                      }}
+                      className="h-10"
+                    >
+                      <Archive className="mr-2 h-4 w-4" />
+                      Archive Goal
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
-                    onClick={() => {
-                      archiveGoal(goal.id)
-                      onBack()
-                    }}
-                    className="h-10"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-destructive focus:text-destructive h-10"
                   >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Archive Goal
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Goal
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() => setDeleteDialogOpen(true)}
-                  className="text-destructive focus:text-destructive h-10"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Goal
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </header>
@@ -248,24 +255,26 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
 
           {goal.description && <p className="mb-4 sm:mb-6 text-sm sm:text-base text-muted-foreground">{goal.description}</p>}
 
-          {/* Why I want to achieve this goal */}
-          <div className="mb-4 sm:mb-6 space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-2">
-              <span className="text-sm font-medium text-foreground">Why I want to achieve this goal</span>
-              <span className="text-xs text-muted-foreground">Keep yourself motivated</span>
+          {/* Why I want to achieve this goal - hidden for Quick Milestones */}
+          {!isQuickMilestonesGoal && (
+            <div className="mb-4 sm:mb-6 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 sm:gap-2">
+                <span className="text-sm font-medium text-foreground">Why I want to achieve this goal</span>
+                <span className="text-xs text-muted-foreground">Keep yourself motivated</span>
+              </div>
+              <Textarea
+                value={whyText}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setWhyText(value)
+                  updateGoal(goal.id, { why: value.trim() || undefined })
+                }}
+                placeholder="Write a short note about why this goal matters to you..."
+                rows={3}
+                className="text-sm sm:text-base"
+              />
             </div>
-            <Textarea
-              value={whyText}
-              onChange={(e) => {
-                const value = e.target.value
-                setWhyText(value)
-                updateGoal(goal.id, { why: value.trim() || undefined })
-              }}
-              placeholder="Write a short note about why this goal matters to you..."
-              rows={3}
-              className="text-sm sm:text-base"
-            />
-          </div>
+          )}
 
           {/* Negative Impact Information */}
           {(negativelyImpactedBy.length > 0 || negativelyImpacts.length > 0) && (
