@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X } from "lucide-react"
+import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X, Compass } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-context"
 
@@ -16,9 +16,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/", icon: Target, label: "Goals" },
+  { href: "/goal-map", icon: Compass, label: "Map" },
   { href: "/milestones", icon: Calendar, label: "Milestones" },
   { href: "/recurring-tasks", icon: Repeat, label: "Recurring" },
-  { href: "/completed", icon: CheckCircle2, label: "Done" },
 ]
 
 export function MobileBottomNav() {
@@ -65,6 +65,15 @@ export function MobileBottomNav() {
                   <p className="text-xs text-muted-foreground">Signed in</p>
                 </div>
               </div>
+              
+              <Link 
+                href="/goal-map" 
+                onClick={() => setShowAccountMenu(false)}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-muted active:scale-[0.98] transition-all"
+              >
+                <Compass className="w-5 h-5 text-indigo-600" />
+                <span className="font-medium">Goal Map</span>
+              </Link>
               
               <Link 
                 href="/ai-guidance" 
