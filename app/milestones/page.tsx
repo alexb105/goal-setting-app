@@ -571,10 +571,7 @@ export default function MilestonesPage() {
                       index > 0 && "mt-4 sm:mt-6"
                     )}
                   >
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
-                      <Calendar className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-sm font-semibold text-primary">{item.monthLabel}</span>
-                    </div>
+                    <span className="text-base sm:text-lg font-semibold text-muted-foreground">{item.monthLabel}</span>
                     <div className="flex-1 h-px bg-border" />
                   </div>
                 )
