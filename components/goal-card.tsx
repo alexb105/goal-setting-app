@@ -48,6 +48,12 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
       }
     : undefined
 
+  // Text color classes when goal has a custom color (for better contrast)
+  const hasCustomColor = !!goal.color
+  const textColorClass = hasCustomColor ? "text-white" : "text-foreground"
+  const mutedTextColorClass = hasCustomColor ? "text-white/70" : "text-muted-foreground"
+  const iconColorClass = hasCustomColor ? "text-white/60" : "text-muted-foreground"
+
   return (
     <div
       onClick={onClick}
@@ -63,18 +69,18 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
           {goal.tags && goal.tags.length > 0 ? (
             <>
               {goal.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} className="text-xs px-2 py-0.5 bg-black text-white border-0">
+                <Badge key={tag} className={`text-xs px-2 py-0.5 border-0 ${hasCustomColor ? "bg-white/20 text-white" : "bg-black text-white"}`}>
                   {tag}
                 </Badge>
               ))}
               {goal.tags.length > 2 && (
-                <Badge className="text-xs px-2 py-0.5 bg-black text-white border-0">
+                <Badge className={`text-xs px-2 py-0.5 border-0 ${hasCustomColor ? "bg-white/20 text-white" : "bg-black text-white"}`}>
                   +{goal.tags.length - 2}
                 </Badge>
               )}
             </>
           ) : (
-            <span className="text-xs text-muted-foreground">No tags</span>
+            <span className={`text-xs ${mutedTextColorClass}`}>No tags</span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -107,12 +113,12 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
               </div>
             </TooltipContent>
           </Tooltip>
-          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${iconColorClass}`} />
         </div>
       </div>
 
-      <h3 className="mb-1 text-lg font-semibold text-foreground line-clamp-1">{goal.title}</h3>
-      <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{goal.description}</p>
+      <h3 className={`mb-1 text-lg font-semibold line-clamp-1 ${textColorClass}`}>{goal.title}</h3>
+      <p className={`mb-3 text-sm line-clamp-2 ${mutedTextColorClass}`}>{goal.description}</p>
 
       {negativelyImpactedBy.length > 0 && (
         <div className="mb-3 rounded-md bg-destructive text-xs text-white">
@@ -188,16 +194,16 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
       {goal.showProgress !== false && (
         <div className="mt-auto">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Progress</span>
-            <span className="font-medium text-foreground">
+            <span className={mutedTextColorClass}>Progress</span>
+            <span className={`font-medium ${textColorClass}`}>
               {goal.milestones.filter((m) => m.completed).length}/{goal.milestones.length} milestones
             </span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={progress} className={`h-2 ${hasCustomColor ? "[&>div]:bg-white/80" : ""}`} />
 
           {daysRemaining !== null && (
-            <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Calendar className="h-3.5 w-3.5" />
+            <div className={`mt-3 flex items-center gap-1.5 text-xs ${mutedTextColorClass}`}>
+              <Calendar className={`h-3.5 w-3.5 ${iconColorClass}`} />
               <span>{daysRemainingFormatted}</span>
             </div>
           )}

@@ -40,6 +40,12 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
     return `rgba(${r}, ${g}, ${b}, ${opacity})`
   }
 
+  // Text color classes when goal has a custom color (for better contrast)
+  const hasCustomColor = !!goal.color
+  const textColorClass = hasCustomColor ? "text-white" : "text-foreground"
+  const mutedTextColorClass = hasCustomColor ? "text-white/70" : "text-muted-foreground"
+  const iconColorClass = hasCustomColor ? "text-white/60" : "text-muted-foreground"
+
   return (
     <div
       onClick={onClick}
@@ -99,16 +105,16 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
       {/* Goal Info */}
       <div className="flex-1 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-          <h3 className="text-sm sm:text-base font-semibold text-foreground line-clamp-2 sm:truncate">{goal.title}</h3>
+          <h3 className={`text-sm sm:text-base font-semibold line-clamp-2 sm:truncate ${textColorClass}`}>{goal.title}</h3>
           {goal.tags && goal.tags.length > 0 && (
             <div className="flex gap-1 flex-shrink-0 flex-wrap">
               {goal.tags.slice(0, 2).map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0 h-4 sm:h-5">
+                <Badge key={tag} variant="secondary" className={`text-[10px] sm:text-xs px-1.5 py-0 h-4 sm:h-5 ${hasCustomColor ? "bg-white/20 text-white border-white/30" : ""}`}>
                   {tag}
                 </Badge>
               ))}
               {goal.tags.length > 2 && (
-                <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5 py-0 h-4 sm:h-5">
+                <Badge variant="secondary" className={`text-[10px] sm:text-xs px-1.5 py-0 h-4 sm:h-5 ${hasCustomColor ? "bg-white/20 text-white border-white/30" : ""}`}>
                   +{goal.tags.length - 2}
                 </Badge>
               )}
@@ -117,19 +123,19 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
         </div>
         
         {goal.description && (
-          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-1 mb-1.5 sm:mb-2">{goal.description}</p>
+          <p className={`text-xs sm:text-sm line-clamp-1 mb-1.5 sm:mb-2 ${mutedTextColorClass}`}>{goal.description}</p>
         )}
 
         {/* Mobile: Inline progress + info row */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted-foreground">
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs ${mutedTextColorClass}`}>
           {goal.showProgress !== false && (
             <>
               <span className="flex items-center gap-1">
-                <span className="font-medium text-foreground">{goal.milestones.filter((m) => m.completed).length}</span>/{goal.milestones.length} milestones
+                <span className={`font-medium ${textColorClass}`}>{goal.milestones.filter((m) => m.completed).length}</span>/{goal.milestones.length} milestones
               </span>
               {daysRemaining !== null && (
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
+                  <Calendar className={`h-3 w-3 ${iconColorClass}`} />
                   <span>{daysRemainingFormatted}</span>
                 </div>
               )}
@@ -206,7 +212,7 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
       )}
 
       {/* Arrow */}
-      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 flex-shrink-0 mt-0.5 sm:mt-0" />
+      <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 flex-shrink-0 mt-0.5 sm:mt-0 ${iconColorClass}`} />
     </div>
   )
 }

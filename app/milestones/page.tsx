@@ -508,6 +508,12 @@ export default function MilestonesPage() {
               const isOverdue = isMilestoneOverdue(milestone)
               const isDueSoon = isMilestoneDueSoon(milestone)
               const daysUntilDue = getMilestoneDaysUntilDue(milestone)
+              
+              // Text color classes when goal has a custom color (for better contrast)
+              const hasCustomColor = !!goal.color && !milestone.archived && !milestone.completed && !isOverdue
+              const textColorClass = hasCustomColor ? "text-white" : "text-foreground"
+              const mutedTextColorClass = hasCustomColor ? "text-white/70" : "text-muted-foreground"
+              const iconColorClass = hasCustomColor ? "text-white/60" : "text-muted-foreground"
 
               return (
                 <div
@@ -601,7 +607,7 @@ export default function MilestonesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              className={`h-8 w-8 ${iconColorClass} hover:text-foreground`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <ArchiveRestore className="h-4 w-4" />
@@ -630,7 +636,7 @@ export default function MilestonesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              className={`h-8 w-8 ${iconColorClass} hover:text-foreground`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Archive className="h-4 w-4" />
@@ -655,27 +661,27 @@ export default function MilestonesPage() {
                         </AlertDialog>
                       )}
                       <ChevronRight 
-                        className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 flex-shrink-0 cursor-pointer" 
+                        className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 flex-shrink-0 cursor-pointer ${iconColorClass}`}
                         onClick={() => setSelectedGoalId(goal.id)}
                       />
                     </div>
                   </div>
 
                   <div className="cursor-pointer" onClick={() => setSelectedGoalId(goal.id)}>
-                  <h3 className="mb-1 text-sm sm:text-lg font-semibold text-foreground line-clamp-2 sm:line-clamp-1">{milestone.title}</h3>
+                  <h3 className={`mb-1 text-sm sm:text-lg font-semibold line-clamp-2 sm:line-clamp-1 ${textColorClass}`}>{milestone.title}</h3>
                   {milestone.description && (
-                    <p className="mb-2 sm:mb-3 text-xs sm:text-sm text-muted-foreground line-clamp-2">{milestone.description}</p>
+                    <p className={`mb-2 sm:mb-3 text-xs sm:text-sm line-clamp-2 ${mutedTextColorClass}`}>{milestone.description}</p>
                   )}
 
-                  <div className="mt-auto pt-2 sm:pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
+                  <div className={`mt-auto pt-2 sm:pt-3 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2 ${hasCustomColor ? "border-white/20" : "border-border"}`}>
                     <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm min-w-0">
-                      <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-muted-foreground hidden sm:inline">From:</span>
-                      <span className="font-medium text-foreground truncate">{goal.title}</span>
+                      <Target className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 ${iconColorClass}`} />
+                      <span className={`hidden sm:inline ${mutedTextColorClass}`}>From:</span>
+                      <span className={`font-medium truncate ${textColorClass}`}>{goal.title}</span>
                     </div>
                     {milestone.targetDate ? (
-                      <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      <div className={`flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs ${mutedTextColorClass}`}>
+                        <Calendar className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${iconColorClass}`} />
                         <span>
                           {new Date(milestone.targetDate).toLocaleDateString("en-US", {
                             month: "short",
@@ -684,7 +690,7 @@ export default function MilestonesPage() {
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[11px] sm:text-xs text-muted-foreground">No date</span>
+                      <span className={`text-[11px] sm:text-xs ${mutedTextColorClass}`}>No date</span>
                     )}
                     </div>
                   </div>
