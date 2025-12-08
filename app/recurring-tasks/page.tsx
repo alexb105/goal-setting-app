@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy } from "lucide-react"
+import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -38,6 +38,67 @@ const RECURRENCE_COLORS: Record<RecurrenceType, string> = {
   daily: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   weekly: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
   monthly: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+}
+
+// Get score display info
+function getScoreInfo(score: number) {
+  if (score >= 50) {
+    return { 
+      color: "text-green-500", 
+      bgColor: "bg-green-500/10", 
+      borderColor: "border-green-500/30",
+      icon: Flame,
+      label: "On Fire!" 
+    }
+  } else if (score >= 20) {
+    return { 
+      color: "text-emerald-500", 
+      bgColor: "bg-emerald-500/10", 
+      borderColor: "border-emerald-500/30",
+      icon: TrendingUp,
+      label: "Great!" 
+    }
+  } else if (score >= 1) {
+    return { 
+      color: "text-blue-500", 
+      bgColor: "bg-blue-500/10", 
+      borderColor: "border-blue-500/30",
+      icon: TrendingUp,
+      label: "Good" 
+    }
+  } else if (score === 0) {
+    return { 
+      color: "text-muted-foreground", 
+      bgColor: "bg-muted/50", 
+      borderColor: "border-border",
+      icon: null,
+      label: "Start" 
+    }
+  } else if (score >= -20) {
+    return { 
+      color: "text-amber-500", 
+      bgColor: "bg-amber-500/10", 
+      borderColor: "border-amber-500/30",
+      icon: TrendingDown,
+      label: "Slipping" 
+    }
+  } else if (score >= -50) {
+    return { 
+      color: "text-orange-500", 
+      bgColor: "bg-orange-500/10", 
+      borderColor: "border-orange-500/30",
+      icon: TrendingDown,
+      label: "Danger" 
+    }
+  } else {
+    return { 
+      color: "text-red-500", 
+      bgColor: "bg-red-500/10", 
+      borderColor: "border-red-500/30",
+      icon: TrendingDown,
+      label: "Critical" 
+    }
+  }
 }
 
 function shouldAutoReset(group: RecurringTaskGroup): boolean {
@@ -182,7 +243,8 @@ export default function RecurringTasksPage() {
   useEffect(() => {
     allRecurringGroups.forEach(({ group, goal }) => {
       if (shouldAutoReset(group)) {
-        resetRecurringTaskGroup(goal.id, group.id)
+        // Pass true to indicate this is an auto-reset (affects score)
+        resetRecurringTaskGroup(goal.id, group.id, true)
       }
     })
   }, [allRecurringGroups, resetRecurringTaskGroup])
@@ -446,6 +508,9 @@ export default function RecurringTasksPage() {
               const isComplete = regularTasks.length > 0 && completedCount === regularTasks.length
               const isCollapsed = isGroupCollapsed(group.id)
               const progress = regularTasks.length > 0 ? (completedCount / regularTasks.length) * 100 : 0
+              const score = group.score ?? 0
+              const scoreInfo = getScoreInfo(score)
+              const ScoreIcon = scoreInfo.icon
 
               return (
                 <div
@@ -486,6 +551,19 @@ export default function RecurringTasksPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
+                            {/* Score Indicator */}
+                            <div 
+                              className={cn(
+                                "flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-bold",
+                                scoreInfo.bgColor,
+                                scoreInfo.borderColor,
+                                scoreInfo.color
+                              )}
+                              title={`Score: ${score > 0 ? '+' : ''}${score} - ${scoreInfo.label}`}
+                            >
+                              {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                              <span>{score > 0 ? '+' : ''}{score}</span>
+                            </div>
                             <div className="text-left sm:text-right">
                               <p className="text-xs sm:text-sm font-medium text-foreground">{completedCount}/{regularTasks.length}</p>
                               <p className="text-[10px] sm:text-xs text-muted-foreground">tasks</p>

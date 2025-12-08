@@ -151,7 +151,7 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
                 asChild
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-destructive hover:underline cursor-pointer py-0.5">
+                <div className={`flex items-center gap-1.5 text-[11px] sm:text-xs hover:underline cursor-pointer py-0.5 ${hasCustomColor ? "text-red-300" : "text-destructive"}`}>
                   <AlertTriangle className="h-3 w-3 flex-shrink-0" />
                   <span>Impacted by {negativelyImpactedBy.length} goal{negativelyImpactedBy.length !== 1 ? "s" : ""}</span>
                   <ChevronDown className={`h-3 w-3 transition-transform ${isImpactOpen ? "rotate-180" : ""}`} />
@@ -160,7 +160,7 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
               <CollapsibleContent className="mt-1">
                 <div className="flex flex-wrap gap-1">
                   {negativelyImpactedBy.map((impactingGoal) => (
-                    <span key={impactingGoal.id} className="bg-destructive/10 text-destructive rounded px-1.5 py-0.5 text-[10px] sm:text-xs">
+                    <span key={impactingGoal.id} className={`rounded px-1.5 py-0.5 text-[10px] sm:text-xs ${hasCustomColor ? "bg-white/20 text-white" : "bg-destructive/10 text-destructive"}`}>
                       {impactingGoal.title}
                     </span>
                   ))}
@@ -177,7 +177,7 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
                 asChild
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-green-600 hover:underline cursor-pointer py-0.5">
+                <div className={`flex items-center gap-1.5 text-[11px] sm:text-xs hover:underline cursor-pointer py-0.5 ${hasCustomColor ? "text-green-300" : "text-green-600"}`}>
                   <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
                   <span>Supported by {supportingGoals.length} goal{supportingGoals.length !== 1 ? "s" : ""}</span>
                   <ChevronDown className={`h-3 w-3 transition-transform ${isAidingOpen ? "rotate-180" : ""}`} />
@@ -192,7 +192,7 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
                         e.stopPropagation()
                         onNavigateToGoal?.(supportingGoal.id)
                       }}
-                      className="bg-green-600/10 text-green-600 hover:bg-green-600/20 rounded px-1.5 py-0.5 text-[10px] sm:text-xs transition-colors cursor-pointer"
+                      className={`rounded px-1.5 py-0.5 text-[10px] sm:text-xs transition-colors cursor-pointer ${hasCustomColor ? "bg-white/20 text-white hover:bg-white/30" : "bg-green-600/10 text-green-600 hover:bg-green-600/20"}`}
                     >
                       {supportingGoal.title}
                     </button>

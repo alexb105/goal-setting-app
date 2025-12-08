@@ -740,13 +740,15 @@ ANALYSIS RULES:
                         />
                       )}
                       
-                      {/* Outer glow for better visibility */}
+                      {/* Outer ring/glow */}
                       <circle
                         cx={x}
                         cy={y}
-                        r={nodeRadius + 0.5}
-                        fill="white"
-                        opacity="0.9"
+                        r={nodeRadius + 0.8}
+                        fill="none"
+                        stroke={isCompleted ? "rgb(34, 197, 94)" : colorSet.border}
+                        strokeWidth="0.6"
+                        opacity="0.8"
                       />
                       
                       {/* Progress ring background */}
@@ -755,9 +757,8 @@ ANALYSIS RULES:
                         cy={y}
                         r={nodeRadius}
                         fill="none"
-                        stroke="currentColor"
+                        stroke="rgba(255,255,255,0.2)"
                         strokeWidth="1"
-                        className="text-muted/40"
                       />
                       
                       {/* Progress ring */}
@@ -773,12 +774,12 @@ ANALYSIS RULES:
                         transform={`rotate(-90 ${x} ${y})`}
                       />
                       
-                      {/* Node fill */}
+                      {/* Node fill - dark background */}
                       <circle
                         cx={x}
                         cy={y}
                         r={nodeRadius - 1}
-                        fill={isCompleted ? "rgb(220, 252, 231)" : "white"}
+                        fill={isCompleted ? "rgb(22, 101, 52)" : "rgb(30, 25, 50)"}
                         stroke={isCompleted ? "rgb(34, 197, 94)" : colorSet.border}
                         strokeWidth="0.4"
                       />
@@ -789,20 +790,20 @@ ANALYSIS RULES:
                           x={x}
                           y={y + nodeRadius + 3}
                           textAnchor="middle"
-                          className="fill-foreground text-[2.5px] font-medium pointer-events-none"
-                          style={{ textShadow: "0 0 3px white, 0 0 3px white" }}
+                          className="fill-white text-[2.5px] font-medium pointer-events-none"
+                          style={{ textShadow: "0 0 4px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)" }}
                         >
                           {goal.title.length > 12 ? goal.title.substring(0, 10) + "..." : goal.title}
                         </text>
                       )}
                       
-                      {/* Completed checkmark or progress text */}
+                      {/* Completed checkmark or progress text - white text */}
                       {isCompleted ? (
                         <text
                           x={x}
                           y={y + 1}
                           textAnchor="middle"
-                          className="fill-green-600 text-[3px] font-bold"
+                          className="fill-green-400 text-[3px] font-bold"
                         >
                           ✓
                         </text>
@@ -811,7 +812,7 @@ ANALYSIS RULES:
                           x={x}
                           y={y + 1}
                           textAnchor="middle"
-                          className="fill-foreground text-[2.5px] font-bold pointer-events-none"
+                          className="fill-white text-[2.5px] font-bold pointer-events-none"
                         >
                           {progress}%
                         </text>

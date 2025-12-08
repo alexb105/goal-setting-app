@@ -768,24 +768,47 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
     )
   }
 
-  const resetRecurringTaskGroup = (goalId: string, groupId: string) => {
+  const resetRecurringTaskGroup = (goalId: string, groupId: string, wasAutoReset?: boolean) => {
     setGoals((prev) =>
-      prev.map((goal) =>
-        goal.id === goalId
-          ? {
-              ...goal,
-              recurringTaskGroups: (goal.recurringTaskGroups || []).map((group) =>
-                group.id === groupId
-                  ? {
-                      ...group,
-                      tasks: group.tasks.map((task) => ({ ...task, completed: false })),
-                      lastResetDate: new Date().toISOString().split("T")[0],
-                    }
-                  : group
-              ),
+      prev.map((goal) => {
+        if (goal.id !== goalId) return goal
+        
+        return {
+          ...goal,
+          recurringTaskGroups: (goal.recurringTaskGroups || []).map((group) => {
+            if (group.id !== groupId) return group
+            
+            // Check if all non-separator tasks were completed before reset
+            const regularTasks = group.tasks.filter(t => !t.isSeparator)
+            const allCompleted = regularTasks.length > 0 && regularTasks.every(t => t.completed)
+            
+            // Calculate new score (only for auto-resets, not manual resets)
+            let newScore = group.score ?? 0
+            if (wasAutoReset) {
+              if (allCompleted) {
+                // +1 point for completing all tasks, max 100
+                newScore = Math.min(100, newScore + 1)
+              } else {
+                // -1 point for missing deadline, min -100
+                newScore = Math.max(-100, newScore - 1)
+              }
             }
-          : goal
-      )
+            
+            // Update completion count if all tasks were completed
+            const newCompletionCount = allCompleted 
+              ? (group.completionCount || 0) + 1 
+              : group.completionCount || 0
+            
+            return {
+              ...group,
+              tasks: group.tasks.map((task) => ({ ...task, completed: false })),
+              lastResetDate: new Date().toISOString().split("T")[0],
+              completionCount: newCompletionCount,
+              score: newScore,
+            }
+          }),
+        }
+      })
     )
   }
 

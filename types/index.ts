@@ -50,6 +50,7 @@ export interface RecurringTaskGroup {
   tasks: RecurringTask[]
   lastResetDate?: string // ISO date string of when tasks were last reset
   completionCount?: number // Number of times all tasks have been completed
+  score?: number // Points from -100 to +100: +1 for completion, -1 for missing deadline
 }
 
 export interface Milestone {

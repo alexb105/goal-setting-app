@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, GripVertical } from "lucide-react"
+import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, GripVertical, TrendingUp, TrendingDown, Flame } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -56,6 +56,25 @@ const RECURRENCE_COLORS: Record<RecurrenceType, string> = {
   daily: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20",
   weekly: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
   monthly: "bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20",
+}
+
+// Get score display info
+function getScoreInfo(score: number) {
+  if (score >= 50) {
+    return { color: "text-green-500", bgColor: "bg-green-500/10", borderColor: "border-green-500/30", icon: Flame }
+  } else if (score >= 20) {
+    return { color: "text-emerald-500", bgColor: "bg-emerald-500/10", borderColor: "border-emerald-500/30", icon: TrendingUp }
+  } else if (score >= 1) {
+    return { color: "text-blue-500", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30", icon: TrendingUp }
+  } else if (score === 0) {
+    return { color: "text-muted-foreground", bgColor: "bg-muted/50", borderColor: "border-border", icon: null }
+  } else if (score >= -20) {
+    return { color: "text-amber-500", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/30", icon: TrendingDown }
+  } else if (score >= -50) {
+    return { color: "text-orange-500", bgColor: "bg-orange-500/10", borderColor: "border-orange-500/30", icon: TrendingDown }
+  } else {
+    return { color: "text-red-500", bgColor: "bg-red-500/10", borderColor: "border-red-500/30", icon: TrendingDown }
+  }
 }
 
 function shouldAutoReset(group: RecurringTaskGroup): boolean {
@@ -326,7 +345,8 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
   useEffect(() => {
     groups.forEach((group) => {
       if (shouldAutoReset(group)) {
-        resetRecurringTaskGroup(goalId, group.id)
+        // Pass true to indicate this is an auto-reset (affects score)
+        resetRecurringTaskGroup(goalId, group.id, true)
       }
     })
   }, [groups, goalId, resetRecurringTaskGroup])
@@ -601,9 +621,31 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {completedCount}/{getRegularTasks(group).length} tasks completed
-                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-muted-foreground">
+                            {completedCount}/{getRegularTasks(group).length} tasks
+                          </p>
+                          {/* Score indicator */}
+                          {(() => {
+                            const score = group.score ?? 0
+                            const scoreInfo = getScoreInfo(score)
+                            const ScoreIcon = scoreInfo.icon
+                            return (
+                              <div 
+                                className={cn(
+                                  "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[10px] font-bold",
+                                  scoreInfo.bgColor,
+                                  scoreInfo.borderColor,
+                                  scoreInfo.color
+                                )}
+                                title={`Score: ${score > 0 ? '+' : ''}${score}`}
+                              >
+                                {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
+                                <span>{score > 0 ? '+' : ''}{score}</span>
+                              </div>
+                            )
+                          })()}
+                        </div>
                       </div>
                     )}
                   </div>
