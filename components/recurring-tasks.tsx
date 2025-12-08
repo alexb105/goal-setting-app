@@ -187,7 +187,7 @@ function SortableTaskItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+              className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
               onClick={() => handleStartEditTask(task.id, task.title)}
               title="Edit header"
             >
@@ -196,7 +196,7 @@ function SortableTaskItem({
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+              className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
               onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
               title="Delete header"
             >
@@ -274,7 +274,7 @@ function SortableTaskItem({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
             onClick={() => handleStartEditTask(task.id, task.title)}
             title="Edit task"
           >
@@ -283,7 +283,7 @@ function SortableTaskItem({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            className="h-6 w-6 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
             onClick={() => deleteRecurringTask(goalId, groupId, task.id)}
             title="Delete task"
           >
