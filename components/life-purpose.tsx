@@ -88,7 +88,7 @@ export function LifePurpose() {
 
   if (!lifePurpose && !isEditing) {
     return (
-      <div className="mb-4 sm:mb-6 rounded-xl border border-dashed border-border bg-card/50 p-3 sm:p-6">
+      <div className="mb-4 sm:mb-6 rounded-xl border border-dashed border-border glass-subtle p-3 sm:p-6">
         <div className="flex items-start gap-2 sm:gap-3">
           <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-purple-500/10 flex-shrink-0">
             <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
@@ -120,7 +120,7 @@ export function LifePurpose() {
   const isLongPurpose = lifePurpose.length > 100
 
   return (
-    <div className="mb-4 sm:mb-6 rounded-xl border border-border bg-gradient-to-br from-purple-50/50 to-blue-50/50 dark:from-purple-950/20 dark:to-blue-950/20 p-3 sm:p-6">
+    <div className="mb-4 sm:mb-6 rounded-xl border border-border glass bg-gradient-to-br from-purple-500/10 to-indigo-500/10 p-3 sm:p-6">
       {isEditing ? (
         // Editing mode - full display
         <div className="flex items-start gap-3">

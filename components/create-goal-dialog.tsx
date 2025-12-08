@@ -289,10 +289,10 @@ export function CreateGoalDialog({ open, onOpenChange }: CreateGoalDialogProps) 
                           type="button"
                           onClick={() => setSelectedColor(selectedColor === color.value ? undefined : color.value)}
                           className={cn(
-                            "h-8 w-full rounded-md border-2 transition-all",
+                            "h-8 w-full rounded-lg border-2 transition-all shadow-sm",
                             selectedColor === color.value
-                              ? "border-foreground ring-2 ring-ring ring-offset-1"
-                              : "border-transparent hover:border-foreground/30"
+                              ? "border-white/80 ring-2 ring-primary ring-offset-1 ring-offset-background scale-105"
+                              : "border-white/20 hover:border-white/50 hover:scale-105"
                           )}
                           style={{ backgroundColor: color.value }}
                           title={color.name}

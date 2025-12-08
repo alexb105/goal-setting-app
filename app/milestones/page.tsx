@@ -157,10 +157,13 @@ export default function MilestonesPage() {
   }, [goals])
 
   // Collect all milestones with their parent goal information
-  // Exclude linked goals (nested goals that act as milestones)
+  // Exclude linked goals (nested goals that act as milestones) and archived goals
   const allMilestones = useMemo(() => {
     const milestones: Array<{ milestone: Milestone; goal: Goal }> = []
     goals.forEach((goal) => {
+      // Skip archived goals - their milestones shouldn't appear in the list
+      if (goal.archived) return
+      
       goal.milestones.forEach((milestone) => {
         // Skip milestones that are actually links to other goals
         if (!milestone.linkedGoalId) {
@@ -280,7 +283,7 @@ export default function MilestonesPage() {
   return (
     <div className="min-h-screen safe-area-top">
       {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-40">
+      <header className="border-b border-border glass-strong sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-4">
           {/* Top row: Back button + Title + Actions */}
           <div className="flex items-center justify-between gap-2">
@@ -481,7 +484,7 @@ export default function MilestonesPage() {
 
       <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
         {sortedMilestones.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 py-12 sm:py-16 px-4">
+          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border glass-subtle py-12 sm:py-16 px-4">
             <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
               {viewTab === "archived" ? (
                 <Archive className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
@@ -526,8 +529,9 @@ export default function MilestonesPage() {
                               : ""
                   )}
                   style={goal.color && !milestone.archived && !milestone.completed && !isOverdue ? {
-                    backgroundColor: getColorWithOpacity(goal.color, 0.5),
-                    borderColor: getColorWithOpacity(goal.color, 0.6),
+                    backgroundColor: getColorWithOpacity(goal.color, 0.3),
+                    borderColor: getColorWithOpacity(goal.color, 0.5),
+                    boxShadow: `0 0 15px ${getColorWithOpacity(goal.color, 0.15)}`,
                   } : undefined}
                 >
                   <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2">

@@ -834,7 +834,7 @@ export function GoalDashboard() {
     return (
       <div className="min-h-screen">
         {/* Header */}
-        <header className="border-b border-border bg-card">
+        <header className="border-b border-border glass-strong">
           <div className="mx-auto max-w-6xl px-6 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -915,7 +915,7 @@ export function GoalDashboard() {
     return (
       <div className="min-h-screen">
         {/* Header */}
-        <header className="border-b border-border bg-card">
+        <header className="border-b border-border glass-strong">
           <div className="mx-auto max-w-6xl px-6 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -998,7 +998,7 @@ export function GoalDashboard() {
       )}
       
       {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-40">
+      <header className="border-b border-border glass-strong sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-3 sm:px-6 py-2 sm:py-2.5">
           <div className="flex items-center justify-between gap-3">
             {/* Logo */}
@@ -1182,7 +1182,7 @@ export function GoalDashboard() {
         </div>
 
         {/* Goals Panel */}
-        <div className="rounded-xl sm:rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl sm:rounded-2xl border border-border west-quest-card overflow-hidden">
           {/* Panel Header - Compact on mobile */}
           <div className="border-b border-border bg-muted/30 px-3 sm:px-6 py-2.5 sm:py-4">
             <div className="flex items-center justify-between gap-2">

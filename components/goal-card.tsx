@@ -32,9 +32,19 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
   const currentPriority = goal.priority !== undefined ? goal.priority : 0
   const priorityColorClass = PRIORITY_COLORS[currentPriority] || PRIORITY_COLORS[0]
 
+  // Convert hex color to rgba with opacity
+  const getColorWithOpacity = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`
+  }
+
   const cardStyle = goal.color
     ? {
-        backgroundColor: goal.color,
+        backgroundColor: getColorWithOpacity(goal.color, 0.35),
+        borderColor: getColorWithOpacity(goal.color, 0.5),
+        boxShadow: `0 0 20px ${getColorWithOpacity(goal.color, 0.2)}`,
       }
     : undefined
 
@@ -87,11 +97,11 @@ export function GoalCard({ goal, onClick, onNavigateToGoal }: GoalCardProps) {
                 <p className="font-semibold">Priority: {currentPriority === 0 ? "None" : currentPriority}</p>
                 <p className="text-xs opacity-90">
                   {currentPriority === 0 && "No priority assigned"}
-                  {currentPriority === 1 && "Highest priority (Red)"}
-                  {currentPriority === 2 && "High priority (Orange)"}
-                  {currentPriority === 3 && "Medium priority (Yellow)"}
-                  {currentPriority === 4 && "Low priority (Blue)"}
-                  {currentPriority === 5 && "Lowest priority (Green)"}
+                  {currentPriority === 1 && "Highest priority (Fuchsia)"}
+                  {currentPriority === 2 && "High priority (Violet)"}
+                  {currentPriority === 3 && "Medium priority (Purple)"}
+                  {currentPriority === 4 && "Low priority (Indigo)"}
+                  {currentPriority === 5 && "Lowest priority (Blue)"}
                 </p>
                 <p className="text-xs opacity-75">Click to change priority</p>
               </div>

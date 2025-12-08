@@ -1,12 +1,25 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Montserrat, Source_Sans_3 } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { GoalsProviderWrapper } from "@/components/goals-provider-wrapper"
 import "./globals.css"
 
-const geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+// Header font - Montserrat
+const montserrat = Montserrat({ 
+  subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+})
+
+// Body font - Source Sans Pro (Source Sans 3)
+const sourceSans = Source_Sans_3({ 
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+})
 
 const APP_NAME = "GoalRitual"
 const APP_DEFAULT_TITLE = "GoalRitual - Long-Term Goal Planner"
@@ -152,8 +165,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#000000" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#1a1040" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a1040" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -180,10 +193,10 @@ export default function RootLayout({
         
         {/* Android PWA optimizations */}
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="msapplication-TileColor" content="#000000" />
+        <meta name="theme-color" content="#1a1040" />
+        <meta name="msapplication-TileColor" content="#1a1040" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="msapplication-navbutton-color" content="#000000" />
+        <meta name="msapplication-navbutton-color" content="#1a1040" />
         
         {/* Android Chrome specific */}
         <meta name="application-name" content="GoalRitual" />
@@ -196,7 +209,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
         <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
       </head>
-      <body className={`${geist.className} antialiased`} suppressHydrationWarning>
+      <body className={`${sourceSans.variable} ${montserrat.variable} font-body antialiased`} suppressHydrationWarning>
         <GoalsProviderWrapper>
           {children}
         </GoalsProviderWrapper>

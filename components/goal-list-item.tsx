@@ -52,16 +52,17 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
           }
         }
       }}
-      className={`group flex items-start sm:items-center gap-2 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3 text-left transition-all cursor-pointer active-scale hover:brightness-95 active:brightness-90 shadow-sm hover:shadow-md ${
+      className={`group flex items-start sm:items-center gap-2 sm:gap-4 rounded-xl border px-3 sm:px-4 py-3 sm:py-3 text-left transition-all cursor-pointer active-scale hover:brightness-110 active:brightness-105 backdrop-blur-sm ${
         negativelyImpacts.length > 0
-          ? "border-destructive/50 hover:border-destructive"
+          ? "border-destructive/50 hover:border-destructive bg-card/80"
           : goal.color 
             ? "" 
-            : "border-border hover:border-primary/30 bg-card"
+            : "border-border hover:border-primary/50 bg-card/80 hover:shadow-[0_0_15px_rgba(139,92,246,0.15)]"
       }`}
       style={goal.color ? { 
-        backgroundColor: getColorWithOpacity(goal.color, 0.5),
-        borderColor: getColorWithOpacity(goal.color, 0.6),
+        backgroundColor: getColorWithOpacity(goal.color, 0.35),
+        borderColor: getColorWithOpacity(goal.color, 0.5),
+        boxShadow: `0 0 20px ${getColorWithOpacity(goal.color, 0.15)}`,
       } : undefined}
     >
       {/* Priority Indicator */}
@@ -84,11 +85,11 @@ export function GoalListItem({ goal, onClick, onNavigateToGoal }: GoalListItemPr
             <p className="font-semibold">Priority: {currentPriority === 0 ? "None" : currentPriority}</p>
             <p className="text-xs opacity-90">
               {currentPriority === 0 && "No priority assigned"}
-              {currentPriority === 1 && "Highest priority (Red)"}
-              {currentPriority === 2 && "High priority (Orange)"}
-              {currentPriority === 3 && "Medium priority (Yellow)"}
-              {currentPriority === 4 && "Low priority (Blue)"}
-              {currentPriority === 5 && "Lowest priority (Green)"}
+              {currentPriority === 1 && "Highest priority (Fuchsia)"}
+              {currentPriority === 2 && "High priority (Violet)"}
+              {currentPriority === 3 && "Medium priority (Purple)"}
+              {currentPriority === 4 && "Low priority (Indigo)"}
+              {currentPriority === 5 && "Lowest priority (Blue)"}
             </p>
             <p className="text-xs opacity-75">Tap to change priority</p>
           </div>

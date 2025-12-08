@@ -103,7 +103,7 @@ export function MobileBottomNav() {
       {/* Account Menu Sheet */}
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card rounded-t-3xl border-t border-border transition-transform duration-300 ease-out safe-area-bottom",
+          "fixed bottom-0 left-0 right-0 z-50 md:hidden glass-strong rounded-t-3xl border-t border-border transition-transform duration-300 ease-out safe-area-bottom",
           showAccountMenu ? "translate-y-0" : "translate-y-full"
         )}
       >
@@ -258,7 +258,7 @@ export function MobileBottomNav() {
       
       {/* Bottom Navigation */}
       <nav className={cn(
-        "fixed bottom-0 left-0 right-0 z-30 md:hidden bg-card/95 backdrop-blur-lg border-t border-border safe-area-bottom transition-transform duration-300",
+        "fixed bottom-0 left-0 right-0 z-30 md:hidden glass-strong border-t border-border safe-area-bottom transition-transform duration-300",
         showAccountMenu && "translate-y-full"
       )}>
         <div className="flex items-center justify-around px-2 py-1">

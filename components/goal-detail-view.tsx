@@ -118,7 +118,7 @@ export function GoalDetailView({ goal, onBack, onNavigateToGoal }: GoalDetailVie
   return (
     <div className="min-h-screen safe-area-top">
       {/* Header */}
-      <header className="border-b border-border bg-card sticky top-0 z-40">
+      <header className="border-b border-border glass-strong sticky top-0 z-40">
         <div className="mx-auto max-w-4xl px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={onBack} className="gap-2 -ml-2 h-9 px-2 sm:px-3">

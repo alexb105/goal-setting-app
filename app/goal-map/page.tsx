@@ -516,7 +516,7 @@ ANALYSIS RULES:
 
   return (
     <div className="min-h-screen safe-area-top bg-gradient-to-b from-background to-muted/30 pb-24">
-      <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-40">
+      <header className="border-b border-border glass-strong sticky top-0 z-40">
         <div className="mx-auto max-w-5xl px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">

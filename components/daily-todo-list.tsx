@@ -543,7 +543,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   const totalCount = todos.length + todaysRecurringTasks.length + validPinnedTasks.length
 
   return (
-    <div className="rounded-xl border border-border bg-card p-2.5 sm:p-4">
+    <div className="rounded-xl border border-border west-quest-card p-2.5 sm:p-4">
       <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-amber-500/10 flex-shrink-0">
