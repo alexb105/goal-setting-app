@@ -246,6 +246,62 @@ export default function MilestonesPage() {
     })
   }, [filteredMilestones])
 
+  // Group milestones by month for separators
+  const milestonesWithMonths = useMemo(() => {
+    const result: Array<{
+      type: "separator" | "milestone"
+      monthKey?: string
+      monthLabel?: string
+      data?: { milestone: Milestone; goal: Goal }
+    }> = []
+    
+    let currentMonth = ""
+    const today = new Date()
+    const currentYear = today.getFullYear()
+    
+    sortedMilestones.forEach((item) => {
+      const targetDate = item.milestone.targetDate
+      let monthKey: string
+      let monthLabel: string
+      
+      if (!targetDate) {
+        monthKey = "no-date"
+        monthLabel = "No Date Set"
+      } else {
+        const date = new Date(targetDate)
+        const month = date.getMonth()
+        const year = date.getFullYear()
+        monthKey = `${year}-${month}`
+        
+        // Format the month label
+        const monthName = date.toLocaleDateString("en-US", { month: "long" })
+        if (year === currentYear) {
+          monthLabel = monthName
+        } else {
+          monthLabel = `${monthName} ${year}`
+        }
+      }
+      
+      // Add separator if this is a new month
+      if (monthKey !== currentMonth) {
+        result.push({
+          type: "separator",
+          monthKey,
+          monthLabel,
+        })
+        currentMonth = monthKey
+      }
+      
+      // Add the milestone
+      result.push({
+        type: "milestone",
+        data: item,
+      })
+    })
+    
+    return result
+  }, [sortedMilestones])
+
   const hasActiveFilters = groupFilter !== "all" || tagFilter !== "all" || statusFilter !== "all"
 
   const clearFilters = () => {
@@ -504,7 +560,28 @@ export default function MilestonesPage() {
           </div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
-            {sortedMilestones.map(({ milestone, goal }) => {
+            {milestonesWithMonths.map((item, index) => {
+              // Render month separator
+              if (item.type === "separator") {
+                return (
+                  <div 
+                    key={`separator-${item.monthKey}`}
+                    className={cn(
+                      "flex items-center gap-3 py-2",
+                      index > 0 && "mt-4 sm:mt-6"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-semibold text-primary">{item.monthLabel}</span>
+                    </div>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                )
+              }
+              
+              // Render milestone
+              const { milestone, goal } = item.data!
               const isOverdue = isMilestoneOverdue(milestone)
               const isDueSoon = isMilestoneDueSoon(milestone)
               const daysUntilDue = getMilestoneDaysUntilDue(milestone)
