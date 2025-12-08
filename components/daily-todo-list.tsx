@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Plus, X, Sun, Trash2, Repeat, Calendar, Check, Pencil, List, Pin, PinOff, Target } from "lucide-react"
+import { Plus, X, Sun, Trash2, Repeat, Calendar, Check, Pencil, List, Pin, PinOff, Target, TrendingUp, TrendingDown, Flame } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -42,6 +42,27 @@ const RECURRING_STORAGE_KEY = "goalritual-recurring-tasks"
 const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
 const LAST_RESET_KEY = "goalritual-daily-todos-last-reset"
 const TOTAL_COMPLETED_KEY = "goalritual-total-completed-count"
+const DAILY_SCORE_KEY = "goalritual-daily-tasks-score"
+const YESTERDAY_TASKS_KEY = "goalritual-yesterday-tasks-snapshot"
+
+// Get score display info
+function getScoreInfo(score: number) {
+  if (score >= 50) {
+    return { color: "text-green-500", bgColor: "bg-green-500/10", borderColor: "border-green-500/30", icon: Flame }
+  } else if (score >= 20) {
+    return { color: "text-emerald-500", bgColor: "bg-emerald-500/10", borderColor: "border-emerald-500/30", icon: TrendingUp }
+  } else if (score >= 1) {
+    return { color: "text-blue-500", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30", icon: TrendingUp }
+  } else if (score === 0) {
+    return { color: "text-muted-foreground", bgColor: "bg-muted/50", borderColor: "border-border", icon: null }
+  } else if (score >= -20) {
+    return { color: "text-amber-500", bgColor: "bg-amber-500/10", borderColor: "border-amber-500/30", icon: TrendingDown }
+  } else if (score >= -50) {
+    return { color: "text-orange-500", bgColor: "bg-orange-500/10", borderColor: "border-orange-500/30", icon: TrendingDown }
+  } else {
+    return { color: "text-red-500", bgColor: "bg-red-500/10", borderColor: "border-red-500/30", icon: TrendingDown }
+  }
+}
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sun", fullLabel: "Sunday" },
@@ -111,6 +132,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   const [totalCompletedAllTime, setTotalCompletedAllTime] = useState(0)
 
   const [currentDate, setCurrentDate] = useState(getTodayDateString)
+  const [dailyScore, setDailyScore] = useState(0)
   const todayDayOfWeek = getTodayDayOfWeek()
 
   // Check for date changes when page becomes visible (e.g., user comes back after midnight)
@@ -154,6 +176,8 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
     const lastReset = localStorage.getItem(LAST_RESET_KEY)
     const storedTotalCompleted = localStorage.getItem(TOTAL_COMPLETED_KEY)
+    const storedScore = localStorage.getItem(DAILY_SCORE_KEY)
+    const yesterdaySnapshot = localStorage.getItem(YESTERDAY_TASKS_KEY)
 
     let loadedTodos: DailyTodo[] = []
     let loadedRecurring: StandaloneRecurringTask[] = []
@@ -162,6 +186,11 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     // Load total completed count
     if (storedTotalCompleted) {
       setTotalCompletedAllTime(parseInt(storedTotalCompleted, 10) || 0)
+    }
+
+    // Load score
+    if (storedScore) {
+      setDailyScore(parseInt(storedScore, 10) || 0)
     }
 
     if (stored) {
@@ -190,11 +219,35 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
 
     // Check if we need to reset (new day)
     if (lastReset !== currentDate) {
+      // Calculate score change based on yesterday's snapshot
+      if (yesterdaySnapshot && lastReset) {
+        try {
+          const snapshot = JSON.parse(yesterdaySnapshot) as { 
+            totalTasks: number
+            completedTasks: number 
+          }
+          // Only adjust score if there were tasks yesterday
+          if (snapshot.totalTasks > 0) {
+            const allCompleted = snapshot.completedTasks === snapshot.totalTasks
+            const currentScore = parseInt(storedScore || "0", 10)
+            const newScore = allCompleted 
+              ? Math.min(100, currentScore + 1) 
+              : Math.max(-100, currentScore - 1)
+            setDailyScore(newScore)
+            localStorage.setItem(DAILY_SCORE_KEY, String(newScore))
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+      
       // Filter out completed todos, keep only uncompleted ones
       loadedTodos = loadedTodos.filter((todo) => !todo.completed)
       // Filter out pinned tasks that were completed yesterday (completedDate is before today)
       loadedPinned = loadedPinned.filter((task) => !task.completedDate || task.completedDate === currentDate)
       localStorage.setItem(LAST_RESET_KEY, currentDate)
+      // Clear yesterday's snapshot
+      localStorage.removeItem(YESTERDAY_TASKS_KEY)
     }
 
     setTodos(loadedTodos)
@@ -274,6 +327,44 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       triggerSync()
     }
   }, [pinnedTasks, isLoaded, triggerSync])
+
+  // Save snapshot of today's tasks for score calculation on reset
+  useEffect(() => {
+    if (!isLoaded) return
+    
+    // Calculate today's recurring tasks
+    const todayRecurring = recurringTasks.filter((task) =>
+      task.daysOfWeek.includes(getTodayDayOfWeek()) && 
+      !(task.skippedDates || []).includes(currentDate)
+    )
+    
+    // Filter valid pinned tasks (those that exist in goals)
+    const validPinned = pinnedTasks.filter((task) => {
+      const goal = goals.find((g) => g.id === task.goalId)
+      const milestone = goal?.milestones.find((m) => m.id === task.milestoneId)
+      return milestone?.tasks.find((t) => t.id === task.taskId)
+    })
+    
+    // Calculate totals
+    const totalTasks = todos.length + todayRecurring.length + validPinned.length
+    const completedRegular = todos.filter((t) => t.completed).length
+    const completedRecurring = todayRecurring.filter((t) => 
+      t.completedDates.includes(currentDate)
+    ).length
+    const completedPinned = validPinned.filter((task) => {
+      const goal = goals.find((g) => g.id === task.goalId)
+      const milestone = goal?.milestones.find((m) => m.id === task.milestoneId)
+      const t = milestone?.tasks.find((t) => t.id === task.taskId)
+      return t?.completed
+    }).length
+    const completedTasks = completedRegular + completedRecurring + completedPinned
+    
+    // Save snapshot
+    localStorage.setItem(YESTERDAY_TASKS_KEY, JSON.stringify({
+      totalTasks,
+      completedTasks
+    }))
+  }, [todos, recurringTasks, pinnedTasks, goals, currentDate, isLoaded])
 
   // Handle trigger from FAB
   useEffect(() => {
@@ -550,7 +641,28 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
             <Sun className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-xs sm:text-sm font-semibold text-foreground">Today's Tasks</h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-xs sm:text-sm font-semibold text-foreground">Today's Tasks</h3>
+              {/* Score Indicator */}
+              {(() => {
+                const scoreInfo = getScoreInfo(dailyScore)
+                const ScoreIcon = scoreInfo.icon
+                return (
+                  <div 
+                    className={cn(
+                      "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] sm:text-[10px] font-bold",
+                      scoreInfo.bgColor,
+                      scoreInfo.borderColor,
+                      scoreInfo.color
+                    )}
+                    title={`Score: ${dailyScore > 0 ? '+' : ''}${dailyScore} - Complete all tasks daily to increase!`}
+                  >
+                    {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
+                    <span>{dailyScore > 0 ? '+' : ''}{dailyScore}</span>
+                  </div>
+                )
+              })()}
+            </div>
             <p className="text-[10px] text-muted-foreground">
               {totalCount === 0
                 ? "No tasks yet"
