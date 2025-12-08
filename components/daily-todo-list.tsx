@@ -41,6 +41,7 @@ const STORAGE_KEY = "goalritual-daily-todos"
 const RECURRING_STORAGE_KEY = "goalritual-recurring-tasks"
 const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
 const LAST_RESET_KEY = "goalritual-daily-todos-last-reset"
+const TOTAL_COMPLETED_KEY = "goalritual-total-completed-count"
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sun", fullLabel: "Sunday" },
@@ -53,7 +54,9 @@ const DAYS_OF_WEEK = [
 ]
 
 function getTodayDateString(): string {
-  return new Date().toISOString().split("T")[0]
+  const now = new Date()
+  // Use local date, not UTC (toISOString uses UTC which can cause wrong reset times)
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 function getTodayDayOfWeek(): number {
@@ -105,9 +108,44 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   const [newRecurringTitle, setNewRecurringTitle] = useState("")
   const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [editingRecurringTask, setEditingRecurringTask] = useState<StandaloneRecurringTask | null>(null)
+  const [totalCompletedAllTime, setTotalCompletedAllTime] = useState(0)
 
-  const today = getTodayDateString()
+  const [currentDate, setCurrentDate] = useState(getTodayDateString)
   const todayDayOfWeek = getTodayDayOfWeek()
+
+  // Check for date changes when page becomes visible (e.g., user comes back after midnight)
+  useEffect(() => {
+    const checkDateChange = () => {
+      const newDate = getTodayDateString()
+      if (newDate !== currentDate) {
+        setCurrentDate(newDate)
+      }
+    }
+
+    // Check on visibility change (when user returns to tab/app)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkDateChange()
+      }
+    }
+
+    // Check on window focus (backup for PWAs)
+    const handleFocus = () => {
+      checkDateChange()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    // Also check periodically (every minute) in case the app stays visible at midnight
+    const interval = setInterval(checkDateChange, 60000)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      clearInterval(interval)
+    }
+  }, [currentDate])
 
   // Load todos, recurring tasks, and pinned tasks from localStorage
   useEffect(() => {
@@ -115,10 +153,16 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     const storedRecurring = localStorage.getItem(RECURRING_STORAGE_KEY)
     const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
     const lastReset = localStorage.getItem(LAST_RESET_KEY)
+    const storedTotalCompleted = localStorage.getItem(TOTAL_COMPLETED_KEY)
 
     let loadedTodos: DailyTodo[] = []
     let loadedRecurring: StandaloneRecurringTask[] = []
     let loadedPinned: PinnedMilestoneTask[] = []
+
+    // Load total completed count
+    if (storedTotalCompleted) {
+      setTotalCompletedAllTime(parseInt(storedTotalCompleted, 10) || 0)
+    }
 
     if (stored) {
       try {
@@ -145,19 +189,19 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     }
 
     // Check if we need to reset (new day)
-    if (lastReset !== today) {
+    if (lastReset !== currentDate) {
       // Filter out completed todos, keep only uncompleted ones
       loadedTodos = loadedTodos.filter((todo) => !todo.completed)
       // Filter out pinned tasks that were completed yesterday (completedDate is before today)
-      loadedPinned = loadedPinned.filter((task) => !task.completedDate || task.completedDate === today)
-      localStorage.setItem(LAST_RESET_KEY, today)
+      loadedPinned = loadedPinned.filter((task) => !task.completedDate || task.completedDate === currentDate)
+      localStorage.setItem(LAST_RESET_KEY, currentDate)
     }
 
     setTodos(loadedTodos)
     setRecurringTasks(loadedRecurring)
     setPinnedTasks(loadedPinned)
     setIsLoaded(true)
-  }, [today])
+  }, [currentDate])
 
   // Listen for storage events (when data is changed from other components or cloud sync)
   useEffect(() => {
@@ -254,13 +298,45 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     setIsAdding(false)
   }, [newTodoTitle])
 
+  const incrementTotalCompleted = useCallback(() => {
+    setTotalCompletedAllTime((prev) => {
+      const newCount = prev + 1
+      localStorage.setItem(TOTAL_COMPLETED_KEY, String(newCount))
+      return newCount
+    })
+  }, [])
+
+  const decrementTotalCompleted = useCallback(() => {
+    setTotalCompletedAllTime((prev) => {
+      const newCount = Math.max(0, prev - 1) // Don't go below 0
+      localStorage.setItem(TOTAL_COMPLETED_KEY, String(newCount))
+      return newCount
+    })
+  }, [])
+
+  const resetTotalCompleted = useCallback(() => {
+    setTotalCompletedAllTime(0)
+    localStorage.setItem(TOTAL_COMPLETED_KEY, "0")
+  }, [])
+
   const toggleTodo = useCallback((id: string) => {
+    // Find the todo first to check its current state
+    const todo = todos.find((t) => t.id === id)
+    if (todo) {
+      if (!todo.completed) {
+        // Task is being completed - increment counter
+        incrementTotalCompleted()
+      } else {
+        // Task is being uncompleted - decrement counter
+        decrementTotalCompleted()
+      }
+    }
     setTodos((prev) =>
-      prev.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      prev.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
       )
     )
-  }, [])
+  }, [todos, incrementTotalCompleted, decrementTotalCompleted])
 
   const deleteTodo = useCallback((id: string) => {
     setTodos((prev) => prev.filter((todo) => todo.id !== id))
@@ -272,6 +348,21 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
 
   // Pinned milestone task functions
   const togglePinnedTask = useCallback((pinnedTask: PinnedMilestoneTask) => {
+    // Check if the task is currently completed in goals
+    const goal = goals.find((g) => g.id === pinnedTask.goalId)
+    const milestone = goal?.milestones.find((m) => m.id === pinnedTask.milestoneId)
+    const originalTask = milestone?.tasks.find((t) => t.id === pinnedTask.taskId)
+    
+    // We're toggling, so if it was completed, it will become not completed
+    const willBeCompleted = originalTask ? !originalTask.completed : false
+    
+    // Update the counter based on completion state
+    if (willBeCompleted) {
+      incrementTotalCompleted()
+    } else {
+      decrementTotalCompleted()
+    }
+    
     // Toggle the task in the goals context
     toggleTask(pinnedTask.goalId, pinnedTask.milestoneId, pinnedTask.taskId)
     
@@ -280,21 +371,13 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       prev.map((task) => {
         if (task.id !== pinnedTask.id) return task
         
-        // Check if the task is currently completed in goals
-        const goal = goals.find((g) => g.id === pinnedTask.goalId)
-        const milestone = goal?.milestones.find((m) => m.id === pinnedTask.milestoneId)
-        const originalTask = milestone?.tasks.find((t) => t.id === pinnedTask.taskId)
-        
-        // We're toggling, so if it was completed, it will become not completed
-        const willBeCompleted = originalTask ? !originalTask.completed : false
-        
         return {
           ...task,
-          completedDate: willBeCompleted ? today : undefined,
+          completedDate: willBeCompleted ? currentDate : undefined,
         }
       })
     )
-  }, [goals, toggleTask, today])
+  }, [goals, toggleTask, currentDate, incrementTotalCompleted, decrementTotalCompleted])
 
   const unpinTask = useCallback((pinnedTaskId: string) => {
     setPinnedTasks((prev) => prev.filter((task) => task.id !== pinnedTaskId))
@@ -333,31 +416,59 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   }, [newRecurringTitle, selectedDays, editingRecurringTask])
 
   const toggleRecurringTask = useCallback((taskId: string) => {
+    // Find the task first to check its current state
+    const task = recurringTasks.find((t) => t.id === taskId)
+    const isCompletedToday = task?.completedDates.includes(currentDate)
+    
+    // Update counter based on completion state
+    if (task) {
+      if (!isCompletedToday) {
+        // Task is being completed - increment counter
+        incrementTotalCompleted()
+      } else {
+        // Task is being uncompleted - decrement counter
+        decrementTotalCompleted()
+      }
+    }
+    
     setRecurringTasks((prev) =>
-      prev.map((task) => {
-        if (task.id !== taskId) return task
+      prev.map((t) => {
+        if (t.id !== taskId) return t
 
-        const isCompletedToday = task.completedDates.includes(today)
         if (isCompletedToday) {
           // Remove today from completed dates
           return {
-            ...task,
-            completedDates: task.completedDates.filter((d) => d !== today),
+            ...t,
+            completedDates: t.completedDates.filter((d) => d !== currentDate),
           }
         } else {
           // Add today to completed dates
           return {
-            ...task,
-            completedDates: [...task.completedDates, today],
+            ...t,
+            completedDates: [...t.completedDates, currentDate],
           }
         }
       })
     )
-  }, [today])
+  }, [recurringTasks, currentDate, incrementTotalCompleted, decrementTotalCompleted])
 
   const deleteRecurringTask = useCallback((taskId: string) => {
     setRecurringTasks((prev) => prev.filter((task) => task.id !== taskId))
   }, [])
+
+  const skipRecurringTaskForToday = useCallback((taskId: string) => {
+    setRecurringTasks((prev) =>
+      prev.map((task) => {
+        if (task.id !== taskId) return task
+        const skippedDates = task.skippedDates || []
+        if (skippedDates.includes(currentDate)) return task
+        return {
+          ...task,
+          skippedDates: [...skippedDates, currentDate],
+        }
+      })
+    )
+  }, [currentDate])
 
   const openEditRecurringTask = useCallback((task: StandaloneRecurringTask) => {
     setEditingRecurringTask(task)
@@ -399,9 +510,10 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     setEditingRecurringTask(null)
   }, [])
 
-  // Get recurring tasks scheduled for today
+  // Get recurring tasks scheduled for today (excluding skipped ones)
   const todaysRecurringTasks = recurringTasks.filter((task) =>
-    task.daysOfWeek.includes(todayDayOfWeek)
+    task.daysOfWeek.includes(todayDayOfWeek) && 
+    !(task.skippedDates || []).includes(currentDate)
   )
 
   // Get real-time status for pinned tasks from goals context
@@ -424,7 +536,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
   // Count completions
   const regularCompletedCount = todos.filter((t) => t.completed).length
   const recurringCompletedCount = todaysRecurringTasks.filter((t) =>
-    t.completedDates.includes(today)
+    t.completedDates.includes(currentDate)
   ).length
   const pinnedCompletedCount = validPinnedTasks.filter((t) => getPinnedTaskStatus(t).completed).length
   const totalCompletedCount = regularCompletedCount + recurringCompletedCount + pinnedCompletedCount
@@ -443,6 +555,32 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
               {totalCount === 0
                 ? "No tasks yet"
                 : `${totalCompletedCount}/${totalCount} done`}
+              {totalCompletedAllTime > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button className="text-primary ml-1.5 hover:underline cursor-pointer">
+                      • {totalCompletedAllTime.toLocaleString()} total
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset Total Counter?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will reset your all-time completed tasks counter from {totalCompletedAllTime.toLocaleString()} back to 0. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={resetTotalCompleted}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Reset Counter
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </p>
           </div>
         </div>
@@ -536,7 +674,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       {todaysRecurringTasks.length > 0 && (
         <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
           {todaysRecurringTasks.map((task) => {
-            const isCompletedToday = task.completedDates.includes(today)
+            const isCompletedToday = task.completedDates.includes(currentDate)
             return (
               <div
                 key={task.id}
@@ -566,34 +704,15 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
                   <span className="hidden sm:inline">{formatDays(task.daysOfWeek)}</span>
                   <span className="sm:hidden">{task.daysOfWeek.length}d</span>
                 </Badge>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive active:scale-90"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Recurring Task</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete &quot;{task.title}&quot;? This will remove it from all scheduled days.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteRecurringTask(task.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 flex-shrink-0 opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground active:scale-90"
+                  onClick={() => skipRecurringTaskForToday(task.id)}
+                  title="Skip for today"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
               </div>
             )
           })}

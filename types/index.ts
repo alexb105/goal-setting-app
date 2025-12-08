@@ -17,6 +17,7 @@ export interface StandaloneRecurringTask {
   title: string
   daysOfWeek: number[] // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   completedDates: string[] // ISO date strings (YYYY-MM-DD) when the task was completed
+  skippedDates?: string[] // ISO date strings (YYYY-MM-DD) when the task was skipped for that day
   createdAt: string // ISO date string
 }
 

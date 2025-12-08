@@ -515,17 +515,17 @@ export default function MilestonesPage() {
                       ? "border-border/50 bg-muted/30 opacity-80"
                       : milestone.completed
                       ? "border-green-500/50 bg-green-500/5 hover:border-green-500/70"
-                      : milestone.inProgress && !goal.color
-                        ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500"
-                        : isOverdue && !goal.color
-                          ? "border-destructive/50 bg-destructive/5 hover:border-destructive"
+                      : isOverdue
+                        ? "border-red-500 border-2 bg-red-500/5 hover:border-red-600"
+                        : milestone.inProgress && !goal.color
+                          ? "border-amber-500/50 bg-amber-500/5 hover:border-amber-500"
                           : isDueSoon && !goal.color
                             ? "border-orange-500/50 bg-orange-500/5 hover:border-orange-500"
                             : !goal.color
                               ? "border-border bg-card hover:border-primary/30"
                               : ""
                   )}
-                  style={goal.color && !milestone.archived && !milestone.completed ? {
+                  style={goal.color && !milestone.archived && !milestone.completed && !isOverdue ? {
                     backgroundColor: getColorWithOpacity(goal.color, 0.5),
                     borderColor: getColorWithOpacity(goal.color, 0.6),
                   } : undefined}

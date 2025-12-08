@@ -3,9 +3,13 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X, Compass } from "lucide-react"
+import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X, Compass, Mail, Lock, AlertCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-context"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface NavItem {
   href: string
@@ -23,8 +27,68 @@ const navItems: NavItem[] = [
 
 export function MobileBottomNav() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, signOut, signInWithEmail, signUpWithEmail } = useAuth()
   const [showAccountMenu, setShowAccountMenu] = useState(false)
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const resetForm = () => {
+    setEmail("")
+    setPassword("")
+    setError(null)
+    setSuccess(null)
+    setAuthMode("signin")
+  }
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+    setIsSubmitting(true)
+
+    try {
+      const { error } = await signInWithEmail(email, password)
+      if (error) {
+        setError(error.message)
+        setIsSubmitting(false)
+      } else {
+        window.location.reload()
+      }
+    } catch {
+      setError("An unexpected error occurred")
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(null)
+    setIsSubmitting(true)
+
+    try {
+      const { error } = await signUpWithEmail(email, password)
+      if (error) {
+        setError(error.message)
+      } else {
+        localStorage.setItem("goalritual-pending-auth", "true")
+        setSuccess("Check your email for a confirmation link!")
+      }
+    } catch {
+      setError("An unexpected error occurred")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCloseMenu = () => {
+    setShowAccountMenu(false)
+    resetForm()
+  }
 
   return (
     <>
@@ -32,7 +96,7 @@ export function MobileBottomNav() {
       {showAccountMenu && (
         <div 
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setShowAccountMenu(false)}
+          onClick={handleCloseMenu}
         />
       )}
       
@@ -47,7 +111,7 @@ export function MobileBottomNav() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Account</h3>
             <button
-              onClick={() => setShowAccountMenu(false)}
+              onClick={handleCloseMenu}
               className="p-2 rounded-full hover:bg-muted active:scale-95"
             >
               <X className="w-5 h-5" />
@@ -68,7 +132,7 @@ export function MobileBottomNav() {
               
               <Link 
                 href="/goal-map" 
-                onClick={() => setShowAccountMenu(false)}
+                onClick={handleCloseMenu}
                 className="flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-muted active:scale-[0.98] transition-all"
               >
                 <Compass className="w-5 h-5 text-indigo-600" />
@@ -77,7 +141,7 @@ export function MobileBottomNav() {
               
               <Link 
                 href="/ai-guidance" 
-                onClick={() => setShowAccountMenu(false)}
+                onClick={handleCloseMenu}
                 className="flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-muted active:scale-[0.98] transition-all"
               >
                 <Brain className="w-5 h-5 text-purple-600" />
@@ -86,7 +150,7 @@ export function MobileBottomNav() {
               
               <button
                 onClick={() => {
-                  setShowAccountMenu(false)
+                  handleCloseMenu()
                   signOut()
                 }}
                 className="flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 w-full active:scale-[0.98] transition-all"
@@ -96,15 +160,97 @@ export function MobileBottomNav() {
               </button>
             </div>
           ) : (
-            <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground mb-3">Sign in to sync your data across devices</p>
-              <Link 
-                href="/"
-                onClick={() => setShowAccountMenu(false)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground font-medium text-sm"
-              >
-                Sign In
-              </Link>
+            <div className="space-y-4">
+              {/* Auth mode tabs */}
+              <div className="flex rounded-lg bg-muted p-1">
+                <button
+                  onClick={() => setAuthMode("signin")}
+                  className={cn(
+                    "flex-1 py-2 text-sm font-medium rounded-md transition-colors",
+                    authMode === "signin" ? "bg-background shadow-sm" : "text-muted-foreground"
+                  )}
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => setAuthMode("signup")}
+                  className={cn(
+                    "flex-1 py-2 text-sm font-medium rounded-md transition-colors",
+                    authMode === "signup" ? "bg-background shadow-sm" : "text-muted-foreground"
+                  )}
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              <form onSubmit={authMode === "signin" ? handleSignIn : handleSignUp} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile-email" className="text-sm">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="mobile-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile-password" className="text-sm">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="mobile-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  {authMode === "signup" && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 6 characters
+                    </p>
+                  )}
+                </div>
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {authMode === "signin" ? "Signing in..." : "Creating account..."}
+                    </>
+                  ) : (
+                    authMode === "signin" ? "Sign In" : "Create Account"
+                  )}
+                </Button>
+              </form>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {success && (
+                <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+                  <AlertCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700 dark:text-green-400">
+                    {success}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <p className="text-center text-xs text-muted-foreground">
+                Your data is stored locally and synced when signed in.
+              </p>
             </div>
           )}
         </div>

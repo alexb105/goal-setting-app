@@ -371,7 +371,7 @@ function SortableMilestoneItem({
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const { daysUntilDue } = useMilestoneStatus(milestone)
+  const { daysUntilDue, overdue } = useMilestoneStatus(milestone)
   const tasks = milestone.tasks || []
   const regularTasks = tasks.filter((t) => !t.isSeparator)
   const completedTasks = regularTasks.filter((t) => t.completed).length
@@ -507,7 +507,11 @@ function SortableMilestoneItem({
         <div
           className={cn(
             "group rounded-xl border bg-card p-3 sm:p-4 transition-all",
-            milestone.completed ? "border-primary/20 bg-primary/5" : "border-border hover:border-primary/20",
+            milestone.completed 
+              ? "border-primary/20 bg-primary/5" 
+              : overdue 
+                ? "border-red-500 bg-red-500/5" 
+                : "border-border hover:border-primary/20",
           )}
         >
           <div className="flex items-start justify-between gap-2 sm:gap-3">
