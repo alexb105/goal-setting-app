@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import type React from "react"
-import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause, Sparkles, Pin, PinOff } from "lucide-react"
+import { Check, Circle, Trash2, Calendar, Pencil, CheckSquare, Plus, X, GripVertical, Target, ExternalLink, Goal, List, Play, Pause, Sparkles, Pin, PinOff, ChevronDown, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import type { Goal, Milestone, Task, PinnedMilestoneTask } from "@/types"
 
 const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
+const COLLAPSED_MILESTONES_KEY = "goalritual-collapsed-milestones"
 import { useGoals } from "@/components/goals-context"
 import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 import { EditMilestoneDialog } from "@/components/edit-milestone-dialog"
@@ -352,6 +353,48 @@ function SortableMilestoneItem({
   })
   const { goals } = useGoals()
   const [showAISuggestions, setShowAISuggestions] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Load collapsed state from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(COLLAPSED_MILESTONES_KEY)
+      if (stored) {
+        try {
+          const collapsedIds: string[] = JSON.parse(stored)
+          return collapsedIds.includes(milestone.id)
+        } catch {
+          return false
+        }
+      }
+    }
+    return false
+  })
+
+  const toggleCollapsed = () => {
+    setIsCollapsed((prev) => {
+      const newState = !prev
+      // Persist to localStorage
+      const stored = localStorage.getItem(COLLAPSED_MILESTONES_KEY)
+      let collapsedIds: string[] = []
+      if (stored) {
+        try {
+          collapsedIds = JSON.parse(stored)
+        } catch {
+          collapsedIds = []
+        }
+      }
+      if (newState) {
+        // Add to collapsed list
+        if (!collapsedIds.includes(milestone.id)) {
+          collapsedIds.push(milestone.id)
+        }
+      } else {
+        // Remove from collapsed list
+        collapsedIds = collapsedIds.filter((id) => id !== milestone.id)
+      }
+      localStorage.setItem(COLLAPSED_MILESTONES_KEY, JSON.stringify(collapsedIds))
+      return newState
+    })
+  }
   
   const linkedGoal = milestone.linkedGoalId ? goals.find((g) => g.id === milestone.linkedGoalId) : null
   
@@ -616,6 +659,22 @@ function SortableMilestoneItem({
             </div>
             {/* Action buttons - always visible on mobile */}
             <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              {/* Collapse button - only show if milestone has tasks */}
+              {!milestone.linkedGoalId && tasks.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground"
+                  onClick={toggleCollapsed}
+                  title={isCollapsed ? "Expand tasks" : "Collapse tasks"}
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                  )}
+                </Button>
+              )}
               {!milestone.completed && !milestone.linkedGoalId && (
                 <Button
                   variant="ghost"
@@ -654,23 +713,28 @@ function SortableMilestoneItem({
           </div>
 
           {!milestone.linkedGoalId && (
-            <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/50">
-              {tasks.length > 0 && (
-                <TaskList
-                  tasks={tasks}
-                  goalId={goalId}
-                  goalTitle={goal.title}
-                  milestoneId={milestone.id}
-                  milestoneTitle={milestone.title}
-                  toggleTask={toggleTask}
-                  updateTask={updateTask}
-                  deleteTask={deleteTask}
-                  reorderTasks={reorderTasks}
-                  displayStyle={milestone.taskDisplayStyle || "checkbox"}
-                />
-              )}
+            <div className={cn(
+              "mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-border/50",
+              isCollapsed && tasks.length > 0 && "pt-0 mt-0 border-t-0"
+            )}>
+              {!isCollapsed && (
+                <>
+                  {tasks.length > 0 && (
+                    <TaskList
+                      tasks={tasks}
+                      goalId={goalId}
+                      goalTitle={goal.title}
+                      milestoneId={milestone.id}
+                      milestoneTitle={milestone.title}
+                      toggleTask={toggleTask}
+                      updateTask={updateTask}
+                      deleteTask={deleteTask}
+                      reorderTasks={reorderTasks}
+                      displayStyle={milestone.taskDisplayStyle || "checkbox"}
+                    />
+                  )}
 
-              {addingTaskToMilestone === milestone.id ? (
+                  {addingTaskToMilestone === milestone.id ? (
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <Input
                     placeholder="Task name..."
@@ -762,6 +826,17 @@ function SortableMilestoneItem({
                   tasks.forEach(title => addTaskDirect(milestone.id, title, false))
                 }}
               />
+                </>
+              )}
+              {/* Collapsed indicator */}
+              {isCollapsed && tasks.length > 0 && (
+                <button
+                  onClick={toggleCollapsed}
+                  className="w-full text-center py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {tasks.length} task{tasks.length !== 1 ? 's' : ''} hidden • Click to expand
+                </button>
+              )}
             </div>
           )}
         </div>

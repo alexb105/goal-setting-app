@@ -22,6 +22,7 @@ import { LifePurpose } from "@/components/life-purpose"
 import { AuthModal } from "@/components/auth-modal"
 import { useAuth } from "@/components/auth-context"
 import { MobileFab } from "@/components/mobile-fab"
+import { SearchTrigger, GlobalSearchModal } from "@/components/global-search"
 import {
   DndContext,
   DragOverlay,
@@ -340,9 +341,22 @@ export function GoalDashboard() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overGroupId, setOverGroupId] = useState<string | null>(null)
   const [triggerAddTask, setTriggerAddTask] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Configure sensors for dnd-kit with proper touch and mouse support
   const sensors = useDndSensors()
+
+  // Keyboard shortcut to open search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [])
 
   // Load group order from localStorage
   useEffect(() => {
@@ -995,6 +1009,7 @@ export function GoalDashboard() {
               <span className="text-base font-bold text-foreground hidden sm:block">GoalRitual</span>
             </Link>
 
+
             {/* Desktop Navigation - Compact pill style */}
             <nav className="hidden md:flex items-center gap-1 bg-muted/40 rounded-full px-1 py-0.5">
               <Link href="/milestones" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
@@ -1039,6 +1054,7 @@ export function GoalDashboard() {
               
               {/* Icon buttons group */}
               <div className="flex items-center">
+                <SearchTrigger onClick={() => setSearchOpen(true)} className="h-8 w-8" />
                 {user ? (
                   <Link href="/ai-guidance">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-500/10" title="AI Guidance">
@@ -1099,6 +1115,9 @@ export function GoalDashboard() {
                   )}
                 </div>
               )}
+
+              {/* Search button */}
+              <SearchTrigger onClick={() => setSearchOpen(true)} className="h-10 w-10" />
               
               {/* AI Guidance button */}
               {user ? (
@@ -1134,8 +1153,20 @@ export function GoalDashboard() {
               </Button>
             </div>
           </div>
+          
         </div>
       </header>
+
+      {/* Global Search Modal */}
+      {searchOpen && (
+        <GlobalSearchModal
+          onNavigateToGoal={(goalId) => {
+            setSelectedGoalId(goalId)
+            setSearchOpen(false)
+          }}
+          onClose={() => setSearchOpen(false)}
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
         {/* Life Purpose - Top of page */}
