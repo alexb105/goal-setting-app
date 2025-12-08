@@ -481,7 +481,7 @@ function SortableMilestoneItem({
   return (
     <div ref={setNodeRef} style={style} id={`milestone-${milestone.id}`} className="relative flex gap-2 sm:gap-4">
       {/* Timeline */}
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center max-[350px]:hidden">
         <div className="relative">
           {/* Progress Ring SVG */}
           {regularTasks.length > 0 && !milestone.completed && (
@@ -546,10 +546,10 @@ function SortableMilestoneItem({
       </div>
 
       {/* Content */}
-      <div className={cn("pb-6 sm:pb-8 flex-1 min-w-0", isLast && "pb-0")}>
+      <div className={cn("pb-6 sm:pb-8 flex-1 min-w-0 max-[350px]:pb-4", isLast && "pb-0")}>
         <div
           className={cn(
-            "group rounded-xl border bg-card p-3 sm:p-4 transition-all",
+            "group rounded-xl border bg-card p-3 sm:p-4 max-[350px]:p-2.5 transition-all",
             milestone.completed 
               ? "border-primary/20 bg-primary/5" 
               : overdue 
@@ -603,18 +603,38 @@ function SortableMilestoneItem({
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    {/* Compact completion indicator for very small screens */}
+                    <button
+                      onClick={canToggle ? onToggle : undefined}
+                      disabled={!canToggle}
+                      className={cn(
+                        "hidden max-[350px]:flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-all",
+                        milestone.completed
+                          ? "bg-primary text-primary-foreground"
+                          : canToggle
+                            ? "border-2 border-border bg-card text-muted-foreground"
+                            : "border-2 border-border bg-card text-muted-foreground opacity-50",
+                      )}
+                    >
+                      {milestone.completed ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <span className="text-[10px] font-medium">{index + 1}</span>
+                      )}
+                    </button>
                     <h3
                       className={cn(
-                        "font-semibold text-sm sm:text-base text-foreground",
+                        "font-semibold text-sm sm:text-base max-[350px]:text-[13px] text-foreground",
                         milestone.completed && "line-through opacity-70",
                       )}
                     >
                       {milestone.title}
                     </h3>
                     {milestone.inProgress && !milestone.completed && (
-                      <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-amber-500/90 hover:bg-amber-500/90 text-white">
-                        <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 fill-current" />
-                        In Progress
+                      <Badge variant="default" className="text-[10px] sm:text-xs max-[350px]:text-[9px] px-1.5 sm:px-2 max-[350px]:px-1 py-0.5 bg-amber-500/90 hover:bg-amber-500/90 text-white">
+                        <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3 max-[350px]:h-2 max-[350px]:w-2 mr-0.5 sm:mr-1 fill-current" />
+                        <span className="max-[350px]:hidden">In Progress</span>
+                        <span className="hidden max-[350px]:inline">Active</span>
                       </Badge>
                     )}
                   </div>
@@ -625,23 +645,33 @@ function SortableMilestoneItem({
               )}
               {!milestone.linkedGoalId && (
                 <>
-                  <div className="mt-1.5 sm:mt-2 flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1 sm:gap-1.5">
-                      <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
+                  <div className="mt-1.5 sm:mt-2 max-[350px]:mt-1 flex flex-wrap items-center gap-x-2 sm:gap-x-3 max-[350px]:gap-x-1.5 gap-y-1 text-[11px] sm:text-xs max-[350px]:text-[10px] text-muted-foreground">
+                    {/* Completed badge for very small screens */}
+                    {milestone.completed && (
+                      <span className="hidden max-[350px]:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-medium">
+                        <Check className="h-2.5 w-2.5" />
+                        Done
+                      </span>
+                    )}
+                    <span className={cn(
+                      "flex items-center gap-1 sm:gap-1.5",
+                      milestone.completed && "max-[350px]:hidden"
+                    )}>
+                      <Calendar className="h-3 w-3 sm:h-3.5 sm:w-3.5 max-[350px]:h-2.5 max-[350px]:w-2.5 flex-shrink-0" />
                       {milestone.completed
                         ? "Completed"
                         : formatDaysRemaining(daysUntilDue)}
                     </span>
                     {regularTasks.length > 0 && milestone.taskDisplayStyle !== "bullet" && (
-                      <span className="flex items-center gap-1 sm:gap-1.5">
-                        <CheckSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                        {completedTasks}/{regularTasks.length} tasks
+                      <span className="flex items-center gap-1 sm:gap-1.5 max-[350px]:gap-0.5">
+                        <CheckSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5 max-[350px]:h-2.5 max-[350px]:w-2.5 flex-shrink-0" />
+                        {completedTasks}/{regularTasks.length} <span className="max-[350px]:hidden">tasks</span>
                       </span>
                     )}
                     {linkedGoals.length > 0 && (
-                      <span className="flex items-center gap-1 sm:gap-1.5">
-                        <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 flex-shrink-0" />
-                        {linkedGoals.length} goal{linkedGoals.length !== 1 ? "s" : ""}
+                      <span className="flex items-center gap-1 sm:gap-1.5 max-[350px]:gap-0.5">
+                        <Target className="h-3 w-3 sm:h-3.5 sm:w-3.5 max-[350px]:h-2.5 max-[350px]:w-2.5 flex-shrink-0" />
+                        {linkedGoals.length} <span className="max-[350px]:hidden">goal{linkedGoals.length !== 1 ? "s" : ""}</span>
                       </span>
                     )}
                   </div>
@@ -658,20 +688,20 @@ function SortableMilestoneItem({
               )}
             </div>
             {/* Action buttons - always visible on mobile */}
-            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            <div className="flex items-center gap-0.5 sm:gap-1 max-[350px]:gap-0 flex-shrink-0">
               {/* Collapse button - only show if milestone has tasks */}
               {!milestone.linkedGoalId && tasks.length > 0 && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground"
+                  className="h-7 w-7 sm:h-8 sm:w-8 max-[350px]:h-6 max-[350px]:w-6 text-muted-foreground hover:text-foreground"
                   onClick={toggleCollapsed}
                   title={isCollapsed ? "Expand tasks" : "Collapse tasks"}
                 >
                   {isCollapsed ? (
-                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 max-[350px]:h-3.5 max-[350px]:w-3.5" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 max-[350px]:h-3.5 max-[350px]:w-3.5" />
                   )}
                 </Button>
               )}
@@ -680,7 +710,7 @@ function SortableMilestoneItem({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "transition-opacity h-7 w-7 sm:h-8 sm:w-8",
+                    "transition-opacity h-7 w-7 sm:h-8 sm:w-8 max-[350px]:h-6 max-[350px]:w-6",
                     milestone.inProgress 
                       ? "opacity-100 text-amber-500 hover:text-amber-600" 
                       : "sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-amber-500"
@@ -688,26 +718,26 @@ function SortableMilestoneItem({
                   onClick={onToggleInProgress}
                   title={milestone.inProgress ? "Mark as not in progress" : "Mark as in progress"}
                 >
-                  {milestone.inProgress ? <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  {milestone.inProgress ? <Pause className="h-3.5 w-3.5 sm:h-4 sm:w-4 max-[350px]:h-3 max-[350px]:w-3" /> : <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 max-[350px]:h-3 max-[350px]:w-3" />}
                 </Button>
               )}
               {!milestone.linkedGoalId && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground"
+                  className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity h-7 w-7 sm:h-8 sm:w-8 max-[350px]:h-6 max-[350px]:w-6 text-muted-foreground hover:text-foreground"
                   onClick={() => onEdit(milestone)}
                 >
-                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4 max-[350px]:h-3 max-[350px]:w-3" />
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="icon"
-                className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity h-7 w-7 sm:h-8 sm:w-8 text-muted-foreground hover:text-destructive"
+                className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity h-7 w-7 sm:h-8 sm:w-8 max-[350px]:h-6 max-[350px]:w-6 text-muted-foreground hover:text-destructive"
                 onClick={onDelete}
               >
-                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 max-[350px]:h-3 max-[350px]:w-3" />
               </Button>
             </div>
           </div>
