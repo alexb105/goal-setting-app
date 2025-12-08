@@ -625,23 +625,36 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                           <p className="text-xs text-muted-foreground">
                             {completedCount}/{getRegularTasks(group).length} tasks
                           </p>
-                          {/* Score indicator */}
+                          {/* Streak Score indicator */}
                           {(() => {
                             const score = group.score ?? 0
                             const scoreInfo = getScoreInfo(score)
                             const ScoreIcon = scoreInfo.icon
+                            const progressPercent = ((score + 100) / 200) * 100
                             return (
                               <div 
                                 className={cn(
-                                  "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[10px] font-bold",
+                                  "flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium",
                                   scoreInfo.bgColor,
-                                  scoreInfo.borderColor,
-                                  scoreInfo.color
+                                  scoreInfo.borderColor
                                 )}
-                                title={`Score: ${score > 0 ? '+' : ''}${score}`}
+                                title={`Streak Score: ${score > 0 ? '+' : ''}${score}\n+1 for completing all tasks\n-1 for missing deadline`}
                               >
-                                {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
-                                <span>{score > 0 ? '+' : ''}{score}</span>
+                                <span className="text-muted-foreground text-[9px]">Streak</span>
+                                {/* Mini progress bar */}
+                                <div className="w-6 h-1 bg-muted rounded-full overflow-hidden">
+                                  <div 
+                                    className={cn(
+                                      "h-full rounded-full transition-all",
+                                      score >= 0 ? "bg-emerald-500" : "bg-amber-500"
+                                    )}
+                                    style={{ width: `${progressPercent}%` }}
+                                  />
+                                </div>
+                                <div className={cn("flex items-center gap-0.5 font-bold", scoreInfo.color)}>
+                                  {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
+                                  <span>{score > 0 ? '+' : ''}{score}</span>
+                                </div>
                               </div>
                             )
                           })()}

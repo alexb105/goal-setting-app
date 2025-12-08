@@ -551,18 +551,30 @@ export default function RecurringTasksPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
-                            {/* Score Indicator */}
+                            {/* Streak Score Indicator */}
                             <div 
                               className={cn(
-                                "flex items-center gap-1 px-2 py-1 rounded-full border text-xs font-bold",
+                                "flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] sm:text-xs font-medium",
                                 scoreInfo.bgColor,
-                                scoreInfo.borderColor,
-                                scoreInfo.color
+                                scoreInfo.borderColor
                               )}
-                              title={`Score: ${score > 0 ? '+' : ''}${score} - ${scoreInfo.label}`}
+                              title={`Streak Score: ${score > 0 ? '+' : ''}${score}\n+1 for completing all tasks\n-1 for missing deadline`}
                             >
-                              {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
-                              <span>{score > 0 ? '+' : ''}{score}</span>
+                              <span className="text-muted-foreground hidden sm:inline">Streak</span>
+                              {/* Mini progress bar */}
+                              <div className="w-6 sm:w-10 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className={cn(
+                                    "h-full rounded-full transition-all",
+                                    score >= 0 ? "bg-emerald-500" : "bg-amber-500"
+                                  )}
+                                  style={{ width: `${((score + 100) / 200) * 100}%` }}
+                                />
+                              </div>
+                              <div className={cn("flex items-center gap-0.5 font-bold", scoreInfo.color)}>
+                                {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                                <span>{score > 0 ? '+' : ''}{score}</span>
+                              </div>
                             </div>
                             <div className="text-left sm:text-right">
                               <p className="text-xs sm:text-sm font-medium text-foreground">{completedCount}/{regularTasks.length}</p>

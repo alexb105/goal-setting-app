@@ -641,24 +641,40 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
             <Sun className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <h3 className="text-xs sm:text-sm font-semibold text-foreground">Today's Tasks</h3>
-              {/* Score Indicator */}
+              {/* Streak Score Indicator */}
               {(() => {
                 const scoreInfo = getScoreInfo(dailyScore)
                 const ScoreIcon = scoreInfo.icon
+                // Calculate percentage for progress bar (0-100 scale, where -100 = 0%, 0 = 50%, +100 = 100%)
+                const progressPercent = ((dailyScore + 100) / 200) * 100
                 return (
                   <div 
                     className={cn(
-                      "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] sm:text-[10px] font-bold",
+                      "flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[9px] sm:text-[10px] font-medium",
                       scoreInfo.bgColor,
-                      scoreInfo.borderColor,
-                      scoreInfo.color
+                      scoreInfo.borderColor
                     )}
-                    title={`Score: ${dailyScore > 0 ? '+' : ''}${dailyScore} - Complete all tasks daily to increase!`}
+                    title={`Streak Score: ${dailyScore > 0 ? '+' : ''}${dailyScore}\n+1 for completing all tasks\n-1 for missing tasks`}
                   >
-                    {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
-                    <span>{dailyScore > 0 ? '+' : ''}{dailyScore}</span>
+                    <span className="text-muted-foreground">Streak</span>
+                    <div className="flex items-center gap-1">
+                      {/* Mini progress bar */}
+                      <div className="w-8 sm:w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            dailyScore >= 0 ? "bg-emerald-500" : "bg-amber-500"
+                          )}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      <div className={cn("flex items-center gap-0.5 font-bold", scoreInfo.color)}>
+                        {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
+                        <span>{dailyScore > 0 ? '+' : ''}{dailyScore}</span>
+                      </div>
+                    </div>
                   </div>
                 )
               })()}
