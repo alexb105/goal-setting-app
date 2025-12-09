@@ -1,7 +1,7 @@
 "use client"
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal, Plus } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal, Plus, Map } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import type { Goal, Milestone } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
+import { AIRoadmapDialog } from "@/components/ai-roadmap-dialog"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue } from "@/utils/date"
 import { STANDALONE_MILESTONES_GOAL_TITLE } from "@/constants"
 
@@ -48,6 +49,7 @@ export default function MilestonesPage() {
   
   // Add milestone dialog state
   const [addMilestoneOpen, setAddMilestoneOpen] = useState(false)
+  const [roadmapOpen, setRoadmapOpen] = useState(false)
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("")
   const [newMilestoneDescription, setNewMilestoneDescription] = useState("")
   const [newMilestoneDate, setNewMilestoneDate] = useState("")
@@ -359,6 +361,17 @@ export default function MilestonesPage() {
             </div>
             
             <div className="flex items-center gap-2">
+              {/* AI Roadmap button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-1.5 active:scale-95 border-purple-500/30 text-purple-600 hover:bg-purple-500/10 hover:text-purple-700"
+                onClick={() => setRoadmapOpen(true)}
+              >
+                <Map className="h-4 w-4" />
+                <span className="hidden sm:inline">Roadmap</span>
+              </Button>
+              
               {/* Add Milestone button */}
               <Button
                 size="sm"
@@ -774,6 +787,9 @@ export default function MilestonesPage() {
           </div>
         )}
       </div>
+
+      {/* AI Roadmap Dialog */}
+      <AIRoadmapDialog open={roadmapOpen} onOpenChange={setRoadmapOpen} />
 
       {/* Add Milestone Dialog */}
       <Dialog open={addMilestoneOpen} onOpenChange={setAddMilestoneOpen}>
