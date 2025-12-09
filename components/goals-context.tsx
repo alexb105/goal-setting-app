@@ -38,14 +38,14 @@ interface GoalsContextType {
   archiveMilestone: (goalId: string, milestoneId: string) => void
   unarchiveMilestone: (goalId: string, milestoneId: string) => void
   // Recurring task groups
-  addRecurringTaskGroup: (goalId: string, name: string, recurrence: RecurrenceType, startDate?: string) => void
+  addRecurringTaskGroup: (goalId: string, name: string, recurrence: RecurrenceType, cycleStartDay?: number) => void
   updateRecurringTaskGroup: (goalId: string, groupId: string, updates: Partial<Omit<RecurringTaskGroup, "id" | "tasks">>) => void
   deleteRecurringTaskGroup: (goalId: string, groupId: string) => void
   addRecurringTask: (goalId: string, groupId: string, title: string, isSeparator?: boolean) => void
   updateRecurringTask: (goalId: string, groupId: string, taskId: string, title: string) => void
   toggleRecurringTask: (goalId: string, groupId: string, taskId: string) => void
   deleteRecurringTask: (goalId: string, groupId: string, taskId: string) => void
-  resetRecurringTaskGroup: (goalId: string, groupId: string) => void
+  resetRecurringTaskGroup: (goalId: string, groupId: string, wasAutoReset?: boolean) => void
   reorderRecurringTasks: (goalId: string, groupId: string, activeId: string, overId: string) => void
   // Sync status and trigger
   isSyncing: boolean
@@ -614,15 +614,15 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
   }
 
   // Recurring Task Group Functions
-  const addRecurringTaskGroup = (goalId: string, name: string, recurrence: RecurrenceType, startDate?: string) => {
+  const addRecurringTaskGroup = (goalId: string, name: string, recurrence: RecurrenceType, cycleStartDay?: number) => {
     const today = new Date().toISOString().split("T")[0]
     const newGroup: RecurringTaskGroup = {
       id: crypto.randomUUID(),
       name,
       recurrence,
-      startDate: startDate || today,
+      cycleStartDay,
       tasks: [],
-      lastResetDate: startDate || today,
+      lastResetDate: today,
     }
     setGoals((prev) =>
       prev.map((goal) =>

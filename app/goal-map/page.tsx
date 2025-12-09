@@ -814,7 +814,7 @@ ANALYSIS RULES:
                           textAnchor="middle"
                           className="fill-white text-[2.5px] font-bold pointer-events-none"
                         >
-                          {progress}%
+                          {Math.round(progress)}%
                         </text>
                       )}
                     </g>
@@ -923,7 +923,7 @@ ANALYSIS RULES:
                         />
                       </svg>
                       <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold">
-                        {progress}%
+                        {Math.round(progress)}%
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">

@@ -1367,7 +1367,7 @@ QUALITY STANDARDS:
                                       <Badge className="bg-red-500 text-white text-[9px] sm:text-[10px]">Impacts All</Badge>
                                     )}
                                   </div>
-                                  <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${getScoreColor(progress)}`}>{progress}%</span>
+                                  <span className={`text-xs sm:text-sm font-bold flex-shrink-0 ${getScoreColor(progress)}`}>{Math.round(progress)}%</span>
                                 </div>
                                 <Progress value={progress} className="h-1.5 sm:h-2 mb-2" />
                                 <div className="flex items-start gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-muted-foreground">

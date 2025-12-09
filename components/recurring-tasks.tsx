@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, GripVertical, TrendingUp, TrendingDown, Flame } from "lucide-react"
+import { Plus, X, RefreshCw, Trash2, ChevronDown, Calendar, Repeat, Pencil, Check, Minus, GripVertical, TrendingUp, TrendingDown, Flame, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -83,15 +83,6 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
-  // If there's a start date and it's in the future, don't reset yet
-  if (group.startDate) {
-    const startDate = new Date(group.startDate)
-    startDate.setHours(0, 0, 0, 0)
-    if (startDate > today) {
-      return false // Start date hasn't arrived yet
-    }
-  }
-  
   const lastReset = new Date(group.lastResetDate)
   lastReset.setHours(0, 0, 0, 0)
   
@@ -101,12 +92,93 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
     case "daily":
       return daysDiff >= 1
     case "weekly":
+      // If cycleStartDay is set, reset on that specific day of the week
+      if (group.cycleStartDay !== undefined) {
+        const todayDayOfWeek = today.getDay()
+        return todayDayOfWeek === group.cycleStartDay && daysDiff >= 1
+      }
       return daysDiff >= 7
     case "monthly":
+      // If cycleStartDay is set, reset on that specific day of the month
+      if (group.cycleStartDay !== undefined) {
+        const todayDayOfMonth = today.getDate()
+        return todayDayOfMonth === group.cycleStartDay && daysDiff >= 1
+      }
       return daysDiff >= 30
     default:
       return false
   }
+}
+
+// Calculate when the next reset will occur
+function getNextResetInfo(group: RecurringTaskGroup): { label: string; daysUntil: number } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const lastReset = group.lastResetDate ? new Date(group.lastResetDate) : today
+  lastReset.setHours(0, 0, 0, 0)
+  
+  let nextReset: Date
+  
+  switch (group.recurrence) {
+    case "daily":
+      // Resets tomorrow
+      nextReset = new Date(today)
+      nextReset.setDate(nextReset.getDate() + 1)
+      break
+      
+    case "weekly":
+      if (group.cycleStartDay !== undefined) {
+        // Find next occurrence of the cycle start day
+        nextReset = new Date(today)
+        const currentDay = today.getDay()
+        let daysUntilNext = group.cycleStartDay - currentDay
+        if (daysUntilNext <= 0) {
+          daysUntilNext += 7
+        }
+        nextReset.setDate(nextReset.getDate() + daysUntilNext)
+      } else {
+        // 7 days from last reset
+        nextReset = new Date(lastReset)
+        nextReset.setDate(nextReset.getDate() + 7)
+      }
+      break
+      
+    case "monthly":
+      if (group.cycleStartDay !== undefined) {
+        // Find next occurrence of the cycle start day
+        nextReset = new Date(today)
+        const currentDayOfMonth = today.getDate()
+        if (currentDayOfMonth >= group.cycleStartDay) {
+          // Move to next month
+          nextReset.setMonth(nextReset.getMonth() + 1)
+        }
+        nextReset.setDate(Math.min(group.cycleStartDay, new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0).getDate()))
+      } else {
+        // ~30 days from last reset
+        nextReset = new Date(lastReset)
+        nextReset.setDate(nextReset.getDate() + 30)
+      }
+      break
+      
+    default:
+      nextReset = new Date(today)
+      nextReset.setDate(nextReset.getDate() + 1)
+  }
+  
+  const daysUntil = Math.ceil((nextReset.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Format the label
+  let label: string
+  if (daysUntil === 0) {
+    label = "Today"
+  } else if (daysUntil === 1) {
+    label = "Tomorrow"
+  } else {
+    label = `${daysUntil} days left`
+  }
+  
+  return { label, daysUntil }
 }
 
 interface SortableTaskItemProps {
@@ -330,14 +402,14 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
   const [isAddingGroup, setIsAddingGroup] = useState(false)
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupRecurrence, setNewGroupRecurrence] = useState<RecurrenceType>("daily")
-  const [newGroupStartDate, setNewGroupStartDate] = useState("")
+  const [newGroupCycleStartDay, setNewGroupCycleStartDay] = useState<number | undefined>(undefined)
   const [addingTaskToGroup, setAddingTaskToGroup] = useState<string | null>(null)
   const [newTaskTitle, setNewTaskTitle] = useState("")
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string> | null>(null) // null = not initialized
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingGroupName, setEditingGroupName] = useState("")
   const [editingGroupRecurrence, setEditingGroupRecurrence] = useState<RecurrenceType>("daily")
-  const [editingGroupStartDate, setEditingGroupStartDate] = useState("")
+  const [editingGroupCycleStartDay, setEditingGroupCycleStartDay] = useState<number | undefined>(undefined)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editingTaskTitle, setEditingTaskTitle] = useState("")
 
@@ -361,10 +433,10 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
 
   const handleAddGroup = () => {
     if (!newGroupName.trim()) return
-    addRecurringTaskGroup(goalId, newGroupName.trim(), newGroupRecurrence, newGroupStartDate || undefined)
+    addRecurringTaskGroup(goalId, newGroupName.trim(), newGroupRecurrence, newGroupRecurrence !== "daily" ? newGroupCycleStartDay : undefined)
     setNewGroupName("")
     setNewGroupRecurrence("daily")
-    setNewGroupStartDate("")
+    setNewGroupCycleStartDay(undefined)
     setIsAddingGroup(false)
   }
 
@@ -386,7 +458,7 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
     setEditingGroupId(group.id)
     setEditingGroupName(group.name)
     setEditingGroupRecurrence(group.recurrence)
-    setEditingGroupStartDate(group.startDate || "")
+    setEditingGroupCycleStartDay(group.cycleStartDay)
   }
 
   const handleSaveEditGroup = (groupId: string) => {
@@ -394,19 +466,19 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
     updateRecurringTaskGroup(goalId, groupId, {
       name: editingGroupName.trim(),
       recurrence: editingGroupRecurrence,
-      startDate: editingGroupStartDate || undefined,
+      cycleStartDay: editingGroupRecurrence !== "daily" ? editingGroupCycleStartDay : undefined,
     })
     setEditingGroupId(null)
     setEditingGroupName("")
     setEditingGroupRecurrence("daily")
-    setEditingGroupStartDate("")
+    setEditingGroupCycleStartDay(undefined)
   }
 
   const handleCancelEditGroup = () => {
     setEditingGroupId(null)
     setEditingGroupName("")
     setEditingGroupRecurrence("daily")
-    setEditingGroupStartDate("")
+    setEditingGroupCycleStartDay(undefined)
   }
 
   const handleStartEditTask = (taskId: string, taskTitle: string) => {
@@ -529,50 +601,69 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
           >
             <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse(group.id)}>
               <CollapsibleTrigger asChild>
-                <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 rounded-t-xl transition-colors">
-                  <div className="flex items-center gap-3">
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform",
-                        isCollapsed && "-rotate-90"
-                      )}
-                    />
-                    {editingGroupId === group.id ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={editingGroupName}
-                          onChange={(e) => setEditingGroupName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveEditGroup(group.id)
-                            if (e.key === "Escape") handleCancelEditGroup()
-                          }}
-                          className="h-8 w-40"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
+                <div className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 rounded-t-xl transition-colors">
+                  {editingGroupId === group.id ? (
+                    <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Input
+                        value={editingGroupName}
+                        onChange={(e) => setEditingGroupName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveEditGroup(group.id)
+                          if (e.key === "Escape") handleCancelEditGroup()
+                        }}
+                        className="h-8 w-full sm:w-40"
+                        autoFocus
+                      />
+                      <Select
+                        value={editingGroupRecurrence}
+                        onValueChange={(v) => setEditingGroupRecurrence(v as RecurrenceType)}
+                      >
+                        <SelectTrigger className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {editingGroupRecurrence === "weekly" && (
                         <Select
-                          value={editingGroupRecurrence}
-                          onValueChange={(v) => setEditingGroupRecurrence(v as RecurrenceType)}
+                          value={editingGroupCycleStartDay?.toString() ?? "1"}
+                          onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
                         >
-                          <SelectTrigger className="h-8 w-28" onClick={(e) => e.stopPropagation()}>
-                            <SelectValue />
+                          <SelectTrigger className="h-8 w-28">
+                            <SelectValue placeholder="Start day" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
+                            <SelectItem value="0">Sunday</SelectItem>
+                            <SelectItem value="1">Monday</SelectItem>
+                            <SelectItem value="2">Tuesday</SelectItem>
+                            <SelectItem value="3">Wednesday</SelectItem>
+                            <SelectItem value="4">Thursday</SelectItem>
+                            <SelectItem value="5">Friday</SelectItem>
+                            <SelectItem value="6">Saturday</SelectItem>
                           </SelectContent>
                         </Select>
-                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="date"
-                            value={editingGroupStartDate}
-                            onChange={(e) => setEditingGroupStartDate(e.target.value)}
-                            className="h-8 w-36"
-                            title="Start date"
-                          />
-                        </div>
+                      )}
+                      {editingGroupRecurrence === "monthly" && (
+                        <Select
+                          value={editingGroupCycleStartDay?.toString() ?? "1"}
+                          onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
+                        >
+                          <SelectTrigger className="h-8 w-24">
+                            <SelectValue placeholder="Day" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                              <SelectItem key={day} value={day.toString()}>
+                                {day}{day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <div className="flex gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -596,124 +687,121 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                           <X className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </div>
-                    ) : (
-                      <div>
-                        <div className="flex items-center gap-2">
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      {/* Left side - Title and info */}
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <ChevronDown
+                          className={cn(
+                            "h-5 w-5 text-muted-foreground transition-transform mt-0.5 flex-shrink-0",
+                            isCollapsed && "-rotate-90"
+                          )}
+                        />
+                        <div className="min-w-0 flex-1">
+                          {/* Title */}
                           <h4 className={cn(
-                            "font-semibold text-foreground",
+                            "font-semibold text-foreground leading-tight",
                             isComplete && "text-green-700 dark:text-green-500"
                           )}>
                             {group.name}
                           </h4>
-                          <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS[group.recurrence])}>
-                            <Repeat className="h-3 w-3 mr-1" />
-                            {RECURRENCE_LABELS[group.recurrence]}
-                          </Badge>
-                          {isComplete && (
-                            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 dark:text-green-500 border-green-500/20">
-                              ✓ Complete
-                            </Badge>
-                          )}
-                          {group.startDate && (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              from {new Date(group.startDate).toLocaleDateString()}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs text-muted-foreground">
-                            {completedCount}/{getRegularTasks(group).length} tasks
-                          </p>
-                          {/* Streak Score indicator */}
+                          
+                          {/* Compact info row */}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-muted-foreground">
+                            <span className={cn("font-medium", RECURRENCE_COLORS[group.recurrence].split(" ").find(c => c.startsWith("text-")))}>
+                              {RECURRENCE_LABELS[group.recurrence]}
+                            </span>
+                            <span>•</span>
+                            <span>{completedCount}/{getRegularTasks(group).length} tasks</span>
+                            {group.cycleStartDay !== undefined && (
+                              <>
+                                <span>•</span>
+                                <span>
+                                  {group.recurrence === "weekly" 
+                                    ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][group.cycleStartDay]
+                                    : `${group.cycleStartDay}${group.cycleStartDay === 1 ? "st" : group.cycleStartDay === 2 ? "nd" : group.cycleStartDay === 3 ? "rd" : "th"}`
+                                  }
+                                </span>
+                              </>
+                            )}
+                            <span>•</span>
+                            {(() => {
+                              const resetInfo = getNextResetInfo(group)
+                              return (
+                                <span className={cn(
+                                  "flex items-center gap-1",
+                                  resetInfo.daysUntil <= 1 && "text-amber-500"
+                                )}>
+                                  <Clock className="h-3 w-3" />
+                                  {resetInfo.label}
+                                </span>
+                              )
+                            })()}
+                          </div>
+                          
+                          {/* Streak score - simplified */}
                           {(() => {
                             const score = group.score ?? 0
                             const scoreInfo = getScoreInfo(score)
                             const ScoreIcon = scoreInfo.icon
-                            const progressPercent = ((score + 100) / 200) * 100
                             return (
-                              <div 
-                                className={cn(
-                                  "flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium",
-                                  scoreInfo.bgColor,
-                                  scoreInfo.borderColor
+                              <div className={cn("flex items-center gap-1.5 mt-1.5 text-xs", scoreInfo.color)}>
+                                {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                                <span className="font-medium">
+                                  {score > 0 ? '+' : ''}{score} streak
+                                </span>
+                                {isComplete && (
+                                  <span className="text-green-600 dark:text-green-400 font-medium ml-1">✓ Done</span>
                                 )}
-                                title={`Streak Score: ${score > 0 ? '+' : ''}${score}\n+1 for completing all tasks\n-1 for missing deadline`}
-                              >
-                                <span className="text-muted-foreground text-[9px]">Streak</span>
-                                {/* Mini progress bar */}
-                                <div className="w-6 h-1 bg-muted rounded-full overflow-hidden">
-                                  <div 
-                                    className={cn(
-                                      "h-full rounded-full transition-all",
-                                      score >= 0 ? "bg-emerald-500" : "bg-amber-500"
-                                    )}
-                                    style={{ width: `${progressPercent}%` }}
-                                  />
-                                </div>
-                                <div className={cn("flex items-center gap-0.5 font-bold", scoreInfo.color)}>
-                                  {ScoreIcon && <ScoreIcon className="h-2.5 w-2.5" />}
-                                  <span>{score > 0 ? '+' : ''}{score}</span>
-                                </div>
                               </div>
                             )
                           })()}
                         </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                    {editingGroupId !== group.id && (
-                      <>
+                      
+                      {/* Right side - Action buttons */}
+                      <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           onClick={() => handleStartEditGroup(group)}
                           title="Edit group"
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          onClick={() => resetRecurringTaskGroup(goalId, group.id)}
-                          title="Reset all tasks"
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Recurring Task Group</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete &quot;{group.name}&quot;? This will remove all tasks in this group.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => deleteRecurringTaskGroup(goalId, group.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Recurring Task Group</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete &quot;{group.name}&quot;? This will remove all tasks in this group.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteRecurringTaskGroup(goalId, group.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -829,7 +917,7 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                 if (e.key === "Escape") {
                   setIsAddingGroup(false)
                   setNewGroupName("")
-                  setNewGroupStartDate("")
+                  setNewGroupCycleStartDay(undefined)
                 }
               }}
               autoFocus
@@ -845,19 +933,50 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
                   <SelectItem value="monthly">Monthly</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex items-center gap-2 flex-1">
-                <Input
-                  type="date"
-                  value={newGroupStartDate}
-                  onChange={(e) => setNewGroupStartDate(e.target.value)}
-                  className="flex-1"
-                  title="Start date (optional)"
-                />
-              </div>
+              {newGroupRecurrence === "weekly" && (
+                <Select
+                  value={newGroupCycleStartDay?.toString() ?? "1"}
+                  onValueChange={(v) => setNewGroupCycleStartDay(parseInt(v))}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Cycle starts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sunday</SelectItem>
+                    <SelectItem value="1">Monday</SelectItem>
+                    <SelectItem value="2">Tuesday</SelectItem>
+                    <SelectItem value="3">Wednesday</SelectItem>
+                    <SelectItem value="4">Thursday</SelectItem>
+                    <SelectItem value="5">Friday</SelectItem>
+                    <SelectItem value="6">Saturday</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {newGroupRecurrence === "monthly" && (
+                <Select
+                  value={newGroupCycleStartDay?.toString() ?? "1"}
+                  onValueChange={(v) => setNewGroupCycleStartDay(parseInt(v))}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Cycle starts" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}{day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Start date is optional. If not set, the recurrence starts from today.
-            </p>
+            {newGroupRecurrence !== "daily" && (
+              <p className="text-xs text-muted-foreground">
+                {newGroupRecurrence === "weekly" 
+                  ? "Select which day the weekly cycle starts from."
+                  : "Select which day of the month the cycle starts from."}
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <Button onClick={handleAddGroup} size="sm">
@@ -869,7 +988,7 @@ export function RecurringTasks({ goalId, groups }: RecurringTasksProps) {
               onClick={() => {
                 setIsAddingGroup(false)
                 setNewGroupName("")
-                setNewGroupStartDate("")
+                setNewGroupCycleStartDay(undefined)
               }}
             >
               Cancel

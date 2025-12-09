@@ -46,7 +46,7 @@ export interface RecurringTaskGroup {
   id: string
   name: string // e.g., "Eat Healthy"
   recurrence: RecurrenceType // daily, weekly, monthly
-  startDate?: string // ISO date string of when the recurrence should start (YYYY-MM-DD)
+  cycleStartDay?: number // For weekly: 0=Sun, 1=Mon, ..., 6=Sat. For monthly: 1-31 (day of month). Not used for daily.
   tasks: RecurringTask[]
   lastResetDate?: string // ISO date string of when tasks were last reset
   completionCount?: number // Number of times all tasks have been completed

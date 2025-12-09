@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown } from "lucide-react"
+import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown, Pencil, Check, Trash2, Calendar, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,6 +19,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import type { Goal, RecurringTaskGroup, RecurrenceType } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
@@ -107,15 +118,6 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   
-  // If there's a start date and it's in the future, don't reset yet
-  if (group.startDate) {
-    const startDate = new Date(group.startDate)
-    startDate.setHours(0, 0, 0, 0)
-    if (startDate > today) {
-      return false // Start date hasn't arrived yet
-    }
-  }
-  
   const lastReset = new Date(group.lastResetDate)
   lastReset.setHours(0, 0, 0, 0)
   
@@ -125,16 +127,108 @@ function shouldAutoReset(group: RecurringTaskGroup): boolean {
     case "daily":
       return daysDiff >= 1
     case "weekly":
+      // If cycleStartDay is set, reset on that specific day of the week
+      if (group.cycleStartDay !== undefined) {
+        const todayDayOfWeek = today.getDay()
+        return todayDayOfWeek === group.cycleStartDay && daysDiff >= 1
+      }
       return daysDiff >= 7
     case "monthly":
+      // If cycleStartDay is set, reset on that specific day of the month
+      if (group.cycleStartDay !== undefined) {
+        const todayDayOfMonth = today.getDate()
+        return todayDayOfMonth === group.cycleStartDay && daysDiff >= 1
+      }
       return daysDiff >= 30
     default:
       return false
   }
 }
 
+// Calculate when the next reset will occur
+function getNextResetInfo(group: RecurringTaskGroup): { label: string; daysUntil: number } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const lastReset = group.lastResetDate ? new Date(group.lastResetDate) : today
+  lastReset.setHours(0, 0, 0, 0)
+  
+  let nextReset: Date
+  
+  switch (group.recurrence) {
+    case "daily":
+      // Resets tomorrow
+      nextReset = new Date(today)
+      nextReset.setDate(nextReset.getDate() + 1)
+      break
+      
+    case "weekly":
+      if (group.cycleStartDay !== undefined) {
+        // Find next occurrence of the cycle start day
+        nextReset = new Date(today)
+        const currentDay = today.getDay()
+        let daysUntilNext = group.cycleStartDay - currentDay
+        if (daysUntilNext <= 0) {
+          daysUntilNext += 7
+        }
+        nextReset.setDate(nextReset.getDate() + daysUntilNext)
+      } else {
+        // 7 days from last reset
+        nextReset = new Date(lastReset)
+        nextReset.setDate(nextReset.getDate() + 7)
+      }
+      break
+      
+    case "monthly":
+      if (group.cycleStartDay !== undefined) {
+        // Find next occurrence of the cycle start day
+        nextReset = new Date(today)
+        const currentDayOfMonth = today.getDate()
+        if (currentDayOfMonth >= group.cycleStartDay) {
+          // Move to next month
+          nextReset.setMonth(nextReset.getMonth() + 1)
+        }
+        nextReset.setDate(Math.min(group.cycleStartDay, new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0).getDate()))
+      } else {
+        // ~30 days from last reset
+        nextReset = new Date(lastReset)
+        nextReset.setDate(nextReset.getDate() + 30)
+      }
+      break
+      
+    default:
+      nextReset = new Date(today)
+      nextReset.setDate(nextReset.getDate() + 1)
+  }
+  
+  const daysUntil = Math.ceil((nextReset.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Format the label
+  let label: string
+  if (daysUntil === 0) {
+    label = "Today"
+  } else if (daysUntil === 1) {
+    label = "Tomorrow"
+  } else {
+    label = `${daysUntil} days left`
+  }
+  
+  return { label, daysUntil }
+}
+
 export default function RecurringTasksPage() {
-  const { goals, addGoal, addRecurringTaskGroup, toggleRecurringTask, resetRecurringTaskGroup } = useGoals()
+  const { 
+    goals, 
+    addGoal, 
+    addRecurringTaskGroup, 
+    updateRecurringTaskGroup,
+    deleteRecurringTaskGroup,
+    addRecurringTask,
+    updateRecurringTask,
+    toggleRecurringTask, 
+    deleteRecurringTask,
+    resetRecurringTaskGroup 
+  } = useGoals()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
   const [recurrenceFilter, setRecurrenceFilter] = useState<RecurrenceFilter>("all")
@@ -150,6 +244,18 @@ export default function RecurringTasksPage() {
     name: string
     recurrence: RecurrenceType
   } | null>(null)
+
+  // Editing state
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editingTaskTitle, setEditingTaskTitle] = useState("")
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editingGroupName, setEditingGroupName] = useState("")
+  const [editingGroupRecurrence, setEditingGroupRecurrence] = useState<RecurrenceType>("daily")
+  const [editingGroupCycleStartDay, setEditingGroupCycleStartDay] = useState<number | undefined>(undefined)
+  
+  // Adding task state
+  const [addingTaskToGroup, setAddingTaskToGroup] = useState<{ goalId: string; groupId: string } | null>(null)
+  const [newTaskTitle, setNewTaskTitle] = useState("")
 
   // Find the standalone goal by title
   const standaloneGoal = useMemo(() => {
@@ -207,6 +313,70 @@ export default function RecurringTasksPage() {
     setNewGroupName("")
     setNewGroupRecurrence("daily")
     setNewGroupGoalId("standalone")
+  }
+
+  // Task editing handlers
+  const handleStartEditTask = (taskId: string, taskTitle: string) => {
+    setEditingTaskId(taskId)
+    setEditingTaskTitle(taskTitle)
+  }
+
+  const handleSaveEditTask = (goalId: string, groupId: string, taskId: string) => {
+    if (!editingTaskTitle.trim()) {
+      handleCancelEditTask()
+      return
+    }
+    updateRecurringTask(goalId, groupId, taskId, editingTaskTitle.trim())
+    setEditingTaskId(null)
+    setEditingTaskTitle("")
+  }
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null)
+    setEditingTaskTitle("")
+  }
+
+  // Group editing handlers
+  const handleStartEditGroup = (group: RecurringTaskGroup) => {
+    setEditingGroupId(group.id)
+    setEditingGroupName(group.name)
+    setEditingGroupRecurrence(group.recurrence)
+    setEditingGroupCycleStartDay(group.cycleStartDay)
+  }
+
+  const handleSaveEditGroup = (goalId: string, groupId: string) => {
+    if (!editingGroupName.trim()) return
+    updateRecurringTaskGroup(goalId, groupId, {
+      name: editingGroupName.trim(),
+      recurrence: editingGroupRecurrence,
+      cycleStartDay: editingGroupRecurrence !== "daily" ? editingGroupCycleStartDay : undefined,
+    })
+    setEditingGroupId(null)
+    setEditingGroupName("")
+    setEditingGroupRecurrence("daily")
+    setEditingGroupCycleStartDay(undefined)
+  }
+
+  const handleCancelEditGroup = () => {
+    setEditingGroupId(null)
+    setEditingGroupName("")
+    setEditingGroupRecurrence("daily")
+    setEditingGroupCycleStartDay(undefined)
+  }
+
+  // Add task handlers
+  const handleAddTask = (goalId: string, groupId: string, isSeparator = false) => {
+    if (!newTaskTitle.trim()) return
+    addRecurringTask(goalId, groupId, newTaskTitle.trim(), isSeparator)
+    setNewTaskTitle("")
+    setAddingTaskToGroup(null)
+  }
+
+  const handleAddSeparator = (goalId: string, groupId: string) => {
+    const separatorText = prompt("Enter header text:")
+    if (separatorText?.trim()) {
+      addRecurringTask(goalId, groupId, separatorText.trim(), true)
+    }
   }
 
   // Get all unique groups from goals
@@ -524,93 +694,229 @@ export default function RecurringTasksPage() {
                 >
                   <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse(group.id)}>
                     <CollapsibleTrigger asChild>
-                      <div className="flex items-start sm:items-center justify-between p-3 sm:p-5 cursor-pointer hover:bg-muted/50 rounded-t-xl transition-colors gap-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-1 min-w-0">
-                          <div className="flex flex-col gap-1 flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                              <h3 className={cn(
-                                "font-semibold text-sm sm:text-lg truncate",
-                                isComplete ? "text-green-700 dark:text-green-500" : "text-foreground"
-                              )}>
-                                {group.name}
-                              </h3>
-                              <Badge variant="outline" className={cn("text-[10px] sm:text-xs", RECURRENCE_COLORS[group.recurrence])}>
-                                <Repeat className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                {RECURRENCE_LABELS[group.recurrence]}
-                              </Badge>
-                              {isComplete && (
-                                <Badge variant="outline" className="text-[10px] sm:text-xs bg-green-500/10 text-green-700 dark:text-green-500 border-green-500/20">
-                                  <CheckCircle2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                                  Done
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
-                              <Target className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                              <span className="truncate">{goal.title}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 sm:gap-4 mt-1 sm:mt-0">
-                            {/* Streak Score Indicator */}
-                            <div 
-                              className={cn(
-                                "flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] sm:text-xs font-medium",
-                                scoreInfo.bgColor,
-                                scoreInfo.borderColor
-                              )}
-                              title={`Streak Score: ${score > 0 ? '+' : ''}${score}\n+1 for completing all tasks\n-1 for missing deadline`}
+                      <div className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 rounded-t-xl transition-colors">
+                        {editingGroupId === group.id ? (
+                          <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={editingGroupName}
+                              onChange={(e) => setEditingGroupName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSaveEditGroup(goal.id, group.id)
+                                if (e.key === "Escape") handleCancelEditGroup()
+                              }}
+                              className="h-8 w-full sm:w-40 text-sm"
+                              autoFocus
+                            />
+                            <Select
+                              value={editingGroupRecurrence}
+                              onValueChange={(v) => setEditingGroupRecurrence(v as RecurrenceType)}
                             >
-                              <span className="text-muted-foreground hidden sm:inline">Streak</span>
-                              {/* Mini progress bar */}
-                              <div className="w-6 sm:w-10 h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className={cn(
-                                    "h-full rounded-full transition-all",
-                                    score >= 0 ? "bg-emerald-500" : "bg-amber-500"
-                                  )}
-                                  style={{ width: `${((score + 100) / 200) * 100}%` }}
-                                />
-                              </div>
-                              <div className={cn("flex items-center gap-0.5 font-bold", scoreInfo.color)}>
-                                {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
-                                <span>{score > 0 ? '+' : ''}{score}</span>
-                              </div>
-                            </div>
-                            <div className="text-left sm:text-right">
-                              <p className="text-xs sm:text-sm font-medium text-foreground">{completedCount}/{regularTasks.length}</p>
-                              <p className="text-[10px] sm:text-xs text-muted-foreground">tasks</p>
-                            </div>
-                            <div className="w-16 sm:w-20">
-                              <Progress value={progress} className="h-1.5 sm:h-2" />
+                              <SelectTrigger className="h-8 w-28 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="daily">Daily</SelectItem>
+                                <SelectItem value="weekly">Weekly</SelectItem>
+                                <SelectItem value="monthly">Monthly</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {editingGroupRecurrence === "weekly" && (
+                              <Select
+                                value={editingGroupCycleStartDay?.toString() ?? "1"}
+                                onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
+                              >
+                                <SelectTrigger className="h-8 w-28 text-xs">
+                                  <SelectValue placeholder="Start day" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Sunday</SelectItem>
+                                  <SelectItem value="1">Monday</SelectItem>
+                                  <SelectItem value="2">Tuesday</SelectItem>
+                                  <SelectItem value="3">Wednesday</SelectItem>
+                                  <SelectItem value="4">Thursday</SelectItem>
+                                  <SelectItem value="5">Friday</SelectItem>
+                                  <SelectItem value="6">Saturday</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                            {editingGroupRecurrence === "monthly" && (
+                              <Select
+                                value={editingGroupCycleStartDay?.toString() ?? "1"}
+                                onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
+                              >
+                                <SelectTrigger className="h-8 w-24 text-xs">
+                                  <SelectValue placeholder="Day" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                                    <SelectItem key={day} value={day.toString()}>
+                                      {day}{day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleSaveEditGroup(goal.id, group.id)
+                                }}
+                              >
+                                <Check className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleCancelEditGroup()
+                                }}
+                              >
+                                <X className="h-4 w-4 text-muted-foreground" />
+                              </Button>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              resetRecurringTaskGroup(goal.id, group.id)
-                            }}
-                            title="Reset all tasks"
-                          >
-                            <RefreshCw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedGoalId(goal.id)
-                            }}
-                            title="View goal"
-                          >
-                            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                          </Button>
-                        </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            {/* Left side - Title and info */}
+                            <div className="flex items-start gap-2 min-w-0 flex-1">
+                              <ChevronRight
+                                className={cn(
+                                  "h-5 w-5 text-muted-foreground transition-transform mt-0.5 flex-shrink-0",
+                                  !isCollapsed && "rotate-90"
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                {/* Title */}
+                                <h3 className={cn(
+                                  "font-semibold text-foreground leading-tight",
+                                  isComplete && "text-green-700 dark:text-green-500"
+                                )}>
+                                  {group.name}
+                                </h3>
+                                
+                                {/* Goal name */}
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                                  <Target className="h-3 w-3 flex-shrink-0" />
+                                  <span className="truncate">{goal.title}</span>
+                                </div>
+                                
+                                {/* Compact info row */}
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-muted-foreground">
+                                  <span className={cn("font-medium", RECURRENCE_COLORS[group.recurrence].split(" ").find(c => c.startsWith("text-")))}>
+                                    {RECURRENCE_LABELS[group.recurrence]}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{completedCount}/{regularTasks.length} tasks</span>
+                                  {group.cycleStartDay !== undefined && (
+                                    <>
+                                      <span>•</span>
+                                      <span>
+                                        {group.recurrence === "weekly" 
+                                          ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][group.cycleStartDay]
+                                          : `${group.cycleStartDay}${group.cycleStartDay === 1 ? "st" : group.cycleStartDay === 2 ? "nd" : group.cycleStartDay === 3 ? "rd" : "th"}`
+                                        }
+                                      </span>
+                                    </>
+                                  )}
+                                  <span>•</span>
+                                  {(() => {
+                                    const resetInfo = getNextResetInfo(group)
+                                    return (
+                                      <span className={cn(
+                                        "flex items-center gap-1",
+                                        resetInfo.daysUntil <= 1 && "text-amber-500"
+                                      )}>
+                                        <Clock className="h-3 w-3" />
+                                        {resetInfo.label}
+                                      </span>
+                                    )
+                                  })()}
+                                </div>
+                                
+                                {/* Streak and completion status */}
+                                <div className={cn("flex items-center gap-1.5 mt-1.5 text-xs", scoreInfo.color)}>
+                                  {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                                  <span className="font-medium">
+                                    {score > 0 ? '+' : ''}{score} streak
+                                  </span>
+                                  {isComplete && (
+                                    <span className="text-green-600 dark:text-green-400 font-medium ml-1">✓ Done</span>
+                                  )}
+                                  {/* Progress bar */}
+                                  <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden ml-2">
+                                    <div 
+                                      className="h-full bg-primary rounded-full transition-all"
+                                      style={{ width: `${progress}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Right side - Action buttons */}
+                            <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleStartEditGroup(group)
+                                }}
+                                title="Edit group"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                    title="Delete group"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Recurring Task Group</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete &quot;{group.name}&quot;? This will remove all tasks in this group.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteRecurringTaskGroup(goal.id, group.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedGoalId(goal.id)
+                                }}
+                                title="View goal"
+                              >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -618,6 +924,8 @@ export default function RecurringTasksPage() {
                         {group.tasks.length > 0 ? (
                           <div className="space-y-1.5 sm:space-y-2">
                             {group.tasks.map((task) => {
+                              const isEditingThisTask = editingTaskId === task.id
+                              
                               // Render separator/header differently
                               if (task.isSeparator) {
                                 return (
@@ -626,9 +934,58 @@ export default function RecurringTasksPage() {
                                     className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3"
                                   >
                                     <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
-                                    <span className="flex-1 text-xs sm:text-sm font-semibold text-foreground">
-                                      {task.title}
-                                    </span>
+                                    {isEditingThisTask ? (
+                                      <>
+                                        <Input
+                                          value={editingTaskTitle}
+                                          onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
+                                            if (e.key === "Escape") handleCancelEditTask()
+                                          }}
+                                          className="flex-1 h-8 text-xs sm:text-sm font-semibold"
+                                          autoFocus
+                                        />
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-green-600 hover:text-green-700"
+                                          onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
+                                        >
+                                          <Check className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                          onClick={handleCancelEditTask}
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="flex-1 text-xs sm:text-sm font-semibold text-foreground">
+                                          {task.title}
+                                        </span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                          onClick={() => handleStartEditTask(task.id, task.title)}
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                          onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
+                                        >
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
                                   </div>
                                 )
                               }
@@ -644,16 +1001,66 @@ export default function RecurringTasksPage() {
                                     checked={task.completed}
                                     onCheckedChange={() => toggleRecurringTask(goal.id, group.id, task.id)}
                                     className="h-5 w-5"
+                                    disabled={isEditingThisTask}
                                   />
-                                  <label
-                                    htmlFor={`page-recurring-${task.id}`}
-                                    className={cn(
-                                      "flex-1 text-xs sm:text-sm cursor-pointer",
-                                      task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                                    )}
-                                  >
-                                    {task.title}
-                                  </label>
+                                  {isEditingThisTask ? (
+                                    <>
+                                      <Input
+                                        value={editingTaskTitle}
+                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
+                                          if (e.key === "Escape") handleCancelEditTask()
+                                        }}
+                                        className="flex-1 h-8 text-xs sm:text-sm"
+                                        autoFocus
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-green-600 hover:text-green-700"
+                                        onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
+                                      >
+                                        <Check className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={handleCancelEditTask}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <label
+                                        htmlFor={`page-recurring-${task.id}`}
+                                        className={cn(
+                                          "flex-1 text-xs sm:text-sm cursor-pointer",
+                                          task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                                        )}
+                                      >
+                                        {task.title}
+                                      </label>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={() => handleStartEditTask(task.id, task.title)}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                        onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               )
                             })}
@@ -662,6 +1069,61 @@ export default function RecurringTasksPage() {
                           <p className="text-xs sm:text-sm text-muted-foreground text-center py-3">
                             No tasks in this group yet.
                           </p>
+                        )}
+                        
+                        {/* Add Task Section */}
+                        {addingTaskToGroup?.goalId === goal.id && addingTaskToGroup?.groupId === group.id ? (
+                          <div className="flex items-center gap-2 mt-3">
+                            <Input
+                              placeholder="Task name..."
+                              value={newTaskTitle}
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleAddTask(goal.id, group.id)
+                                if (e.key === "Escape") {
+                                  setAddingTaskToGroup(null)
+                                  setNewTaskTitle("")
+                                }
+                              }}
+                              className="flex-1 h-9 text-sm"
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={() => handleAddTask(goal.id, group.id)}>
+                              Add
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setAddingTaskToGroup(null)
+                                setNewTaskTitle("")
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 gap-2 h-9"
+                              onClick={() => setAddingTaskToGroup({ goalId: goal.id, groupId: group.id })}
+                            >
+                              <Plus className="h-4 w-4" />
+                              Add Task
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 h-9"
+                              onClick={() => handleAddSeparator(goal.id, group.id)}
+                              title="Add a header to organize tasks"
+                            >
+                              <Minus className="h-4 w-4" />
+                              Header
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CollapsibleContent>
