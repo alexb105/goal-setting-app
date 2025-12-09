@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown, Pencil, Check, Trash2, Calendar, Clock, GripVertical } from "lucide-react"
+import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown, Pencil, Check, Trash2, Calendar, Clock, GripVertical, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -828,39 +828,12 @@ export default function RecurringTasksPage() {
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleStartEditGroup(group)
+                    setSelectedGoalId(goal.id)
                   }}
+                  title="Go to goal to edit or delete this habit"
                 >
-                  <Pencil className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" />
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Habit</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Delete &quot;{group.name}&quot; and all its tasks?
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteRecurringTaskGroup(goal.id, group.id)}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
                 <ChevronRight
                   className={cn(
                     "h-5 w-5 text-muted-foreground transition-transform",
