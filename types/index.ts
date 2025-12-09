@@ -56,7 +56,7 @@ export interface RecurringTaskGroup {
 export interface RecurringGroupDivider {
   id: string
   title: string
-  position: number // Position in the sorted list (0 = before first group, 1 = after first group, etc.)
+  groupIds: string[] // IDs of recurring task groups that belong under this divider
 }
 
 export interface Milestone {

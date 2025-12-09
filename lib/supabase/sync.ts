@@ -1,7 +1,7 @@
 "use client"
 
 import type { SupabaseClient, User } from "@supabase/supabase-js"
-import type { Goal, DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask } from "@/types"
+import type { Goal, DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask, RecurringGroupDivider } from "@/types"
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
   aiAppliedSuggestions: "goalritual-ai-applied-suggestions",
   aiDismissedSuggestions: "goalritual-ai-dismissed-suggestions",
   pinnedInsights: "goalritual-pinned-insights",
+  recurringGroupDividers: "goalritual-recurring-group-dividers",
 } as const
 
 // User data table schema - we store all user data in a single JSONB column for simplicity
@@ -33,6 +34,7 @@ interface UserData {
   ai_applied_suggestions: string[] | null
   ai_dismissed_suggestions: string[] | null
   pinned_insights: unknown[] | null
+  recurring_group_dividers: RecurringGroupDivider[] | null
   updated_at: string
 }
 
@@ -78,6 +80,7 @@ export class SupabaseSync {
       ai_applied_suggestions: getJson<string[]>(STORAGE_KEYS.aiAppliedSuggestions, []),
       ai_dismissed_suggestions: getJson<string[]>(STORAGE_KEYS.aiDismissedSuggestions, []),
       pinned_insights: getJson(STORAGE_KEYS.pinnedInsights, []),
+      recurring_group_dividers: getJson<RecurringGroupDivider[]>(STORAGE_KEYS.recurringGroupDividers, []),
     }
   }
 
@@ -111,6 +114,7 @@ export class SupabaseSync {
     setJson(STORAGE_KEYS.aiAppliedSuggestions, data.ai_applied_suggestions)
     setJson(STORAGE_KEYS.aiDismissedSuggestions, data.ai_dismissed_suggestions)
     setJson(STORAGE_KEYS.pinnedInsights, data.pinned_insights)
+    setJson(STORAGE_KEYS.recurringGroupDividers, data.recurring_group_dividers)
 
     // Dispatch custom event so other components can react (works in same window)
     window.dispatchEvent(new CustomEvent("goalritual-storage-updated"))
@@ -165,6 +169,7 @@ export class SupabaseSync {
         ai_applied_suggestions: remoteData.ai_applied_suggestions,
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
+        recurring_group_dividers: remoteData.recurring_group_dividers || [],
       })
       console.log("Successfully pulled cloud data to local storage")
       return true
@@ -358,6 +363,7 @@ export class SupabaseSync {
         ai_applied_suggestions: remoteData.ai_applied_suggestions,
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
+        recurring_group_dividers: remoteData.recurring_group_dividers || [],
       })
       return true
     } else {
@@ -400,6 +406,7 @@ export class SupabaseSync {
       ai_applied_suggestions: remoteData.ai_applied_suggestions || localData.ai_applied_suggestions,
       ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions || localData.ai_dismissed_suggestions,
       pinned_insights: remoteData.pinned_insights || localData.pinned_insights,
+      recurring_group_dividers: remoteData.recurring_group_dividers || localData.recurring_group_dividers || [],
     }
 
     // Update both local and remote with merged data

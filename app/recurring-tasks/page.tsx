@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import { ArrowLeft, Target, CheckCircle2, ChevronRight, Repeat, Filter, X, Folder, RefreshCw, Play, Minus, Plus, Trophy, Flame, TrendingUp, TrendingDown, Pencil, Check, Trash2, Calendar, Clock, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -30,26 +30,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import type { Goal, RecurringTaskGroup, RecurrenceType, RecurringGroupDivider } from "@/types"
+import type { Goal, RecurringTaskGroup, RecurrenceType, RecurringGroupDivider, RecurringTask } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { cn } from "@/lib/utils"
 import { STANDALONE_MILESTONES_GOAL_TITLE } from "@/constants"
-import {
-  DndContext,
-  closestCenter,
-  type DragEndEvent,
-  type DragStartEvent,
-  DragOverlay,
-} from "@dnd-kit/core"
-import {
-  useSortable,
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
-import { useDndSensors } from "@/hooks/use-dnd-sensors"
+import { useSupabaseSync } from "@/hooks/use-supabase-sync"
 
 type RecurrenceFilter = "all" | "daily" | "weekly" | "monthly"
 type StatusFilter = "all" | "complete" | "incomplete"
@@ -231,451 +217,6 @@ function getNextResetInfo(group: RecurringTaskGroup): { label: string; daysUntil
   return { label, daysUntil }
 }
 
-// Sortable Group Component
-interface SortableGroupItemProps {
-  item: { type: "group"; data: { group: RecurringTaskGroup; goal: Goal }; id: string }
-  isCollapsed: boolean
-  isComplete: boolean
-  progress: number
-  completedCount: number
-  regularTasks: any[]
-  score: number
-  scoreInfo: ReturnType<typeof getScoreInfo>
-  ScoreIcon: any
-  editingGroupId: string | null
-  editingGroupName: string
-  editingGroupRecurrence: RecurrenceType
-  editingGroupCycleStartDay: number | undefined
-  onToggleCollapse: () => void
-  onStartEdit: () => void
-  onSaveEdit: () => void
-  onCancelEdit: () => void
-  onSetEditingGroupName: (name: string) => void
-  onSetEditingGroupRecurrence: (v: RecurrenceType) => void
-  onSetEditingGroupCycleStartDay: (v: number | undefined) => void
-  onDelete: () => void
-  isOver?: boolean
-  children: React.ReactNode
-}
-
-function SortableGroupItem({
-  item,
-  isCollapsed,
-  isComplete,
-  progress,
-  completedCount,
-  regularTasks,
-  score,
-  scoreInfo,
-  ScoreIcon,
-  editingGroupId,
-  editingGroupName,
-  editingGroupRecurrence,
-  editingGroupCycleStartDay,
-  onToggleCollapse,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onSetEditingGroupName,
-  onSetEditingGroupRecurrence,
-  onSetEditingGroupCycleStartDay,
-  onDelete,
-  isOver = false,
-  children,
-}: SortableGroupItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition,
-    opacity: isDragging ? 0.4 : 1,
-    scale: isDragging ? 0.98 : 1,
-  }
-
-  const { group, goal } = item.data
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "rounded-xl border bg-card transition-all duration-200",
-        isComplete
-          ? "border-green-500/50 bg-green-500/5"
-          : "border-border hover:border-primary/30",
-        isDragging && "shadow-2xl ring-2 ring-primary/40 scale-[0.98] z-50",
-        isOver && !isDragging && "border-primary/50 bg-primary/5 ring-1 ring-primary/30"
-      )}
-    >
-      <Collapsible open={!isCollapsed} onOpenChange={onToggleCollapse}>
-        <CollapsibleTrigger asChild>
-          <div className="p-3 cursor-pointer hover:bg-muted/30 rounded-t-xl transition-colors">
-            {editingGroupId === group.id ? (
-              <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <Input
-                              value={editingGroupName}
-                              onChange={(e) => onSetEditingGroupName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") onSaveEdit()
-                                if (e.key === "Escape") onCancelEdit()
-                              }}
-                              className="h-9 flex-1 min-w-[150px]"
-                              autoFocus
-                            />
-                <Select
-                  value={editingGroupRecurrence}
-                  onValueChange={(v) => onSetEditingGroupRecurrence(v as RecurrenceType)}
-                >
-                  <SelectTrigger className="h-9 w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="daily">Daily</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-                {editingGroupRecurrence === "weekly" && (
-                  <Select
-                    value={editingGroupCycleStartDay?.toString() ?? "1"}
-                    onValueChange={(v) => onSetEditingGroupCycleStartDay(parseInt(v))}
-                  >
-                    <SelectTrigger className="h-9 w-28">
-                      <SelectValue placeholder="Start day" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Sunday</SelectItem>
-                      <SelectItem value="1">Monday</SelectItem>
-                      <SelectItem value="2">Tuesday</SelectItem>
-                      <SelectItem value="3">Wednesday</SelectItem>
-                      <SelectItem value="4">Thursday</SelectItem>
-                      <SelectItem value="5">Friday</SelectItem>
-                      <SelectItem value="6">Saturday</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-                {editingGroupRecurrence === "monthly" && (
-                  <Select
-                    value={editingGroupCycleStartDay?.toString() ?? "1"}
-                    onValueChange={(v) => onSetEditingGroupCycleStartDay(parseInt(v))}
-                  >
-                    <SelectTrigger className="h-9 w-24">
-                      <SelectValue placeholder="Day" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                        <SelectItem key={day} value={day.toString()}>
-                          {day}{day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="default"
-                    className="h-9 w-9"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onSaveEdit()
-                    }}
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-9 w-9"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onCancelEdit()
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5">
-                {/* Drag handle - mobile friendly */}
-                <div
-                  {...attributes}
-                  {...listeners}
-                  className="flex-shrink-0 touch-target p-1.5 -ml-0.5 text-muted-foreground hover:text-primary transition-all cursor-grab active:cursor-grabbing flex items-center justify-center rounded-md hover:bg-primary/10 active:bg-primary/20 group/drag"
-                  onClick={(e) => e.stopPropagation()}
-                  title="Drag to reorder"
-                >
-                  <GripVertical className="h-5 w-5 group-hover/drag:scale-110 transition-transform" />
-                </div>
-
-                {/* Circular progress indicator */}
-                <div className="relative flex-shrink-0">
-                  <svg className="w-12 h-12 -rotate-90">
-                    <circle
-                      cx="24" cy="24" r="20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      className="text-muted/30"
-                    />
-                    <circle
-                      cx="24" cy="24" r="20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={`${progress * 1.257} 125.7`}
-                      className={isComplete ? "text-green-500" : "text-primary"}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    {isComplete ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <span className="text-xs font-bold">{completedCount}/{regularTasks.length}</span>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className={cn(
-                      "font-semibold text-foreground truncate",
-                      isComplete && "text-green-600 dark:text-green-400"
-                    )}>
-                      {group.name}
-                    </h3>
-                    <span className={cn(
-                      "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
-                      group.recurrence === "daily" && "bg-blue-500/10 text-blue-500",
-                      group.recurrence === "weekly" && "bg-purple-500/10 text-purple-500",
-                      group.recurrence === "monthly" && "bg-green-500/10 text-green-500"
-                    )}>
-                      {RECURRENCE_LABELS[group.recurrence]}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    {(() => {
-                      const resetInfo = getNextResetInfo(group)
-                      return (
-                        <span className={cn(
-                          "flex items-center gap-1",
-                          resetInfo.daysUntil <= 1 && "text-amber-500 font-medium"
-                        )}>
-                          <Clock className="h-3 w-3" />
-                          {resetInfo.label}
-                        </span>
-                      )
-                    })()}
-                    {score !== 0 && (
-                      <>
-                        <span>•</span>
-                        <span className={cn("flex items-center gap-0.5 font-medium", scoreInfo.color)}>
-                          {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
-                          {score > 0 ? '+' : ''}{score}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                
-                {/* Actions */}
-                <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onStartEdit()
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Habit</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Delete &quot;{group.name}&quot; and all its tasks?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={onDelete}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  <ChevronRight
-                    className={cn(
-                      "h-5 w-5 text-muted-foreground transition-transform",
-                      !isCollapsed && "rotate-90"
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        </CollapsibleTrigger>
-        {children}
-      </Collapsible>
-    </div>
-  )
-}
-
-// Sortable Divider Component
-interface SortableDividerItemProps {
-  item: { type: "divider"; data: RecurringGroupDivider; id: string }
-  editingDividerId: string | null
-  editingDividerTitle: string
-  onStartEdit: () => void
-  onSaveEdit: () => void
-  onCancelEdit: () => void
-  onSetEditingDividerTitle: (title: string) => void
-  onDelete: () => void
-  isOver?: boolean
-}
-
-function SortableDividerItem({
-  item,
-  editingDividerId,
-  editingDividerTitle,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onSetEditingDividerTitle,
-  onDelete,
-  isOver = false,
-}: SortableDividerItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition,
-    opacity: isDragging ? 0.4 : 1,
-    scale: isDragging ? 0.98 : 1,
-  }
-
-  const divider = item.data
-  const isEditing = editingDividerId === divider.id
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center gap-1.5 py-3 px-1 transition-all duration-200",
-        isDragging && "shadow-2xl ring-2 ring-primary/40 scale-[0.98] z-50",
-        isOver && !isDragging && "bg-primary/5 rounded-lg"
-      )}
-    >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex-shrink-0 touch-target p-1.5 -ml-0.5 text-muted-foreground hover:text-primary transition-all cursor-grab active:cursor-grabbing flex items-center justify-center rounded-md hover:bg-primary/10 active:bg-primary/20 group/drag"
-        title="Drag to reorder"
-      >
-        <GripVertical className="h-5 w-5 group-hover/drag:scale-110 transition-transform" />
-      </div>
-
-      {isEditing ? (
-        <>
-          <Input
-            value={editingDividerTitle}
-            onChange={(e) => onSetEditingDividerTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onSaveEdit()
-              if (e.key === "Escape") onCancelEdit()
-            }}
-            className="flex-1 h-9 text-sm font-semibold"
-            autoFocus
-          />
-          <Button
-            variant="default"
-            size="icon"
-            className="h-9 w-9"
-            onClick={onSaveEdit}
-          >
-            <Check className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={onCancelEdit}
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </>
-      ) : (
-        <>
-          <span className="flex-1 text-base font-semibold text-foreground uppercase tracking-wide">
-            {divider.title}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground/50 hover:text-foreground"
-            onClick={onStartEdit}
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground/50 hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Divider</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Delete the divider &quot;{divider.title}&quot;?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={onDelete}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      )}
-    </div>
-  )
-}
-
 export default function RecurringTasksPage() {
   const { 
     goals, 
@@ -689,6 +230,7 @@ export default function RecurringTasksPage() {
     deleteRecurringTask,
     resetRecurringTaskGroup 
   } = useGoals()
+  const { triggerSync } = useSupabaseSync()
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const [groupFilter, setGroupFilter] = useState<string>("all")
   const [recurrenceFilter, setRecurrenceFilter] = useState<RecurrenceFilter>("all")
@@ -719,49 +261,38 @@ export default function RecurringTasksPage() {
 
   // Divider state
   const STORAGE_KEY_DIVIDERS = "goalritual-recurring-group-dividers"
-  const STORAGE_KEY_ORDER = "goalritual-recurring-groups-order"
   const [dividers, setDividers] = useState<RecurringGroupDivider[]>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_DIVIDERS)
-      return stored ? JSON.parse(stored) : []
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_DIVIDERS)
+        if (stored && stored !== "undefined" && stored !== "null") {
+          return JSON.parse(stored)
+        }
+      } catch (error) {
+        // If parsing fails, clear the invalid data and return empty array
+        localStorage.removeItem(STORAGE_KEY_DIVIDERS)
+      }
     }
     return []
   })
 
-  // Custom order state (array of IDs: "group-{goalId}-{groupId}" or "divider-{dividerId}")
-  const [customOrder, setCustomOrder] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_ORDER)
-      return stored ? JSON.parse(stored) : []
-    }
-    return []
-  })
-
-  // Save dividers to localStorage whenever they change
+  // Save dividers to localStorage whenever they change and trigger cloud sync
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY_DIVIDERS, JSON.stringify(dividers))
+      // Trigger cloud sync when dividers change
+      triggerSync()
     }
-  }, [dividers])
-
-  // Save order to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined" && customOrder.length > 0) {
-      localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(customOrder))
-    }
-  }, [customOrder])
-
-  // Drag state
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [overId, setOverId] = useState<string | null>(null)
-  const sensors = useDndSensors()
+  }, [dividers, triggerSync])
 
   // Divider dialog state
   const [addDividerOpen, setAddDividerOpen] = useState(false)
   const [newDividerTitle, setNewDividerTitle] = useState("")
-  const [newDividerPosition, setNewDividerPosition] = useState(0)
-  const [editingDividerId, setEditingDividerId] = useState<string | null>(null)
+  const [newDividerGroupIds, setNewDividerGroupIds] = useState<string[]>([])
+  const [editDividerOpen, setEditDividerOpen] = useState(false)
+  const [editingDivider, setEditingDivider] = useState<RecurringGroupDivider | null>(null)
   const [editingDividerTitle, setEditingDividerTitle] = useState("")
+  const [editingDividerGroupIds, setEditingDividerGroupIds] = useState<string[]>([])
 
   // Find the standalone goal by title
   const standaloneGoal = useMemo(() => {
@@ -961,113 +492,42 @@ export default function RecurringTasksPage() {
     return tasks.filter((t) => !t.isSeparator)
   }
 
-  // Sort by recurrence type (daily first, then weekly, then monthly) - default order
+  // Sort by recurrence type (daily first, then weekly, then monthly)
   const sortedGroups = useMemo(() => {
     const order: Record<RecurrenceType, number> = { daily: 0, weekly: 1, monthly: 2 }
     return [...filteredGroups].sort((a, b) => order[a.group.recurrence] - order[b.group.recurrence])
   }, [filteredGroups])
 
-  // Helper to generate IDs for items
-  const getGroupId = (goalId: string, groupId: string) => `group-${goalId}-${groupId}`
-  const getDividerId = (dividerId: string) => `divider-${dividerId}`
-
-  // Combine groups and dividers for rendering with custom order support
+  // Organize groups by divider
   type ListItem = 
-    | { type: "group"; data: { group: RecurringTaskGroup; goal: Goal }; id: string }
-    | { type: "divider"; data: RecurringGroupDivider; id: string }
+    | { type: "group"; data: { group: RecurringTaskGroup; goal: Goal } }
+    | { type: "divider"; data: RecurringGroupDivider }
 
-  const combinedList = useMemo(() => {
-    // Create all items with their IDs
-    const allItems: ListItem[] = []
+  const { unassignedGroups, organizedList } = useMemo(() => {
+    // Find groups that are not assigned to any divider
+    const assignedGroupIds = new Set(dividers.flatMap((d) => d.groupIds))
+    const unassigned = sortedGroups.filter(
+      ({ group }) => !assignedGroupIds.has(group.id)
+    )
     
-    // Add groups
-    sortedGroups.forEach((groupData) => {
-      allItems.push({
-        type: "group",
-        data: groupData,
-        id: getGroupId(groupData.goal.id, groupData.group.id)
-      })
-    })
+    // Build the organized list: dividers with their groups
+    const organized: ListItem[] = []
     
-    // Add dividers
     dividers.forEach((divider) => {
-      allItems.push({
-        type: "divider",
-        data: divider,
-        id: getDividerId(divider.id)
-      })
-    })
-
-    // If we have a custom order, use it
-    if (customOrder.length > 0) {
-      // Create a map for quick lookup
-      const itemsMap = new Map(allItems.map(item => [item.id, item]))
+      // Add the divider
+      organized.push({ type: "divider", data: divider })
       
-      // Build ordered list from custom order, filtering out items that no longer exist
-      const ordered: ListItem[] = []
-      const usedIds = new Set<string>()
-      
-      // Add items in custom order
-      customOrder.forEach(id => {
-        const item = itemsMap.get(id)
-        if (item) {
-          ordered.push(item)
-          usedIds.add(id)
-        }
-      })
-      
-      // Add any items not in custom order (new items) at the end
-      allItems.forEach(item => {
-        if (!usedIds.has(item.id)) {
-          ordered.push(item)
-        }
-      })
-      
-      return ordered
-    }
-    
-    // Default: combine groups and dividers by position
-    const allItemsWithPosition: Array<{ item: ListItem; position: number; isDivider: boolean }> = []
-    
-    // Add groups: group at index i appears at position i
-    sortedGroups.forEach((groupData, index) => {
-      allItemsWithPosition.push({ 
-        item: {
-          type: "group" as const,
-          data: groupData,
-          id: getGroupId(groupData.goal.id, groupData.group.id)
-        }, 
-        position: index,
-        isDivider: false
+      // Add groups that belong to this divider (in their sorted order)
+      const dividerGroups = sortedGroups.filter(({ group }) => 
+        divider.groupIds.includes(group.id)
+      )
+      dividerGroups.forEach((groupData) => {
+        organized.push({ type: "group", data: groupData })
       })
     })
     
-    // Add dividers with their stored position
-    dividers.forEach((divider) => {
-      allItemsWithPosition.push({ 
-        item: {
-          type: "divider" as const,
-          data: divider,
-          id: getDividerId(divider.id)
-        }, 
-        position: divider.position,
-        isDivider: true
-      })
-    })
-    
-    // Sort by position, with dividers appearing before groups at the same position
-    allItemsWithPosition.sort((a, b) => {
-      if (a.position !== b.position) {
-        return a.position - b.position
-      }
-      // If same position, dividers come first
-      if (a.isDivider && !b.isDivider) return -1
-      if (!a.isDivider && b.isDivider) return 1
-      return 0
-    })
-    
-    return allItemsWithPosition.map(({ item }) => item)
-  }, [sortedGroups, dividers, customOrder])
+    return { unassignedGroups: unassigned, organizedList: organized }
+  }, [sortedGroups, dividers])
 
   const hasActiveFilters = groupFilter !== "all" || recurrenceFilter !== "all" || statusFilter !== "all"
 
@@ -1102,99 +562,65 @@ export default function RecurringTasksPage() {
     const newDivider: RecurringGroupDivider = {
       id: crypto.randomUUID(),
       title: newDividerTitle.trim(),
-      position: newDividerPosition,
+      groupIds: newDividerGroupIds,
     }
     
-    setDividers((prev) => {
-      // Adjust positions of existing dividers if needed
-      const updated = prev.map((d) => 
-        d.position >= newDividerPosition ? { ...d, position: d.position + 1 } : d
-      )
-      return [...updated, newDivider].sort((a, b) => a.position - b.position)
-    })
-    
-    // Add to custom order if it exists
-    if (customOrder.length > 0) {
-      // Insert at the appropriate position in custom order
-      const dividerId = getDividerId(newDivider.id)
-      const insertIndex = Math.min(newDividerPosition, customOrder.length)
-      setCustomOrder((prev) => {
-        const newOrder = [...prev]
-        newOrder.splice(insertIndex, 0, dividerId)
-        return newOrder
-      })
-    }
+    setDividers((prev) => [...prev, newDivider])
     
     setAddDividerOpen(false)
     setNewDividerTitle("")
-    setNewDividerPosition(0)
+    setNewDividerGroupIds([])
   }
 
   const handleStartEditDivider = (divider: RecurringGroupDivider) => {
-    setEditingDividerId(divider.id)
+    setEditingDivider(divider)
     setEditingDividerTitle(divider.title)
+    setEditingDividerGroupIds(divider.groupIds)
+    setEditDividerOpen(true)
   }
 
   const handleSaveEditDivider = () => {
-    if (!editingDividerTitle.trim() || !editingDividerId) return
+    if (!editingDividerTitle.trim() || !editingDivider) return
     
     setDividers((prev) =>
       prev.map((d) =>
-        d.id === editingDividerId ? { ...d, title: editingDividerTitle.trim() } : d
+        d.id === editingDivider.id 
+          ? { ...d, title: editingDividerTitle.trim(), groupIds: editingDividerGroupIds } 
+          : d
       )
     )
     
-    setEditingDividerId(null)
+    setEditDividerOpen(false)
+    setEditingDivider(null)
     setEditingDividerTitle("")
+    setEditingDividerGroupIds([])
   }
 
   const handleCancelEditDivider = () => {
-    setEditingDividerId(null)
+    setEditDividerOpen(false)
+    setEditingDivider(null)
     setEditingDividerTitle("")
+    setEditingDividerGroupIds([])
   }
 
   const handleDeleteDivider = (dividerId: string) => {
-    setDividers((prev) => {
-      const divider = prev.find((d) => d.id === dividerId)
-      if (!divider) return prev
-      
-      // Adjust positions of dividers after the deleted one
-      return prev
-        .filter((d) => d.id !== dividerId)
-        .map((d) =>
-          d.position > divider.position ? { ...d, position: d.position - 1 } : d
-        )
-        .sort((a, b) => a.position - b.position)
-    })
-    
-    // Remove from custom order
-    setCustomOrder((prev) => prev.filter(id => id !== getDividerId(dividerId)))
+    setDividers((prev) => prev.filter((d) => d.id !== dividerId))
+    setEditDividerOpen(false)
+    setEditingDivider(null)
   }
 
-  // Drag handlers
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
-  }
-
-  const handleDragOver = (event: any) => {
-    const { over } = event
-    setOverId(over ? (over.id as string) : null)
-  }
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    setActiveId(null)
-    setOverId(null)
-
-    if (!over || active.id === over.id) return
-
-    const oldIndex = combinedList.findIndex(item => item.id === active.id)
-    const newIndex = combinedList.findIndex(item => item.id === over.id)
-
-    if (oldIndex !== -1 && newIndex !== -1) {
-      const newOrder = arrayMove(combinedList, oldIndex, newIndex)
-      setCustomOrder(newOrder.map(item => item.id))
+  // Toggle group selection for dividers
+  const toggleGroupInDivider = (groupId: string, currentGroupIds: string[], setGroupIds: (ids: string[]) => void) => {
+    if (currentGroupIds.includes(groupId)) {
+      setGroupIds(currentGroupIds.filter((id) => id !== groupId))
+    } else {
+      setGroupIds([...currentGroupIds, groupId])
     }
+  }
+
+  // Get which divider a group belongs to (if any)
+  const getGroupDivider = (groupId: string): RecurringGroupDivider | undefined => {
+    return dividers.find((d) => d.groupIds.includes(groupId))
   }
 
   // Calculate stats (excluding separators)
@@ -1217,6 +643,434 @@ export default function RecurringTasksPage() {
 
   const selectedGoal = goals.find((g) => g.id === selectedGoalId)
 
+  // Helper function to render group content (used for both assigned and unassigned groups)
+  const renderGroupContent = (
+    group: RecurringTaskGroup,
+    goal: Goal,
+    regularTasks: RecurringTask[],
+    completedCount: number,
+    isComplete: boolean,
+    isCollapsed: boolean,
+    progress: number,
+    score: number,
+    scoreInfo: ReturnType<typeof getScoreInfo>,
+    ScoreIcon: typeof scoreInfo.icon
+  ) => (
+    <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse(group.id)}>
+      <CollapsibleTrigger asChild>
+        <div className="p-3 cursor-pointer hover:bg-muted/30 rounded-t-xl transition-colors">
+          {editingGroupId === group.id ? (
+            <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <Input
+                value={editingGroupName}
+                onChange={(e) => setEditingGroupName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveEditGroup(goal.id, group.id)
+                  if (e.key === "Escape") handleCancelEditGroup()
+                }}
+                className="h-9 flex-1 min-w-[150px]"
+                autoFocus
+              />
+              <Select
+                value={editingGroupRecurrence}
+                onValueChange={(v) => setEditingGroupRecurrence(v as RecurrenceType)}
+              >
+                <SelectTrigger className="h-9 w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              {editingGroupRecurrence === "weekly" && (
+                <Select
+                  value={editingGroupCycleStartDay?.toString() ?? "1"}
+                  onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
+                >
+                  <SelectTrigger className="h-9 w-28">
+                    <SelectValue placeholder="Start day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sunday</SelectItem>
+                    <SelectItem value="1">Monday</SelectItem>
+                    <SelectItem value="2">Tuesday</SelectItem>
+                    <SelectItem value="3">Wednesday</SelectItem>
+                    <SelectItem value="4">Thursday</SelectItem>
+                    <SelectItem value="5">Friday</SelectItem>
+                    <SelectItem value="6">Saturday</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {editingGroupRecurrence === "monthly" && (
+                <Select
+                  value={editingGroupCycleStartDay?.toString() ?? "1"}
+                  onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
+                >
+                  <SelectTrigger className="h-9 w-24">
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}{day === 1 ? "st" : day === 2 ? "nd" : day === 3 ? "rd" : "th"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <div className="flex gap-1">
+                <Button
+                  size="icon"
+                  variant="default"
+                  className="h-9 w-9"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleSaveEditGroup(goal.id, group.id)
+                  }}
+                >
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleCancelEditGroup()
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {/* Circular progress indicator */}
+              <div className="relative flex-shrink-0">
+                <svg className="w-12 h-12 -rotate-90">
+                  <circle
+                    cx="24" cy="24" r="20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    className="text-muted/30"
+                  />
+                  <circle
+                    cx="24" cy="24" r="20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${progress * 1.257} 125.7`}
+                    className={isComplete ? "text-green-500" : "text-primary"}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {isComplete ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <span className="text-xs font-bold">{completedCount}/{regularTasks.length}</span>
+                  )}
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className={cn(
+                    "font-semibold text-foreground truncate",
+                    isComplete && "text-green-600 dark:text-green-400"
+                  )}>
+                    {group.name}
+                  </h3>
+                  <span className={cn(
+                    "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                    group.recurrence === "daily" && "bg-blue-500/10 text-blue-500",
+                    group.recurrence === "weekly" && "bg-purple-500/10 text-purple-500",
+                    group.recurrence === "monthly" && "bg-green-500/10 text-green-500"
+                  )}>
+                    {RECURRENCE_LABELS[group.recurrence]}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                  {(() => {
+                    const resetInfo = getNextResetInfo(group)
+                    return (
+                      <span className={cn(
+                        "flex items-center gap-1",
+                        resetInfo.daysUntil <= 1 && "text-amber-500 font-medium"
+                      )}>
+                        <Clock className="h-3 w-3" />
+                        {resetInfo.label}
+                      </span>
+                    )
+                  })()}
+                  {score !== 0 && (
+                    <>
+                      <span>•</span>
+                      <span className={cn("flex items-center gap-0.5 font-medium", scoreInfo.color)}>
+                        {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                        {score > 0 ? '+' : ''}{score}
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleStartEditGroup(group)
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Habit</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Delete &quot;{group.name}&quot; and all its tasks?
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteRecurringTaskGroup(goal.id, group.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <ChevronRight
+                  className={cn(
+                    "h-5 w-5 text-muted-foreground transition-transform",
+                    !isCollapsed && "rotate-90"
+                  )}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-3 pb-3 pt-1 border-t border-border/30">
+          {group.tasks.length > 0 ? (
+            <div className="space-y-1">
+              {group.tasks.map((task) => {
+                const isEditingThisTask = editingTaskId === task.id
+                
+                // Render separator/header differently
+                if (task.isSeparator) {
+                  return (
+                    <div
+                      key={task.id}
+                      className="flex items-center gap-2 py-2 px-1"
+                    >
+                      {isEditingThisTask ? (
+                        <>
+                          <Input
+                            value={editingTaskTitle}
+                            onChange={(e) => setEditingTaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
+                              if (e.key === "Escape") handleCancelEditTask()
+                            }}
+                            className="flex-1 h-8 text-sm font-medium"
+                            autoFocus
+                          />
+                          <Button
+                            variant="default"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={handleCancelEditTask}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                            {task.title}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
+                            onClick={() => handleStartEditTask(task.id, task.title)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground/50 hover:text-destructive"
+                            onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )
+                }
+
+                // Regular task
+                return (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      "group flex items-center gap-3 py-2 px-1 rounded-lg transition-colors",
+                      task.completed ? "opacity-60" : "hover:bg-muted/30"
+                    )}
+                  >
+                    <Checkbox
+                      id={`page-recurring-${task.id}`}
+                      checked={task.completed}
+                      onCheckedChange={() => toggleRecurringTask(goal.id, group.id, task.id)}
+                      className="h-6 w-6"
+                      disabled={isEditingThisTask}
+                    />
+                    {isEditingThisTask ? (
+                      <>
+                        <Input
+                          value={editingTaskTitle}
+                          onChange={(e) => setEditingTaskTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
+                            if (e.key === "Escape") handleCancelEditTask()
+                          }}
+                          className="flex-1 h-9"
+                          autoFocus
+                        />
+                        <Button
+                          variant="default"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={handleCancelEditTask}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <label
+                          htmlFor={`page-recurring-${task.id}`}
+                          className={cn(
+                            "flex-1 text-sm cursor-pointer select-none",
+                            task.completed && "line-through text-muted-foreground"
+                          )}
+                        >
+                          {task.title}
+                        </label>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleStartEditTask(task.id, task.title)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No tasks yet
+            </p>
+          )}
+          
+          {/* Add Task Section */}
+          {addingTaskToGroup?.goalId === goal.id && addingTaskToGroup?.groupId === group.id ? (
+            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
+              <Input
+                placeholder="New task..."
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddTask(goal.id, group.id)
+                  if (e.key === "Escape") {
+                    setAddingTaskToGroup(null)
+                    setNewTaskTitle("")
+                  }
+                }}
+                className="flex-1 h-10"
+                autoFocus
+              />
+              <Button className="h-10" onClick={() => handleAddTask(goal.id, group.id)}>
+                Add
+              </Button>
+              <Button
+                variant="ghost"
+                className="h-10"
+                onClick={() => {
+                  setAddingTaskToGroup(null)
+                  setNewTaskTitle("")
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <button
+              className="w-full mt-2 pt-2 border-t border-border/30 flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setAddingTaskToGroup({ goalId: goal.id, groupId: group.id })}
+            >
+              <Plus className="h-4 w-4" />
+              Add task
+            </button>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+
   if (selectedGoal) {
     return (
       <GoalDetailView
@@ -1231,25 +1085,25 @@ export default function RecurringTasksPage() {
     <div className="min-h-screen safe-area-top">
       {/* Header - Simplified */}
       <header className="border-b border-border glass-strong sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <Link href="/">
-                <Button variant="ghost" size="icon" className="h-9 w-9 -ml-1">
-                  <ArrowLeft className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-10 w-10 -ml-1">
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-foreground">Habits</h1>
+                <h1 className="text-2xl font-bold text-foreground">Habits</h1>
               </div>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {/* Quick stats */}
               {totalGroups > 0 && (
-                <div className="flex items-center gap-3 text-sm mr-2">
+                <div className="flex items-center gap-3 text-base mr-2">
                   <span className="text-green-500 font-semibold">{completedTasks}/{totalTasks}</span>
-                  <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="w-20 h-2.5 bg-muted rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-green-500 rounded-full transition-all"
                       style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}
@@ -1262,11 +1116,8 @@ export default function RecurringTasksPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="h-9 gap-1.5"
-                onClick={() => {
-                  setNewDividerPosition(sortedGroups.length)
-                  setAddDividerOpen(true)
-                }}
+                className="h-10 gap-2"
+                onClick={() => setAddDividerOpen(true)}
               >
                 <GripVertical className="h-4 w-4" />
                 <span className="hidden sm:inline">Divider</span>
@@ -1275,7 +1126,7 @@ export default function RecurringTasksPage() {
               {/* Add button */}
               <Button
                 size="sm"
-                className="h-9 gap-1.5"
+                className="h-10 gap-2"
                 onClick={() => setAddGroupOpen(true)}
               >
                 <Plus className="h-4 w-4" />
@@ -1286,7 +1137,7 @@ export default function RecurringTasksPage() {
 
           {/* Filter chips - simplified */}
           {totalGroups > 0 && (
-            <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-2 scrollbar-hide">
               {/* Recurrence filter chips */}
               <button
                 onClick={() => setRecurrenceFilter(recurrenceFilter === "daily" ? "all" : "daily")}
@@ -1390,54 +1241,9 @@ export default function RecurringTasksPage() {
             )}
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={combinedList.map(item => item.id)}
-              strategy={verticalListSortingStrategy}
-            >
           <div className="space-y-3">
-                {combinedList.map((item, index) => {
-                  const itemIsOver = overId === item.id && activeId !== item.id
-                  
-                  // Render divider
-                  if (item.type === "divider") {
-                    return (
-                      <div
-                        key={item.id}
-                        className={cn(
-                          "transition-all duration-200",
-                          itemIsOver && "pt-2 pb-2"
-                        )}
-                      >
-                        {itemIsOver && (
-                          <div className="h-0.5 bg-primary/50 rounded-full mb-2 mx-4 animate-pulse" />
-                        )}
-                        <SortableDividerItem
-                          item={item}
-                          editingDividerId={editingDividerId}
-                          editingDividerTitle={editingDividerTitle}
-                          onStartEdit={() => handleStartEditDivider(item.data)}
-                          onSaveEdit={handleSaveEditDivider}
-                          onCancelEdit={handleCancelEditDivider}
-                          onSetEditingDividerTitle={setEditingDividerTitle}
-                          onDelete={() => handleDeleteDivider(item.data.id)}
-                          isOver={itemIsOver}
-                        />
-                        {itemIsOver && (
-                          <div className="h-0.5 bg-primary/50 rounded-full mt-2 mx-4 animate-pulse" />
-                        )}
-                      </div>
-                    )
-                  }
-
-                  // Render group
-                  const { group, goal } = item.data
+            {/* Render unassigned groups first */}
+            {unassignedGroups.map(({ group, goal }) => {
               const regularTasks = getRegularTasks(group.tasks)
               const completedCount = regularTasks.filter((t) => t.completed).length
               const isComplete = regularTasks.length > 0 && completedCount === regularTasks.length
@@ -1446,312 +1252,75 @@ export default function RecurringTasksPage() {
               const score = group.score ?? 0
               const scoreInfo = getScoreInfo(score)
               const ScoreIcon = scoreInfo.icon
-              
-              return (
-                    <div
-                      key={item.id}
-                      className={cn(
-                        "transition-all duration-200",
-                        itemIsOver && "pt-2 pb-2"
-                      )}
-                    >
-                      {itemIsOver && (
-                        <div className="h-0.5 bg-primary/50 rounded-full mb-2 mx-4 animate-pulse" />
-                      )}
-                      <SortableGroupItem
-                        item={item}
-                        isCollapsed={isCollapsed}
-                        isComplete={isComplete}
-                        progress={progress}
-                        completedCount={completedCount}
-                        regularTasks={regularTasks}
-                        score={score}
-                        scoreInfo={scoreInfo}
-                        ScoreIcon={ScoreIcon}
-                        editingGroupId={editingGroupId}
-                        editingGroupName={editingGroupName}
-                        editingGroupRecurrence={editingGroupRecurrence}
-                        editingGroupCycleStartDay={editingGroupCycleStartDay}
-                        onToggleCollapse={() => toggleCollapse(group.id)}
-                        onStartEdit={() => handleStartEditGroup(group)}
-                        onSaveEdit={() => handleSaveEditGroup(goal.id, group.id)}
-                        onCancelEdit={handleCancelEditGroup}
-                        onSetEditingGroupName={setEditingGroupName}
-                        onSetEditingGroupRecurrence={setEditingGroupRecurrence}
-                        onSetEditingGroupCycleStartDay={setEditingGroupCycleStartDay}
-                        onDelete={() => deleteRecurringTaskGroup(goal.id, group.id)}
-                        isOver={itemIsOver}
-                      >
-                    <CollapsibleContent>
-                      <div className="px-3 pb-3 pt-1 border-t border-border/30">
-                        {group.tasks.length > 0 ? (
-                          <div className="space-y-1">
-                            {group.tasks.map((task) => {
-                              const isEditingThisTask = editingTaskId === task.id
-                              
-                              // Render separator/header differently
-                              if (task.isSeparator) {
-                                return (
-                                  <div
-                                    key={task.id}
-                                    className="flex items-center gap-2 py-2 px-1"
-                                  >
-                                    {isEditingThisTask ? (
-                                      <>
-                                        <Input
-                                          value={editingTaskTitle}
-                                          onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
-                                            if (e.key === "Escape") handleCancelEditTask()
-                                          }}
-                                          className="flex-1 h-8 text-sm font-medium"
-                                          autoFocus
-                                        />
-                                        <Button
-                                          variant="default"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
-                                        >
-                                          <Check className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={handleCancelEditTask}
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                          {task.title}
-                                        </span>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
-                                          onClick={() => handleStartEditTask(task.id, task.title)}
-                                        >
-                                          <Pencil className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground/50 hover:text-destructive"
-                                          onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                )
-                              }
 
-                              // Regular task
-                              return (
-                                <div
-                                  key={task.id}
-                                  className={cn(
-                                    "group flex items-center gap-3 py-2 px-1 rounded-lg transition-colors",
-                                    task.completed ? "opacity-60" : "hover:bg-muted/30"
-                                  )}
-                                >
-                                  <Checkbox
-                                    id={`page-recurring-${task.id}`}
-                                    checked={task.completed}
-                                    onCheckedChange={() => toggleRecurringTask(goal.id, group.id, task.id)}
-                                    className="h-6 w-6"
-                                    disabled={isEditingThisTask}
-                                  />
-                                  {isEditingThisTask ? (
-                                    <>
-                                      <Input
-                                        value={editingTaskTitle}
-                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
-                                          if (e.key === "Escape") handleCancelEditTask()
-                                        }}
-                                        className="flex-1 h-9"
-                                        autoFocus
-                                      />
-                                      <Button
-                                        variant="default"
-                                        size="icon"
-                                        className="h-9 w-9"
-                                        onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-9 w-9"
-                                        onClick={handleCancelEditTask}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <label
-                                        htmlFor={`page-recurring-${task.id}`}
-                                        className={cn(
-                                          "flex-1 text-sm cursor-pointer select-none",
-                                          task.completed && "line-through text-muted-foreground"
-                                        )}
-                                      >
-                                        {task.title}
-                                      </label>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => handleStartEditTask(task.id, task.title)}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground text-center py-6">
-                            No tasks yet
-                          </p>
-                        )}
-                        
-                        {/* Add Task Section */}
-                        {addingTaskToGroup?.goalId === goal.id && addingTaskToGroup?.groupId === group.id ? (
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
-                            <Input
-                              placeholder="New task..."
-                              value={newTaskTitle}
-                              onChange={(e) => setNewTaskTitle(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleAddTask(goal.id, group.id)
-                                if (e.key === "Escape") {
-                                  setAddingTaskToGroup(null)
-                                  setNewTaskTitle("")
-                                }
-                              }}
-                              className="flex-1 h-10"
-                              autoFocus
-                            />
-                            <Button className="h-10" onClick={() => handleAddTask(goal.id, group.id)}>
-                              Add
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              className="h-10"
-                              onClick={() => {
-                                setAddingTaskToGroup(null)
-                                setNewTaskTitle("")
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <button
-                            className="w-full mt-2 pt-2 border-t border-border/30 flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setAddingTaskToGroup({ goalId: goal.id, groupId: group.id })}
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add task
-                          </button>
-                        )}
-                      </div>
-                    </CollapsibleContent>
-                    </SortableGroupItem>
-                      {itemIsOver && (
-                        <div className="h-0.5 bg-primary/50 rounded-full mt-2 mx-4 animate-pulse" />
-                      )}
-                    </div>
+              return (
+                <div
+                  key={`${goal.id}-${group.id}`}
+                  className={cn(
+                    "rounded-xl border bg-card transition-all",
+                    isComplete
+                      ? "border-green-500/50 bg-green-500/5"
+                      : "border-border hover:border-primary/30"
+                  )}
+                >
+                  {renderGroupContent(group, goal, regularTasks, completedCount, isComplete, isCollapsed, progress, score, scoreInfo, ScoreIcon)}
+                </div>
+              )
+            })}
+
+            {/* Render organized list (dividers with their groups) */}
+            {organizedList.map((item) => {
+              // Render divider
+              if (item.type === "divider") {
+                const divider = item.data
+                
+                return (
+                  <div
+                    key={`divider-${divider.id}`}
+                    className="flex items-center gap-2 py-3 px-1 group/divider"
+                  >
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {divider.title}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover/divider:opacity-100 transition-opacity"
+                      onClick={() => handleStartEditDivider(divider)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )
+              }
+
+              // Render group
+              const { group, goal } = item.data
+              const regularTasks = getRegularTasks(group.tasks)
+              const completedCount = regularTasks.filter((t) => t.completed).length
+              const isComplete = regularTasks.length > 0 && completedCount === regularTasks.length
+              const isCollapsed = isGroupCollapsed(group.id)
+              const progress = regularTasks.length > 0 ? (completedCount / regularTasks.length) * 100 : 0
+              const score = group.score ?? 0
+              const scoreInfo = getScoreInfo(score)
+              const ScoreIcon = scoreInfo.icon
+
+              return (
+                <div
+                  key={`${goal.id}-${group.id}`}
+                  className={cn(
+                    "rounded-xl border bg-card transition-all",
+                    isComplete
+                      ? "border-green-500/50 bg-green-500/5"
+                      : "border-border hover:border-primary/30"
+                  )}
+                >
+                  {renderGroupContent(group, goal, regularTasks, completedCount, isComplete, isCollapsed, progress, score, scoreInfo, ScoreIcon)}
+                </div>
               )
             })}
           </div>
-            </SortableContext>
-            <DragOverlay dropAnimation={null}>
-              {activeId ? (
-                (() => {
-                  const activeItem = combinedList.find(item => item.id === activeId)
-                  if (!activeItem) return null
-                  
-                  if (activeItem.type === "divider") {
-                    return (
-                      <div className="flex items-center gap-2 py-3 px-1 bg-card/95 backdrop-blur-md rounded-lg border-2 border-primary/50 shadow-2xl ring-2 ring-primary/20">
-                        <GripVertical className="h-5 w-5 text-primary" />
-                        <span className="text-base font-semibold text-foreground uppercase tracking-wide">
-                          {activeItem.data.title}
-                        </span>
-                      </div>
-                    )
-                  }
-                  
-                  const { group, goal } = activeItem.data
-                  const regularTasks = getRegularTasks(group.tasks)
-                  const completedCount = regularTasks.filter((t) => t.completed).length
-                  const isComplete = regularTasks.length > 0 && completedCount === regularTasks.length
-                  
-                  return (
-                    <div className="rounded-xl border-2 border-primary/50 bg-card/95 backdrop-blur-md p-3 shadow-2xl ring-2 ring-primary/20 w-full max-w-md">
-                      <div className="flex items-center gap-3">
-                        <GripVertical className="h-5 w-5 text-primary flex-shrink-0" />
-                        <div className="relative flex-shrink-0">
-                          <svg className="w-12 h-12 -rotate-90">
-                            <circle
-                              cx="24" cy="24" r="20"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              className="text-muted/30"
-                            />
-                            <circle
-                              cx="24" cy="24" r="20"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                              strokeLinecap="round"
-                              strokeDasharray={`${regularTasks.length > 0 ? (completedCount / regularTasks.length) * 100 * 1.257 : 0} 125.7`}
-                              className={isComplete ? "text-green-500" : "text-primary"}
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            {isComplete ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            ) : (
-                              <span className="text-xs font-bold">{completedCount}/{regularTasks.length}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-foreground truncate">
-                            {group.name}
-                          </h3>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()
-              ) : null}
-            </DragOverlay>
-          </DndContext>
         )}
       </div>
 
@@ -1844,7 +1413,7 @@ export default function RecurringTasksPage() {
           <DialogHeader>
             <DialogTitle>Add Divider</DialogTitle>
             <DialogDescription>
-              Create a divider to organize your recurring groups.
+              Create a divider to organize your habits into sections.
             </DialogDescription>
           </DialogHeader>
           
@@ -1857,30 +1426,61 @@ export default function RecurringTasksPage() {
                 value={newDividerTitle}
                 onChange={(e) => setNewDividerTitle(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddDivider()
+                  if (e.key === "Enter" && newDividerTitle.trim()) handleAddDivider()
                 }}
                 autoFocus
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="divider-position">Position</Label>
-              <Select 
-                value={newDividerPosition.toString()} 
-                onValueChange={(v) => setNewDividerPosition(parseInt(v))}
-              >
-                <SelectTrigger id="divider-position">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Before first group</SelectItem>
-                  {sortedGroups.map((_, index) => (
-                    <SelectItem key={index + 1} value={(index + 1).toString()}>
-                      After group {index + 1}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Habits in this section</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select which habits should appear under this divider.
+              </p>
+              <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                {sortedGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No habits available
+                  </p>
+                ) : (
+                  sortedGroups.map(({ group }) => {
+                    const isSelected = newDividerGroupIds.includes(group.id)
+                    const assignedDivider = getGroupDivider(group.id)
+                    const isAssignedElsewhere = assignedDivider && !isSelected
+                    
+                    return (
+                      <label
+                        key={group.id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                          isAssignedElsewhere && "opacity-50"
+                        )}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleGroupInDivider(group.id, newDividerGroupIds, setNewDividerGroupIds)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate block">{group.name}</span>
+                          {isAssignedElsewhere && (
+                            <span className="text-xs text-muted-foreground">
+                              Currently in: {assignedDivider.title}
+                            </span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                          group.recurrence === "daily" && "bg-blue-500/10 text-blue-500",
+                          group.recurrence === "weekly" && "bg-purple-500/10 text-purple-500",
+                          group.recurrence === "monthly" && "bg-green-500/10 text-green-500"
+                        )}>
+                          {RECURRENCE_LABELS[group.recurrence]}
+                        </span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
             </div>
           </div>
 
@@ -1890,7 +1490,7 @@ export default function RecurringTasksPage() {
               onClick={() => {
                 setAddDividerOpen(false)
                 setNewDividerTitle("")
-                setNewDividerPosition(0)
+                setNewDividerGroupIds([])
               }}
             >
               Cancel
@@ -1898,6 +1498,121 @@ export default function RecurringTasksPage() {
             <Button onClick={handleAddDivider} disabled={!newDividerTitle.trim()}>
               Add Divider
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Divider Dialog */}
+      <Dialog open={editDividerOpen} onOpenChange={setEditDividerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Divider</DialogTitle>
+            <DialogDescription>
+              Update the divider title and manage which habits appear under it.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-divider-title">Title</Label>
+              <Input
+                id="edit-divider-title"
+                placeholder="e.g., Morning Habits, Weekly Reviews"
+                value={editingDividerTitle}
+                onChange={(e) => setEditingDividerTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editingDividerTitle.trim()) handleSaveEditDivider()
+                }}
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Habits in this section</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select which habits should appear under this divider.
+              </p>
+              <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
+                {sortedGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No habits available
+                  </p>
+                ) : (
+                  sortedGroups.map(({ group }) => {
+                    const isSelected = editingDividerGroupIds.includes(group.id)
+                    const assignedDivider = dividers.find(d => d.groupIds.includes(group.id) && d.id !== editingDivider?.id)
+                    const isAssignedElsewhere = assignedDivider && !isSelected
+                    
+                    return (
+                      <label
+                        key={group.id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                          isAssignedElsewhere && "opacity-50"
+                        )}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleGroupInDivider(group.id, editingDividerGroupIds, setEditingDividerGroupIds)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate block">{group.name}</span>
+                          {isAssignedElsewhere && (
+                            <span className="text-xs text-muted-foreground">
+                              Currently in: {assignedDivider.title}
+                            </span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                          group.recurrence === "daily" && "bg-blue-500/10 text-blue-500",
+                          group.recurrence === "weekly" && "bg-purple-500/10 text-purple-500",
+                          group.recurrence === "monthly" && "bg-green-500/10 text-green-500"
+                        )}>
+                          {RECURRENCE_LABELS[group.recurrence]}
+                        </span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full sm:w-auto sm:mr-auto">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Divider</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Delete the divider &quot;{editingDivider?.title}&quot;? The habits will not be deleted, they will just become unorganized.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => editingDivider && handleDeleteDivider(editingDivider.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button variant="ghost" onClick={handleCancelEditDivider} className="flex-1 sm:flex-initial">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEditDivider} disabled={!editingDividerTitle.trim()} className="flex-1 sm:flex-initial">
+                Save Changes
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
