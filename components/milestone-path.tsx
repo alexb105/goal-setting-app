@@ -148,17 +148,18 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
   // If this is a separator, render it differently
   if (task.isSeparator) {
     return (
-      <div ref={setNodeRef} style={style} className="flex items-center gap-2.5 group/task">
+      <div ref={setNodeRef} style={style} className="flex items-center gap-2 group/task">
         <button
           {...attributes}
           {...listeners}
           className={cn(
-            "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block",
-            isDragging && "cursor-grabbing",
+            "cursor-grab active:cursor-grabbing p-1.5 -m-0.5 rounded hover:bg-muted active:bg-muted/80 transition-colors select-none",
+            isDragging && "cursor-grabbing bg-muted",
           )}
+          style={{ touchAction: 'none' }}
           aria-label="Drag to reorder"
         >
-          <GripVertical className="h-3 w-3 text-muted-foreground" />
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
         </button>
         {isEditing ? (
           <Input
@@ -194,17 +195,18 @@ function SortableTaskItem({ task, goalId, goalTitle, milestoneId, milestoneTitle
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-2.5 group/task">
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 group/task">
       <button
         {...attributes}
         {...listeners}
         className={cn(
-          "cursor-grab active:cursor-grabbing p-1 rounded hover:bg-muted transition-colors hidden md:block",
-          isDragging && "cursor-grabbing",
+          "cursor-grab active:cursor-grabbing p-1.5 -m-0.5 rounded hover:bg-muted active:bg-muted/80 transition-colors select-none",
+          isDragging && "cursor-grabbing bg-muted",
         )}
+        style={{ touchAction: 'none' }}
         aria-label="Drag to reorder"
       >
-        <GripVertical className="h-3 w-3 text-muted-foreground" />
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
       </button>
       {displayStyle === "checkbox" ? (
         <>
@@ -446,8 +448,6 @@ function SortableMilestoneItem({
 
   // Calculate task progress for the ring
   const taskProgress = regularTasks.length > 0 ? (completedTasks / regularTasks.length) * 100 : 0
-  const circumference = 2 * Math.PI * 22 // radius of 22 for the progress ring
-  const strokeDashoffset = circumference - (taskProgress / 100) * circumference
 
   // Auto-complete/uncomplete milestone based on task completion
   // Only applies to checkbox-style tasks - bullet-style tasks allow manual completion
@@ -478,41 +478,46 @@ function SortableMilestoneItem({
     }
   }, [completedTasks, regularTasks.length, milestone.completed, milestone.inProgress, milestone.taskDisplayStyle, canToggle, onToggle, onToggleInProgress])
 
+  // Progress ring calculations
+  const ringSize = 48
+  const strokeWidth = 4
+  const radius = (ringSize - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const progressOffset = circumference - (taskProgress / 100) * circumference
+
   return (
     <div ref={setNodeRef} style={style} id={`milestone-${milestone.id}`} className="relative flex gap-2 sm:gap-4">
       {/* Timeline */}
       <div className="flex flex-col items-center max-[350px]:hidden">
-        <div className="relative">
+        <div className="relative w-12 h-12 flex items-center justify-center">
           {/* Progress Ring SVG */}
           {regularTasks.length > 0 && !milestone.completed && (
             <svg
-              className="absolute -inset-0.5 sm:-inset-1 h-10 w-10 sm:h-12 sm:w-12 -rotate-90"
-              viewBox="0 0 48 48"
+              className="absolute inset-0 w-12 h-12"
+              viewBox={`0 0 ${ringSize} ${ringSize}`}
+              style={{ transform: 'rotate(-90deg)' }}
             >
               {/* Background circle */}
               <circle
-                cx="24"
-                cy="24"
-                r="22"
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
                 fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                className="text-border"
+                stroke="hsl(var(--border))"
+                strokeWidth={strokeWidth}
               />
               {/* Progress circle */}
               <circle
-                cx="24"
-                cy="24"
-                r="22"
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
                 fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
+                stroke="hsl(var(--primary))"
+                strokeWidth={strokeWidth}
                 strokeLinecap="round"
-                className="text-primary transition-all duration-300"
-                style={{
-                  strokeDasharray: circumference,
-                  strokeDashoffset: strokeDashoffset,
-                }}
+                strokeDasharray={circumference}
+                strokeDashoffset={progressOffset}
+                style={{ transition: 'stroke-dashoffset 0.3s ease' }}
               />
             </svg>
           )}
@@ -520,7 +525,7 @@ function SortableMilestoneItem({
             onClick={canToggle ? onToggle : undefined}
             disabled={!canToggle}
             className={cn(
-              "relative z-10 flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full transition-all touch-target",
+              "relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all touch-target",
               milestone.completed
                 ? "border-2 border-primary bg-primary text-primary-foreground"
                 : regularTasks.length > 0
@@ -532,9 +537,9 @@ function SortableMilestoneItem({
             title={!canToggle && milestone.linkedGoalId ? "Complete the linked goal first" : undefined}
           >
             {milestone.completed ? (
-              <Check className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Check className="h-5 w-5" />
             ) : (
-              <span className="text-xs sm:text-sm font-medium">{index + 1}</span>
+              <span className="text-sm font-medium">{index + 1}</span>
             )}
           </button>
         </div>
@@ -562,12 +567,13 @@ function SortableMilestoneItem({
               {...attributes}
               {...listeners}
               className={cn(
-                "cursor-grab active:cursor-grabbing p-1 sm:p-1.5 rounded hover:bg-muted transition-colors mt-0.5 flex-shrink-0 hidden md:block",
-                isDragging && "cursor-grabbing",
+                "cursor-grab active:cursor-grabbing p-2 -m-1 rounded-lg hover:bg-muted active:bg-muted/80 transition-colors mt-0.5 flex-shrink-0 select-none",
+                isDragging && "cursor-grabbing bg-muted scale-105",
               )}
+              style={{ touchAction: 'none' }}
               aria-label="Drag to reorder"
             >
-              <GripVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
             </button>
             <div className="flex-1 min-w-0">
               {milestone.linkedGoalId && linkedGoal ? (
@@ -892,13 +898,13 @@ function TaskList({ tasks, goalId, goalTitle, milestoneId, milestoneTitle, toggl
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -949,13 +955,13 @@ export function MilestonePath({ goalId, milestones, onNavigateToGoal }: Mileston
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 5,
+        delay: 150,
+        tolerance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
