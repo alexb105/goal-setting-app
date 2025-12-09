@@ -155,7 +155,12 @@ export default function JournalPage() {
       const stored = localStorage.getItem(JOURNAL_STORAGE_KEY)
       if (stored) {
         try {
-          setEntries(JSON.parse(stored))
+          const parsed = JSON.parse(stored)
+          // Only update if we have valid entries, or if current entries are also empty
+          // This prevents overwriting local entries with empty data from sync
+          if (Array.isArray(parsed) && (parsed.length > 0 || entries.length === 0)) {
+            setEntries(parsed)
+          }
         } catch {
           // Ignore parse errors
         }

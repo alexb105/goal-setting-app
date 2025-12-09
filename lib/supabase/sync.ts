@@ -89,9 +89,14 @@ export class SupabaseSync {
 
   // Set all localStorage data
   private setLocalData(data: Omit<UserData, "updated_at">) {
-    const setJson = <T>(key: string, value: T) => {
+    const setJson = <T>(key: string, value: T, preserveEmpty: boolean = false) => {
       if (value === null || (Array.isArray(value) && value.length === 0)) {
-        localStorage.removeItem(key)
+        // For journal entries, preserve empty arrays instead of removing
+        if (preserveEmpty && key === STORAGE_KEYS.journal) {
+          localStorage.setItem(key, JSON.stringify([]))
+        } else {
+          localStorage.removeItem(key)
+        }
       } else {
         localStorage.setItem(key, JSON.stringify(value))
       }
@@ -118,7 +123,8 @@ export class SupabaseSync {
     setJson(STORAGE_KEYS.aiDismissedSuggestions, data.ai_dismissed_suggestions)
     setJson(STORAGE_KEYS.pinnedInsights, data.pinned_insights)
     setJson(STORAGE_KEYS.recurringGroupDividers, data.recurring_group_dividers)
-    setJson(STORAGE_KEYS.journal, data.journal_entries)
+    // Preserve journal entries even if empty to prevent accidental deletion
+    setJson(STORAGE_KEYS.journal, data.journal_entries, true)
 
     // Dispatch custom event so other components can react (works in same window)
     window.dispatchEvent(new CustomEvent("goalritual-storage-updated"))
@@ -156,10 +162,18 @@ export class SupabaseSync {
     }
 
     const remoteData = await this.fetchFromSupabase()
+    const localData = this.getLocalData()
 
     if (remoteData) {
-      // Remote data exists - overwrite local with it
-      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0, "Journal entries:", remoteData.journal_entries?.length || 0)
+      // Remote data exists - merge carefully to preserve local journal entries if remote is empty
+      // For journal entries: only use remote if it has entries, otherwise keep local
+      const journalEntries = (remoteData.journal_entries && remoteData.journal_entries.length > 0) 
+        ? remoteData.journal_entries 
+        : (localData.journal_entries && localData.journal_entries.length > 0 
+          ? localData.journal_entries 
+          : [])
+
+      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0, "Journal entries:", journalEntries.length)
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
@@ -174,7 +188,7 @@ export class SupabaseSync {
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
-        journal_entries: remoteData.journal_entries || [],
+        journal_entries: journalEntries,
       })
       console.log("Successfully pulled cloud data to local storage")
       return true
@@ -352,9 +366,17 @@ export class SupabaseSync {
     if (!this.user) return false
 
     const remoteData = await this.fetchFromSupabase()
+    const localData = this.getLocalData()
 
     if (remoteData) {
-      // Remote data exists - use it
+      // Remote data exists - merge carefully to preserve local journal entries if remote is empty
+      // For journal entries: only use remote if it has entries, otherwise keep local
+      const journalEntries = (remoteData.journal_entries && remoteData.journal_entries.length > 0) 
+        ? remoteData.journal_entries 
+        : (localData.journal_entries && localData.journal_entries.length > 0 
+          ? localData.journal_entries 
+          : [])
+
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
@@ -369,12 +391,11 @@ export class SupabaseSync {
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
-        journal_entries: remoteData.journal_entries || [],
+        journal_entries: journalEntries,
       })
       return true
     } else {
       // No remote data - upload local data
-      const localData = this.getLocalData()
       await this.saveToSupabase(localData)
       return true
     }
