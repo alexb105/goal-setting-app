@@ -20,7 +20,8 @@ import {
   Calendar,
   Filter,
   Cloud,
-  CloudOff
+  CloudOff,
+  Eye
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,6 +78,7 @@ export default function JournalPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null)
+  const [viewingEntry, setViewingEntry] = useState<JournalEntry | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<JournalEntryType | "all">("all")
   const [filterTags, setFilterTags] = useState<string[]>([])
@@ -561,7 +563,17 @@ export default function JournalPage() {
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8"
+                        onClick={() => setViewingEntry(entry)}
+                        title="View formatted"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
                         onClick={() => openEditDialog(entry)}
+                        title="Edit"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -590,11 +602,6 @@ export default function JournalPage() {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  </div>
-                  
-                  {/* Content */}
-                  <div className="text-sm text-foreground/90 mb-3">
-                    <MarkdownPreview content={entry.content} />
                   </div>
                   
                   {/* Tags */}
@@ -695,6 +702,97 @@ export default function JournalPage() {
             <Button onClick={handleUpdate} disabled={!content.trim()}>
               Save Changes
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* View Dialog */}
+      <Dialog open={!!viewingEntry} onOpenChange={(open) => !open && setViewingEntry(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>View Journal Entry</DialogTitle>
+          </DialogHeader>
+          {viewingEntry && (
+            <div className="space-y-4 py-4">
+              {/* Entry Type and Title */}
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-muted flex-shrink-0`}>
+                  {(() => {
+                    const typeInfo = getEntryTypeInfo(viewingEntry.entryType)
+                    const TypeIcon = typeInfo.icon
+                    return <TypeIcon className={`h-5 w-5 ${typeInfo.color}`} />
+                  })()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {viewingEntry.title}
+                  </h2>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>{formatDate(viewingEntry.createdAt)}</span>
+                    <span>•</span>
+                    <span>{formatTime(viewingEntry.createdAt)}</span>
+                    {viewingEntry.updatedAt !== viewingEntry.createdAt && (
+                      <>
+                        <span>•</span>
+                        <span>Updated {formatDate(viewingEntry.updatedAt)}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Styled Content */}
+              <div className="rounded-lg border border-border bg-muted/30 p-4 sm:p-6">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <MarkdownPreview content={viewingEntry.content} />
+                </div>
+              </div>
+              
+              {/* Tags */}
+              {viewingEntry.tags.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Tags</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingEntry.tags.map(tag => (
+                      <Badge key={tag} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Entry Type Badge */}
+              <div className="pt-2 border-t border-border">
+                <Badge variant="outline" className="gap-1.5">
+                  {(() => {
+                    const typeInfo = getEntryTypeInfo(viewingEntry.entryType)
+                    const TypeIcon = typeInfo.icon
+                    return (
+                      <>
+                        <TypeIcon className={`h-3 w-3 ${typeInfo.color}`} />
+                        {typeInfo.label}
+                      </>
+                    )
+                  })()}
+                </Badge>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingEntry(null)}>
+              Close
+            </Button>
+            {viewingEntry && (
+              <Button onClick={() => {
+                setViewingEntry(null)
+                openEditDialog(viewingEntry)
+              }}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit Entry
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

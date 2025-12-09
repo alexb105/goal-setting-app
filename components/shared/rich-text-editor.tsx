@@ -282,37 +282,126 @@ export function MarkdownPreview({ content, className }: { content: string; class
   const renderMarkdown = (text: string): string => {
     if (!text) return ""
     
-    let html = text
-      // Escape HTML first
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      // Headers
-      .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-3 mb-1">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')
-      .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
-      // Horizontal rule
-      .replace(/^---$/gm, '<hr class="my-3 border-border" />')
-      // Bold
-      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-      // Italic
-      .replace(/_(.+?)_/g, '<em class="italic">$1</em>')
-      // Strikethrough
-      .replace(/~~(.+?)~~/g, '<del class="line-through opacity-60">$1</del>')
-      // Code
-      .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 bg-muted rounded text-xs font-mono">$1</code>')
-      // Links
-      .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
-      // Block quotes
-      .replace(/^&gt; (.+)$/gm, '<blockquote class="pl-3 border-l-2 border-primary/50 text-muted-foreground italic">$1</blockquote>')
-      // Bullet lists
-      .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-      // Numbered lists (simple approach)
-      .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
-      // Line breaks
-      .replace(/\n/g, '<br />')
+    // Split into lines for better processing
+    const lines = text.split('\n')
+    const result: string[] = []
+    let inList = false
+    let listType: 'ul' | 'ol' | null = null
+    let listItems: string[] = []
     
-    return html
+    const flushList = () => {
+      if (listItems.length > 0 && listType) {
+        const tag = listType === 'ul' ? 'ul' : 'ol'
+        const listClass = listType === 'ul' ? 'list-disc' : 'list-decimal'
+        result.push(`<${tag} class="ml-4 ${listClass} space-y-0 my-0.5">${listItems.join('')}</${tag}>`)
+        listItems = []
+        inList = false
+        listType = null
+      }
+    }
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      
+      // Escape HTML first
+      let escapedLine = line
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+      
+      // Check for headers
+      if (/^### (.+)$/.test(escapedLine)) {
+        flushList()
+        result.push(escapedLine.replace(/^### (.+)$/, '<h3 class="text-base font-semibold mt-2 mb-0.5">$1</h3>'))
+        continue
+      }
+      if (/^## (.+)$/.test(escapedLine)) {
+        flushList()
+        result.push(escapedLine.replace(/^## (.+)$/, '<h2 class="text-lg font-semibold mt-2 mb-1">$1</h2>'))
+        continue
+      }
+      if (/^# (.+)$/.test(escapedLine)) {
+        flushList()
+        result.push(escapedLine.replace(/^# (.+)$/, '<h1 class="text-xl font-bold mt-2 mb-1">$1</h1>'))
+        continue
+      }
+      
+      // Check for horizontal rule
+      if (/^---$/.test(escapedLine)) {
+        flushList()
+        result.push('<hr class="my-2 border-border" />')
+        continue
+      }
+      
+      // Check for block quotes
+      if (/^&gt; (.+)$/.test(escapedLine)) {
+        flushList()
+        result.push(escapedLine.replace(/^&gt; (.+)$/, '<blockquote class="pl-3 border-l-2 border-primary/50 text-muted-foreground italic my-1">$1</blockquote>'))
+        continue
+      }
+      
+      // Check for bullet list
+      if (/^- (.+)$/.test(escapedLine)) {
+        if (!inList || listType !== 'ul') {
+          flushList()
+          inList = true
+          listType = 'ul'
+        }
+        const content = escapedLine.replace(/^- (.+)$/, '$1')
+        // Apply inline formatting to list item content
+        let formattedContent = content
+          .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+          .replace(/_(.+?)_/g, '<em class="italic">$1</em>')
+          .replace(/~~(.+?)~~/g, '<del class="line-through opacity-60">$1</del>')
+          .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 bg-muted rounded text-xs font-mono">$1</code>')
+          .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
+        listItems.push(`<li class="leading-tight">${formattedContent}</li>`)
+        continue
+      }
+      
+      // Check for numbered list
+      if (/^\d+\. (.+)$/.test(escapedLine)) {
+        if (!inList || listType !== 'ol') {
+          flushList()
+          inList = true
+          listType = 'ol'
+        }
+        const content = escapedLine.replace(/^\d+\. (.+)$/, '$1')
+        // Apply inline formatting to list item content
+        let formattedContent = content
+          .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+          .replace(/_(.+?)_/g, '<em class="italic">$1</em>')
+          .replace(/~~(.+?)~~/g, '<del class="line-through opacity-60">$1</del>')
+          .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 bg-muted rounded text-xs font-mono">$1</code>')
+          .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
+        listItems.push(`<li class="leading-tight">${formattedContent}</li>`)
+        continue
+      }
+      
+      // Empty line - flush list if we're in one
+      if (escapedLine.trim() === '') {
+        flushList()
+        continue
+      }
+      
+      // Regular line - flush list first, then add the line
+      flushList()
+      
+      // Apply inline formatting
+      let formattedLine = escapedLine
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+        .replace(/_(.+?)_/g, '<em class="italic">$1</em>')
+        .replace(/~~(.+?)~~/g, '<del class="line-through opacity-60">$1</del>')
+        .replace(/`(.+?)`/g, '<code class="px-1 py-0.5 bg-muted rounded text-xs font-mono">$1</code>')
+        .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-primary underline hover:no-underline" target="_blank" rel="noopener noreferrer">$1</a>')
+      
+      result.push(`<p class="my-0.5">${formattedLine}</p>`)
+    }
+    
+    // Flush any remaining list
+    flushList()
+    
+    return result.join('')
   }
 
   return (
