@@ -519,159 +519,154 @@ export default function RecurringTasksPage() {
 
   return (
     <div className="min-h-screen safe-area-top">
-      {/* Header */}
+      {/* Header - Simplified */}
       <header className="border-b border-border glass-strong sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3 sm:py-4">
+        <div className="mx-auto max-w-6xl px-3 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               <Link href="/">
-                <Button variant="ghost" className="gap-2 -ml-2 h-9 px-2 sm:px-3">
+                <Button variant="ghost" size="icon" className="h-9 w-9 -ml-1">
                   <ArrowLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline">Back</span>
                 </Button>
               </Link>
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold text-foreground flex items-center gap-1.5 sm:gap-2">
-                  <Repeat className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-                  <span className="truncate">Recurring</span>
-                </h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  {sortedGroups.length} of {totalGroups} group{totalGroups !== 1 ? "s" : ""}
-                  {hasActiveFilters && " (filtered)"}
-                </p>
+                <h1 className="text-lg font-bold text-foreground">Habits</h1>
               </div>
             </div>
             
-            {/* Add Recurring Group button */}
-            <Button
-              size="sm"
-              className="h-9 gap-1.5 active:scale-95"
-              onClick={() => setAddGroupOpen(true)}
-            >
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Add</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Quick stats */}
+              {totalGroups > 0 && (
+                <div className="flex items-center gap-3 text-sm mr-2">
+                  <span className="text-green-500 font-semibold">{completedTasks}/{totalTasks}</span>
+                  <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full transition-all"
+                      style={{ width: `${totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {/* Add button */}
+              <Button
+                size="sm"
+                className="h-9 gap-1.5"
+                onClick={() => setAddGroupOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Add</span>
+              </Button>
+            </div>
           </div>
 
-          {/* Stats - Compact on mobile */}
+          {/* Filter chips - simplified */}
           {totalGroups > 0 && (
-            <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4">
-              <div className="rounded-lg border bg-card p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Groups</p>
-                <p className="text-xl sm:text-2xl font-bold text-foreground">{totalGroups}</p>
-              </div>
-              <div className="rounded-lg border bg-card p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Complete</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-600">{completeGroups}</p>
-              </div>
-              <div className="rounded-lg border bg-card p-2 sm:p-3 hidden sm:block">
-                <p className="text-xs text-muted-foreground">Total Tasks</p>
-                <p className="text-2xl font-bold text-foreground">{totalTasks}</p>
-              </div>
-              <div className="rounded-lg border bg-card p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Tasks Done</p>
-                <p className="text-xl sm:text-2xl font-bold text-primary">{completedTasks}/{totalTasks}</p>
-              </div>
-              <div className="rounded-lg border bg-card p-2 sm:p-3">
-                <p className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1">
-                  <Trophy className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-500" />
-                  <span className="hidden sm:inline">All-Time</span>
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-amber-600">{totalCompletions}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          {totalGroups > 0 && (
-            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline">Filters:</span>
-              </div>
-
-              {/* Goal Group Filter */}
-              <Select value={groupFilter} onValueChange={setGroupFilter}>
-                <SelectTrigger className="w-[110px] sm:w-[160px] h-9 text-xs sm:text-sm">
-                  <Folder className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                  <SelectValue placeholder="Groups" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Groups</SelectItem>
-                  <SelectItem value="ungrouped">Ungrouped</SelectItem>
-                  {allGroups.map((group) => (
-                    <SelectItem key={group} value={group}>
-                      {group}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Recurrence Filter */}
-              <Select value={recurrenceFilter} onValueChange={(v) => setRecurrenceFilter(v as RecurrenceFilter)}>
-                <SelectTrigger className="w-[100px] sm:w-[140px] h-9 text-xs sm:text-sm">
-                  <Repeat className="h-4 w-4 mr-1 sm:mr-2 text-muted-foreground flex-shrink-0" />
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Status Filter - Hidden on smallest screens */}
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                <SelectTrigger className="w-[100px] sm:w-[140px] h-9 text-xs sm:text-sm hidden xs:flex">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="incomplete">Incomplete</SelectItem>
-                  <SelectItem value="complete">Complete</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Clear Filters */}
+            <div className="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+              {/* Recurrence filter chips */}
+              <button
+                onClick={() => setRecurrenceFilter(recurrenceFilter === "daily" ? "all" : "daily")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  recurrenceFilter === "daily"
+                    ? "bg-blue-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Daily
+              </button>
+              <button
+                onClick={() => setRecurrenceFilter(recurrenceFilter === "weekly" ? "all" : "weekly")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  recurrenceFilter === "weekly"
+                    ? "bg-purple-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Weekly
+              </button>
+              <button
+                onClick={() => setRecurrenceFilter(recurrenceFilter === "monthly" ? "all" : "monthly")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  recurrenceFilter === "monthly"
+                    ? "bg-green-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Monthly
+              </button>
+              
+              <div className="w-px h-4 bg-border mx-1" />
+              
+              {/* Status filter */}
+              <button
+                onClick={() => setStatusFilter(statusFilter === "incomplete" ? "all" : "incomplete")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  statusFilter === "incomplete"
+                    ? "bg-amber-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                To Do
+              </button>
+              <button
+                onClick={() => setStatusFilter(statusFilter === "complete" ? "all" : "complete")}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+                  statusFilter === "complete"
+                    ? "bg-green-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                Done
+              </button>
+              
               {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="h-9 gap-1 text-muted-foreground hover:text-foreground px-2 sm:px-3"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="hidden sm:inline">Clear</span>
-                </Button>
+                <>
+                  <div className="w-px h-4 bg-border mx-1" />
+                  <button
+                    onClick={clearFilters}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground transition-all whitespace-nowrap"
+                  >
+                    Clear
+                  </button>
+                </>
               )}
             </div>
           )}
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-8">
+      <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4">
         {sortedGroups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/50 py-12 sm:py-16 px-4">
-            <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-              <Repeat className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
+          <div className="flex flex-col items-center justify-center py-16 px-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
+              <Repeat className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="mb-2 text-base sm:text-lg font-semibold text-foreground text-center">
-              {hasActiveFilters ? "No matching recurring tasks" : "No recurring tasks yet"}
+            <h3 className="mb-2 text-lg font-semibold text-foreground text-center">
+              {hasActiveFilters ? "No matching habits" : "No habits yet"}
             </h3>
-            <p className="mb-6 text-center text-sm text-muted-foreground max-w-sm">
+            <p className="mb-6 text-center text-sm text-muted-foreground max-w-xs">
               {hasActiveFilters
-                ? "Try adjusting your filters to see more results."
-                : "Create recurring task groups in your goals to track habits."}
+                ? "Try changing your filters."
+                : "Build consistent habits by creating recurring tasks."}
             </p>
-            {hasActiveFilters && (
+            {hasActiveFilters ? (
               <Button variant="outline" onClick={clearFilters}>
                 Clear Filters
+              </Button>
+            ) : (
+              <Button onClick={() => setAddGroupOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Habit
               </Button>
             )}
           </div>
         ) : (
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-3">
             {sortedGroups.map(({ group, goal }) => {
               const regularTasks = getRegularTasks(group.tasks)
               const completedCount = regularTasks.filter((t) => t.completed).length
@@ -694,7 +689,7 @@ export default function RecurringTasksPage() {
                 >
                   <Collapsible open={!isCollapsed} onOpenChange={() => toggleCollapse(group.id)}>
                     <CollapsibleTrigger asChild>
-                      <div className="p-3 sm:p-4 cursor-pointer hover:bg-muted/50 rounded-t-xl transition-colors">
+                      <div className="p-3 cursor-pointer hover:bg-muted/30 rounded-t-xl transition-colors">
                         {editingGroupId === group.id ? (
                           <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <Input
@@ -704,14 +699,14 @@ export default function RecurringTasksPage() {
                                 if (e.key === "Enter") handleSaveEditGroup(goal.id, group.id)
                                 if (e.key === "Escape") handleCancelEditGroup()
                               }}
-                              className="h-8 w-full sm:w-40 text-sm"
+                              className="h-9 flex-1 min-w-[150px]"
                               autoFocus
                             />
                             <Select
                               value={editingGroupRecurrence}
                               onValueChange={(v) => setEditingGroupRecurrence(v as RecurrenceType)}
                             >
-                              <SelectTrigger className="h-8 w-28 text-xs">
+                              <SelectTrigger className="h-9 w-28">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -725,7 +720,7 @@ export default function RecurringTasksPage() {
                                 value={editingGroupCycleStartDay?.toString() ?? "1"}
                                 onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
                               >
-                                <SelectTrigger className="h-8 w-28 text-xs">
+                                <SelectTrigger className="h-9 w-28">
                                   <SelectValue placeholder="Start day" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -744,7 +739,7 @@ export default function RecurringTasksPage() {
                                 value={editingGroupCycleStartDay?.toString() ?? "1"}
                                 onValueChange={(v) => setEditingGroupCycleStartDay(parseInt(v))}
                               >
-                                <SelectTrigger className="h-8 w-24 text-xs">
+                                <SelectTrigger className="h-9 w-24">
                                   <SelectValue placeholder="Day" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -759,136 +754,131 @@ export default function RecurringTasksPage() {
                             <div className="flex gap-1">
                               <Button
                                 size="icon"
-                                variant="ghost"
-                                className="h-8 w-8"
+                                variant="default"
+                                className="h-9 w-9"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleSaveEditGroup(goal.id, group.id)
                                 }}
                               >
-                                <Check className="h-4 w-4 text-green-600" />
+                                <Check className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-8 w-8"
+                                className="h-9 w-9"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleCancelEditGroup()
                                 }}
                               >
-                                <X className="h-4 w-4 text-muted-foreground" />
+                                <X className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-start justify-between gap-2">
-                            {/* Left side - Title and info */}
-                            <div className="flex items-start gap-2 min-w-0 flex-1">
-                              <ChevronRight
-                                className={cn(
-                                  "h-5 w-5 text-muted-foreground transition-transform mt-0.5 flex-shrink-0",
-                                  !isCollapsed && "rotate-90"
+                          <div className="flex items-center gap-3">
+                            {/* Circular progress indicator */}
+                            <div className="relative flex-shrink-0">
+                              <svg className="w-12 h-12 -rotate-90">
+                                <circle
+                                  cx="24" cy="24" r="20"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  className="text-muted/30"
+                                />
+                                <circle
+                                  cx="24" cy="24" r="20"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                  strokeDasharray={`${progress * 1.257} 125.7`}
+                                  className={isComplete ? "text-green-500" : "text-primary"}
+                                />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                {isComplete ? (
+                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                ) : (
+                                  <span className="text-xs font-bold">{completedCount}/{regularTasks.length}</span>
                                 )}
-                              />
-                              <div className="min-w-0 flex-1">
-                                {/* Title */}
-                                <h3 className={cn(
-                                  "font-semibold text-foreground leading-tight",
-                                  isComplete && "text-green-700 dark:text-green-500"
-                                )}>
-                                  {group.name}
-                                </h3>
-                                
-                                {/* Goal name */}
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                                  <Target className="h-3 w-3 flex-shrink-0" />
-                                  <span className="truncate">{goal.title}</span>
-                                </div>
-                                
-                                {/* Compact info row */}
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-                                  <span className={cn("font-medium", RECURRENCE_COLORS[group.recurrence].split(" ").find(c => c.startsWith("text-")))}>
-                                    {RECURRENCE_LABELS[group.recurrence]}
-                                  </span>
-                                  <span>•</span>
-                                  <span>{completedCount}/{regularTasks.length} tasks</span>
-                                  {group.cycleStartDay !== undefined && (
-                                    <>
-                                      <span>•</span>
-                                      <span>
-                                        {group.recurrence === "weekly" 
-                                          ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][group.cycleStartDay]
-                                          : `${group.cycleStartDay}${group.cycleStartDay === 1 ? "st" : group.cycleStartDay === 2 ? "nd" : group.cycleStartDay === 3 ? "rd" : "th"}`
-                                        }
-                                      </span>
-                                    </>
-                                  )}
-                                  <span>•</span>
-                                  {(() => {
-                                    const resetInfo = getNextResetInfo(group)
-                                    return (
-                                      <span className={cn(
-                                        "flex items-center gap-1",
-                                        resetInfo.daysUntil <= 1 && "text-amber-500"
-                                      )}>
-                                        <Clock className="h-3 w-3" />
-                                        {resetInfo.label}
-                                      </span>
-                                    )
-                                  })()}
-                                </div>
-                                
-                                {/* Streak and completion status */}
-                                <div className={cn("flex items-center gap-1.5 mt-1.5 text-xs", scoreInfo.color)}>
-                                  {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
-                                  <span className="font-medium">
-                                    {score > 0 ? '+' : ''}{score} streak
-                                  </span>
-                                  {isComplete && (
-                                    <span className="text-green-600 dark:text-green-400 font-medium ml-1">✓ Done</span>
-                                  )}
-                                  {/* Progress bar */}
-                                  <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden ml-2">
-                                    <div 
-                                      className="h-full bg-primary rounded-full transition-all"
-                                      style={{ width: `${progress}%` }}
-                                    />
-                                  </div>
-                                </div>
                               </div>
                             </div>
                             
-                            {/* Right side - Action buttons */}
-                            <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className={cn(
+                                  "font-semibold text-foreground truncate",
+                                  isComplete && "text-green-600 dark:text-green-400"
+                                )}>
+                                  {group.name}
+                                </h3>
+                                <span className={cn(
+                                  "text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                                  group.recurrence === "daily" && "bg-blue-500/10 text-blue-500",
+                                  group.recurrence === "weekly" && "bg-purple-500/10 text-purple-500",
+                                  group.recurrence === "monthly" && "bg-green-500/10 text-green-500"
+                                )}>
+                                  {RECURRENCE_LABELS[group.recurrence]}
+                                </span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                                {(() => {
+                                  const resetInfo = getNextResetInfo(group)
+                                  return (
+                                    <span className={cn(
+                                      "flex items-center gap-1",
+                                      resetInfo.daysUntil <= 1 && "text-amber-500 font-medium"
+                                    )}>
+                                      <Clock className="h-3 w-3" />
+                                      {resetInfo.label}
+                                    </span>
+                                  )
+                                })()}
+                                {score !== 0 && (
+                                  <>
+                                    <span>•</span>
+                                    <span className={cn("flex items-center gap-0.5 font-medium", scoreInfo.color)}>
+                                      {ScoreIcon && <ScoreIcon className="h-3 w-3" />}
+                                      {score > 0 ? '+' : ''}{score}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Actions */}
+                            <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   handleStartEditGroup(group)
                                 }}
-                                title="Edit group"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                    title="Delete group"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Recurring Task Group</AlertDialogTitle>
+                                    <AlertDialogTitle>Delete Habit</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Are you sure you want to delete &quot;{group.name}&quot;? This will remove all tasks in this group.
+                                      Delete &quot;{group.name}&quot; and all its tasks?
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -902,27 +892,21 @@ export default function RecurringTasksPage() {
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedGoalId(goal.id)
-                                }}
-                                title="View goal"
-                              >
-                                <ChevronRight className="h-3.5 w-3.5" />
-                              </Button>
+                              <ChevronRight
+                                className={cn(
+                                  "h-5 w-5 text-muted-foreground transition-transform",
+                                  !isCollapsed && "rotate-90"
+                                )}
+                              />
                             </div>
                           </div>
                         )}
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="px-3 sm:px-5 pb-3 sm:pb-5 pt-2 border-t border-border/50">
+                      <div className="px-3 pb-3 pt-1 border-t border-border/30">
                         {group.tasks.length > 0 ? (
-                          <div className="space-y-1.5 sm:space-y-2">
+                          <div className="space-y-1">
                             {group.tasks.map((task) => {
                               const isEditingThisTask = editingTaskId === task.id
                               
@@ -931,9 +915,8 @@ export default function RecurringTasksPage() {
                                 return (
                                   <div
                                     key={task.id}
-                                    className="flex items-center gap-2 sm:gap-3 rounded-lg bg-muted/50 p-2 sm:p-3"
+                                    className="flex items-center gap-2 py-2 px-1"
                                   >
-                                    <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                     {isEditingThisTask ? (
                                       <>
                                         <Input
@@ -943,46 +926,46 @@ export default function RecurringTasksPage() {
                                             if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
                                             if (e.key === "Escape") handleCancelEditTask()
                                           }}
-                                          className="flex-1 h-8 text-xs sm:text-sm font-semibold"
+                                          className="flex-1 h-8 text-sm font-medium"
                                           autoFocus
                                         />
                                         <Button
-                                          variant="ghost"
+                                          variant="default"
                                           size="icon"
-                                          className="h-7 w-7 text-green-600 hover:text-green-700"
+                                          className="h-8 w-8"
                                           onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
                                         >
-                                          <Check className="h-3.5 w-3.5" />
+                                          <Check className="h-4 w-4" />
                                         </Button>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                          className="h-8 w-8"
                                           onClick={handleCancelEditTask}
                                         >
-                                          <X className="h-3.5 w-3.5" />
+                                          <X className="h-4 w-4" />
                                         </Button>
                                       </>
                                     ) : (
                                       <>
-                                        <span className="flex-1 text-xs sm:text-sm font-semibold text-foreground">
+                                        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                                           {task.title}
                                         </span>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                          className="h-6 w-6 text-muted-foreground/50 hover:text-foreground"
                                           onClick={() => handleStartEditTask(task.id, task.title)}
                                         >
-                                          <Pencil className="h-3.5 w-3.5" />
+                                          <Pencil className="h-3 w-3" />
                                         </Button>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                          className="h-6 w-6 text-muted-foreground/50 hover:text-destructive"
                                           onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
                                         >
-                                          <X className="h-3.5 w-3.5" />
+                                          <X className="h-3 w-3" />
                                         </Button>
                                       </>
                                     )}
@@ -994,13 +977,16 @@ export default function RecurringTasksPage() {
                               return (
                                 <div
                                   key={task.id}
-                                  className="flex items-center gap-2 sm:gap-3 rounded-lg border bg-card/50 p-2.5 sm:p-3"
+                                  className={cn(
+                                    "group flex items-center gap-3 py-2 px-1 rounded-lg transition-colors",
+                                    task.completed ? "opacity-60" : "hover:bg-muted/30"
+                                  )}
                                 >
                                   <Checkbox
                                     id={`page-recurring-${task.id}`}
                                     checked={task.completed}
                                     onCheckedChange={() => toggleRecurringTask(goal.id, group.id, task.id)}
-                                    className="h-5 w-5"
+                                    className="h-6 w-6"
                                     disabled={isEditingThisTask}
                                   />
                                   {isEditingThisTask ? (
@@ -1012,24 +998,24 @@ export default function RecurringTasksPage() {
                                           if (e.key === "Enter") handleSaveEditTask(goal.id, group.id, task.id)
                                           if (e.key === "Escape") handleCancelEditTask()
                                         }}
-                                        className="flex-1 h-8 text-xs sm:text-sm"
+                                        className="flex-1 h-9"
                                         autoFocus
                                       />
                                       <Button
-                                        variant="ghost"
+                                        variant="default"
                                         size="icon"
-                                        className="h-7 w-7 text-green-600 hover:text-green-700"
+                                        className="h-9 w-9"
                                         onClick={() => handleSaveEditTask(goal.id, group.id, task.id)}
                                       >
-                                        <Check className="h-3.5 w-3.5" />
+                                        <Check className="h-4 w-4" />
                                       </Button>
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        className="h-9 w-9"
                                         onClick={handleCancelEditTask}
                                       >
-                                        <X className="h-3.5 w-3.5" />
+                                        <X className="h-4 w-4" />
                                       </Button>
                                     </>
                                   ) : (
@@ -1037,8 +1023,8 @@ export default function RecurringTasksPage() {
                                       <label
                                         htmlFor={`page-recurring-${task.id}`}
                                         className={cn(
-                                          "flex-1 text-xs sm:text-sm cursor-pointer",
-                                          task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                                          "flex-1 text-sm cursor-pointer select-none",
+                                          task.completed && "line-through text-muted-foreground"
                                         )}
                                       >
                                         {task.title}
@@ -1046,7 +1032,7 @@ export default function RecurringTasksPage() {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        className="h-8 w-8 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={() => handleStartEditTask(task.id, task.title)}
                                       >
                                         <Pencil className="h-3.5 w-3.5" />
@@ -1054,7 +1040,7 @@ export default function RecurringTasksPage() {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                        className="h-8 w-8 text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                         onClick={() => deleteRecurringTask(goal.id, group.id, task.id)}
                                       >
                                         <X className="h-3.5 w-3.5" />
@@ -1066,16 +1052,16 @@ export default function RecurringTasksPage() {
                             })}
                           </div>
                         ) : (
-                          <p className="text-xs sm:text-sm text-muted-foreground text-center py-3">
-                            No tasks in this group yet.
+                          <p className="text-sm text-muted-foreground text-center py-6">
+                            No tasks yet
                           </p>
                         )}
                         
                         {/* Add Task Section */}
                         {addingTaskToGroup?.goalId === goal.id && addingTaskToGroup?.groupId === group.id ? (
-                          <div className="flex items-center gap-2 mt-3">
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-border/30">
                             <Input
-                              placeholder="Task name..."
+                              placeholder="New task..."
                               value={newTaskTitle}
                               onChange={(e) => setNewTaskTitle(e.target.value)}
                               onKeyDown={(e) => {
@@ -1085,45 +1071,31 @@ export default function RecurringTasksPage() {
                                   setNewTaskTitle("")
                                 }
                               }}
-                              className="flex-1 h-9 text-sm"
+                              className="flex-1 h-10"
                               autoFocus
                             />
-                            <Button size="sm" onClick={() => handleAddTask(goal.id, group.id)}>
+                            <Button className="h-10" onClick={() => handleAddTask(goal.id, group.id)}>
                               Add
                             </Button>
                             <Button
-                              size="sm"
                               variant="ghost"
+                              className="h-10"
                               onClick={() => {
                                 setAddingTaskToGroup(null)
                                 setNewTaskTitle("")
                               }}
                             >
-                              Cancel
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex gap-2 mt-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 gap-2 h-9"
-                              onClick={() => setAddingTaskToGroup({ goalId: goal.id, groupId: group.id })}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Add Task
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2 h-9"
-                              onClick={() => handleAddSeparator(goal.id, group.id)}
-                              title="Add a header to organize tasks"
-                            >
-                              <Minus className="h-4 w-4" />
-                              Header
-                            </Button>
-                          </div>
+                          <button
+                            className="w-full mt-2 pt-2 border-t border-border/30 flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => setAddingTaskToGroup({ goalId: goal.id, groupId: group.id })}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Add task
+                          </button>
                         )}
                       </div>
                     </CollapsibleContent>
@@ -1135,19 +1107,19 @@ export default function RecurringTasksPage() {
         )}
       </div>
 
-      {/* Add Recurring Group Dialog */}
+      {/* Add Habit Dialog */}
       <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Recurring Task Group</DialogTitle>
+            <DialogTitle>New Habit</DialogTitle>
             <DialogDescription>
-              Create a new recurring task group to track habits.
+              Create a recurring habit to track regularly.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="group-name">Group Name *</Label>
+              <Label htmlFor="group-name">Name</Label>
               <Input
                 id="group-name"
                 placeholder="e.g., Morning Routine, Exercise"
@@ -1158,46 +1130,36 @@ export default function RecurringTasksPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="group-recurrence">Recurrence</Label>
-              <Select value={newGroupRecurrence} onValueChange={(v) => setNewGroupRecurrence(v as RecurrenceType)}>
-                <SelectTrigger id="group-recurrence">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.daily)}>Daily</Badge>
-                      <span className="text-muted-foreground text-xs">Resets every day</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="weekly">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.weekly)}>Weekly</Badge>
-                      <span className="text-muted-foreground text-xs">Resets every week</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="monthly">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={cn("text-xs", RECURRENCE_COLORS.monthly)}>Monthly</Badge>
-                      <span className="text-muted-foreground text-xs">Resets every month</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Frequency</Label>
+              <div className="flex gap-2">
+                {(["daily", "weekly", "monthly"] as RecurrenceType[]).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setNewGroupRecurrence(type)}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all",
+                      newGroupRecurrence === type
+                        ? type === "daily" ? "bg-blue-500 text-white" 
+                          : type === "weekly" ? "bg-purple-500 text-white"
+                          : "bg-green-500 text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="group-goal">Assign to Goal</Label>
+              <Label htmlFor="group-goal">Link to Goal (optional)</Label>
               <Select value={newGroupGoalId} onValueChange={setNewGroupGoalId}>
                 <SelectTrigger id="group-goal">
-                  <SelectValue placeholder="Select a goal (optional)" />
+                  <SelectValue placeholder="Select a goal" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="standalone">
-                    <div className="flex items-center gap-2">
-                      <Repeat className="h-4 w-4 text-muted-foreground" />
-                      <span>Quick Habits (no goal)</span>
-                    </div>
+                    <span className="text-muted-foreground">No goal - standalone habit</span>
                   </SelectItem>
                   {selectableGoals.map((goal) => (
                     <SelectItem key={goal.id} value={goal.id}>
@@ -1214,18 +1176,15 @@ export default function RecurringTasksPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                Quick habits are stored separately and aren't tied to a specific goal.
-              </p>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={resetAddGroupForm}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={resetAddGroupForm}>
               Cancel
             </Button>
             <Button onClick={handleAddGroup} disabled={!newGroupName.trim()}>
-              Add Group
+              Create Habit
             </Button>
           </DialogFooter>
         </DialogContent>

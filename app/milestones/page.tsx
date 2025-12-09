@@ -1,7 +1,7 @@
 "use client"
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal, Plus, Map } from "lucide-react"
+import { ArrowLeft, Calendar, Target, CheckCircle2, ChevronRight, X, Play, Folder, Archive, ArchiveRestore, Tag, SlidersHorizontal, Plus, Map, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -361,6 +361,18 @@ export default function MilestonesPage() {
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Timeline button */}
+              <Link href="/milestone-timeline">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 active:scale-95"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="hidden sm:inline">Timeline</span>
+                </Button>
+              </Link>
+              
               {/* AI Roadmap button */}
               <Button
                 variant="outline"
