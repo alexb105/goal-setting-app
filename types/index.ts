@@ -53,6 +53,12 @@ export interface RecurringTaskGroup {
   score?: number // Points from -100 to +100: +1 for completion, -1 for missing deadline
 }
 
+export interface RecurringGroupDivider {
+  id: string
+  title: string
+  position: number // Position in the sorted list (0 = before first group, 1 = after first group, etc.)
+}
+
 export interface Milestone {
   id: string
   title: string
