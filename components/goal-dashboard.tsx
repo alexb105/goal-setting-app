@@ -1018,6 +1018,9 @@ export function GoalDashboard() {
               <Link href="/recurring-tasks" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
                 Recurring
               </Link>
+              <Link href="/journal" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
+                Journal
+              </Link>
               <Link href="/completed" className="px-3 py-1.5 rounded-full text-sm text-muted-foreground hover:text-foreground hover:bg-background/80 transition-all">
                 Completed
               </Link>

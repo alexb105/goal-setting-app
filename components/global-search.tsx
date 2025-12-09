@@ -835,3 +835,4 @@ export function GlobalSearchModal({ onNavigateToGoal, onClose }: GlobalSearchMod
 }
 
 
+
