@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS user_data (
   -- Recurring group dividers (for organizing recurring task groups)
   recurring_group_dividers JSONB DEFAULT '[]'::jsonb,
   
+  -- Journal entries
+  journal_entries JSONB DEFAULT '[]'::jsonb,
+  
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -93,4 +96,8 @@ CREATE TRIGGER update_user_data_updated_at
 -- Migration: Add recurring_group_dividers column to existing databases
 -- Run this if you already have a user_data table:
 -- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS recurring_group_dividers JSONB DEFAULT '[]'::jsonb;
+
+-- Migration: Add journal_entries column to existing databases
+-- Run this if you already have a user_data table:
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS journal_entries JSONB DEFAULT '[]'::jsonb;
 

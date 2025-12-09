@@ -1,7 +1,7 @@
 "use client"
 
 import type { SupabaseClient, User } from "@supabase/supabase-js"
-import type { Goal, DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask, RecurringGroupDivider } from "@/types"
+import type { Goal, DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask, RecurringGroupDivider, JournalEntry } from "@/types"
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -18,6 +18,7 @@ const STORAGE_KEYS = {
   aiDismissedSuggestions: "goalritual-ai-dismissed-suggestions",
   pinnedInsights: "goalritual-pinned-insights",
   recurringGroupDividers: "goalritual-recurring-group-dividers",
+  journal: "goalritual-journal",
 } as const
 
 // User data table schema - we store all user data in a single JSONB column for simplicity
@@ -35,6 +36,7 @@ interface UserData {
   ai_dismissed_suggestions: string[] | null
   pinned_insights: unknown[] | null
   recurring_group_dividers: RecurringGroupDivider[] | null
+  journal_entries: JournalEntry[] | null
   updated_at: string
 }
 
@@ -81,6 +83,7 @@ export class SupabaseSync {
       ai_dismissed_suggestions: getJson<string[]>(STORAGE_KEYS.aiDismissedSuggestions, []),
       pinned_insights: getJson(STORAGE_KEYS.pinnedInsights, []),
       recurring_group_dividers: getJson<RecurringGroupDivider[]>(STORAGE_KEYS.recurringGroupDividers, []),
+      journal_entries: getJson<JournalEntry[]>(STORAGE_KEYS.journal, []),
     }
   }
 
@@ -115,6 +118,7 @@ export class SupabaseSync {
     setJson(STORAGE_KEYS.aiDismissedSuggestions, data.ai_dismissed_suggestions)
     setJson(STORAGE_KEYS.pinnedInsights, data.pinned_insights)
     setJson(STORAGE_KEYS.recurringGroupDividers, data.recurring_group_dividers)
+    setJson(STORAGE_KEYS.journal, data.journal_entries)
 
     // Dispatch custom event so other components can react (works in same window)
     window.dispatchEvent(new CustomEvent("goalritual-storage-updated"))
@@ -155,7 +159,7 @@ export class SupabaseSync {
 
     if (remoteData) {
       // Remote data exists - overwrite local with it
-      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0)
+      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0, "Journal entries:", remoteData.journal_entries?.length || 0)
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
@@ -170,6 +174,7 @@ export class SupabaseSync {
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
+        journal_entries: remoteData.journal_entries || [],
       })
       console.log("Successfully pulled cloud data to local storage")
       return true
@@ -364,6 +369,7 @@ export class SupabaseSync {
         ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions,
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
+        journal_entries: remoteData.journal_entries || [],
       })
       return true
     } else {
@@ -392,6 +398,11 @@ export class SupabaseSync {
     const uniqueLocalGoals = localData.goals.filter((g) => !remoteGoalIds.has(g.id))
     const mergedGoals = [...(remoteData.goals || []), ...uniqueLocalGoals]
 
+    // For journal entries, merge: add local entries that don't exist in remote
+    const remoteJournalIds = new Set((remoteData.journal_entries || []).map((e) => e.id))
+    const uniqueLocalJournalEntries = (localData.journal_entries || []).filter((e) => !remoteJournalIds.has(e.id))
+    const mergedJournalEntries = [...(remoteData.journal_entries || []), ...uniqueLocalJournalEntries]
+
     // For other data, prefer remote if it exists
     const mergedData: Omit<UserData, "updated_at"> = {
       goals: mergedGoals,
@@ -407,6 +418,7 @@ export class SupabaseSync {
       ai_dismissed_suggestions: remoteData.ai_dismissed_suggestions || localData.ai_dismissed_suggestions,
       pinned_insights: remoteData.pinned_insights || localData.pinned_insights,
       recurring_group_dividers: remoteData.recurring_group_dividers || localData.recurring_group_dividers || [],
+      journal_entries: mergedJournalEntries,
     }
 
     // Update both local and remote with merged data

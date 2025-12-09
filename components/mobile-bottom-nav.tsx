@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X, Compass, Mail, Lock, AlertCircle, Loader2 } from "lucide-react"
+import { Target, Calendar, Repeat, CheckCircle2, User, LogOut, Settings, Brain, X, Compass, Mail, Lock, AlertCircle, Loader2, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/auth-context"
 import { Input } from "@/components/ui/input"
@@ -137,6 +137,15 @@ export function MobileBottomNav() {
               >
                 <Compass className="w-5 h-5 text-indigo-600" />
                 <span className="font-medium">Goal Map</span>
+              </Link>
+              
+              <Link 
+                href="/journal" 
+                onClick={handleCloseMenu}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-muted active:scale-[0.98] transition-all"
+              >
+                <BookOpen className="w-5 h-5 text-violet-600" />
+                <span className="font-medium">Journal</span>
               </Link>
               
               <Link 

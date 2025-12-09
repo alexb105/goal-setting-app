@@ -103,3 +103,15 @@ export interface Goal {
   order?: number // Manual order for goals within their group
   archived?: boolean // If true, this goal is archived and hidden from main view
 }
+
+export type JournalEntryType = "insight" | "learning" | "brain-dump" | "reflection" | "gratitude" | "idea" | "note"
+
+export interface JournalEntry {
+  id: string
+  title: string
+  content: string
+  entryType: JournalEntryType
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
