@@ -113,74 +113,26 @@ export function AIRoadmapDialog({ open, onOpenChange }: AIRoadmapDialogProps) {
   }, [goals])
 
   const buildPrompt = () => {
-    const goalsData = activeGoals.map((goal) => ({
+    // Limit to first 10 goals to reduce prompt size
+    const goalsData = activeGoals.slice(0, 10).map((goal) => ({
       id: goal.id,
       title: goal.title,
-      why: goal.why || "",
       milestones: goal.milestones
         .filter(m => !m.linkedGoalId && !m.archived)
-        .map((m) => ({ id: m.id, title: m.title, targetDate: m.targetDate || "No date" })),
+        .slice(0, 8) // Limit milestones per goal
+        .map((m) => ({ id: m.id, title: m.title, date: m.targetDate || "" })),
     }))
 
-    return `Analyze and suggest improvements for this roadmap to achieve the life purpose.
+    return `Suggest improvements for this roadmap.
 
-LIFE PURPOSE: "${lifePurpose || "General self-improvement"}"
-
-CURRENT GOALS & MILESTONES:
-${JSON.stringify(goalsData, null, 2)}
-
+PURPOSE: "${lifePurpose || "Self-improvement"}"
 TODAY: ${new Date().toISOString().split('T')[0]}
+GOALS: ${JSON.stringify(goalsData)}
 
-Return JSON with suggestions to optimize the roadmap:
-{
-  "suggestions": [
-    {
-      "id": "add-1",
-      "action": "add",
-      "goalId": "<existing goal id or 'new-goal'>",
-      "goalTitle": "<goal title>",
-      "title": "<new milestone title>",
-      "description": "<brief description>",
-      "targetDate": "<YYYY-MM-DD>",
-      "reason": "<why this helps reach life purpose>",
-      "priority": "high|medium|low",
-      "phase": "Phase 1: Foundation|Phase 2: Development|Phase 3: Acceleration|Phase 4: Mastery|Phase 5: Legacy"
-    },
-    {
-      "id": "edit-1",
-      "action": "edit",
-      "goalId": "<goal id>",
-      "goalTitle": "<goal title>",
-      "milestoneId": "<milestone id>",
-      "currentTitle": "<current title>",
-      "title": "<improved title>",
-      "reason": "<why>",
-      "priority": "medium",
-      "phase": "<phase>"
-    },
-    {
-      "id": "date-1",
-      "action": "adjust_date",
-      "goalId": "<goal id>",
-      "goalTitle": "<goal title>",
-      "milestoneId": "<milestone id>",
-      "title": "<milestone title>",
-      "currentDate": "<current date or 'No date'>",
-      "targetDate": "<better date YYYY-MM-DD>",
-      "reason": "<why>",
-      "priority": "medium",
-      "phase": "<phase>"
-    }
-  ]
-}
+Return JSON:
+{"suggestions":[{"id":"1","action":"add|edit|adjust_date","goalId":"<id or new-goal>","goalTitle":"<title>","milestoneId":"<if edit/date>","title":"<title>","targetDate":"<YYYY-MM-DD>","reason":"<brief>","priority":"high|medium|low","phase":"Phase 1: Foundation|Phase 2: Development|Phase 3: Acceleration|Phase 4: Mastery|Phase 5: Legacy"}]}
 
-Generate 10-20 suggestions covering:
-- New milestones to fill gaps (skills, knowledge, experiences, habits)
-- Date adjustments for undated or poorly timed milestones
-- Title improvements for vague milestones
-- New goals if major areas are missing
-
-Be specific and actionable.`
+Generate 5-8 actionable suggestions. Be concise.`
   }
 
   const runAnalysis = async () => {
@@ -196,11 +148,11 @@ Be specific and actionable.`
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "Return valid JSON only, no markdown." },
+            { role: "system", content: "Return valid JSON only, no markdown. Be concise." },
             { role: "user", content: buildPrompt() },
           ],
-          temperature: 0.7,
-          max_tokens: 2500,
+          temperature: 0.6,
+          max_tokens: 1200,
         }),
       })
 
