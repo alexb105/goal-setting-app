@@ -282,10 +282,11 @@ export function GoalsProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem("goalritual-pending-auth")
           
           // Check if we already handled this sign-in (prevent duplicate handling)
+          // This flag persists for the entire session to prevent reloads on tab switches
+          // (Supabase fires SIGNED_IN when refreshing the session on window focus)
           const signInHandled = sessionStorage.getItem("goalritual-signin-handled")
           if (signInHandled) {
-            // Clear the flag - initializeData has already loaded data
-            sessionStorage.removeItem("goalritual-signin-handled")
+            // Already handled - don't reload (this happens on tab focus when Supabase refreshes session)
             return
           }
           
