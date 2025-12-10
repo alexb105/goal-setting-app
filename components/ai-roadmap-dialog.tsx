@@ -152,7 +152,7 @@ Generate 5-8 actionable suggestions. Be concise.`
             { role: "user", content: buildPrompt() },
           ],
           temperature: 0.6,
-          max_tokens: 1200,
+          max_tokens: 1800,
         }),
       })
 

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 
+// Use Edge runtime for longer timeout (up to 30s on Netlify vs 10s for serverless)
+export const runtime = "edge"
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 
-// Timeout for OpenAI API calls (8 seconds to stay under Netlify's 10s limit)
-const API_TIMEOUT_MS = 8000
+// Timeout for OpenAI API calls (25 seconds - edge functions allow up to 30s)
+const API_TIMEOUT_MS = 25000
 
 export async function POST(request: NextRequest) {
   if (!OPENAI_API_KEY) {
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
           model: "gpt-4o-mini",
           messages,
           temperature,
-          max_tokens: Math.min(max_tokens, 1500), // Cap tokens to speed up response
+          max_tokens: Math.min(max_tokens, 2000), // Cap tokens for reasonable response size
         }),
         signal: controller.signal,
       })
