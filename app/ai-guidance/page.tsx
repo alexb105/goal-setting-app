@@ -294,275 +294,75 @@ export default function AIGuidancePage() {
   }, [activeGoals])
 
   const buildAnalysisPrompt = () => {
-    const goalsData = activeGoals.map((goal) => ({
+    // Limit goals data to reduce prompt size
+    const goalsData = activeGoals.slice(0, 8).map((goal) => ({
       id: goal.id,
       title: goal.title,
-      description: goal.description,
-      why: goal.why || "Not specified",
-      targetDate: goal.targetDate,
+      why: goal.why || "",
       progress: calculateProgress(goal),
-      priority: goal.priority || 0,
-      tags: goal.tags,
-      group: goal.group,
       negativeImpactOnAll: goal.negativeImpactOnAll || false,
       negativeImpactOn: goal.negativeImpactOn || [],
-      milestones: goal.milestones.map((m) => ({
+      milestones: goal.milestones.slice(0, 5).map((m) => ({
         id: m.id,
         title: m.title,
-        description: m.description,
-        targetDate: m.targetDate,
+        targetDate: m.targetDate || "",
         completed: m.completed,
-        inProgress: m.inProgress,
-        tasks: (m.tasks || []).filter(t => !t.isSeparator).map((t) => ({
-          id: t.id,
-          title: t.title,
-          completed: t.completed,
-        })),
       })),
-      recurringTasks: goal.recurringTaskGroups?.map((g) => ({
-        name: g.name,
-        recurrence: g.recurrence,
-        completionCount: g.completionCount || 0,
-      })) || [],
     }))
 
-    // Build dependency info for the AI
+    // Build dependency info
     const dependencyInfo = activeGoals
       .filter(g => g.negativeImpactOnAll || (g.negativeImpactOn && g.negativeImpactOn.length > 0))
-      .map(g => {
-        const impactedGoalTitles = g.negativeImpactOnAll 
-          ? activeGoals.filter(og => og.id !== g.id).map(og => og.title)
-          : (g.negativeImpactOn || []).map(id => goals.find(og => og.id === id)?.title).filter(Boolean)
-        return {
-          blockingGoal: g.title,
-          blockingGoalId: g.id,
-          impactsAll: g.negativeImpactOnAll,
-          impactedGoals: impactedGoalTitles,
-          progress: calculateProgress(g)
-        }
-      })
+      .slice(0, 3)
+      .map(g => ({
+        blockingGoal: g.title,
+        blockingGoalId: g.id,
+        impactedGoals: (g.negativeImpactOnAll 
+          ? activeGoals.filter(og => og.id !== g.id).slice(0, 5)
+          : (g.negativeImpactOn || []).slice(0, 5).map(id => goals.find(og => og.id === id)).filter(Boolean)
+        ).map(og => ({ id: og?.id, title: og?.title })),
+        progress: calculateProgress(g)
+      }))
 
-    const hasGoals = activeGoals.length > 0
-    const hasDependencies = dependencyInfo.length > 0
+    return `Analyze goals for life purpose alignment. Be concise.
 
-    return `You are an expert life coach and strategic planner. Your task is to THOROUGHLY DISSECT the life purpose statement and identify ALL the key areas needed to achieve it.
+PURPOSE: "${lifePurpose || "Self-improvement"}"
+TODAY: ${new Date().toISOString().split('T')[0]}
+GOALS: ${JSON.stringify(goalsData)}
+DEPENDENCIES: ${JSON.stringify(dependencyInfo)}
+STATS: ${activeGoals.length} active, ${completedGoals.length} done, ${averageProgress}% avg progress
 
-## LIFE PURPOSE STATEMENT
-"${lifePurpose || "Not defined"}"
-
-## CURRENT GOALS (${activeGoals.length})
-${hasGoals ? JSON.stringify(goalsData, null, 2) : "NO GOALS YET - User needs help getting started!"}
-
-## STATS
-- Completed Goals: ${completedGoals.length}
-- Late Milestones: ${lateMilestones.length}
-- Average Progress: ${averageProgress}%
-
-${hasDependencies ? `## GOAL DEPENDENCIES (CRITICAL - ANALYZE ALL OF THESE)
-The user has marked certain goals as "blocking" other goals - meaning if these aren't completed, other goals will be negatively impacted. 
-
-**IMPORTANT: You MUST analyze EVERY SINGLE impacted goal - do not skip any or provide only a sample!**
-
-${JSON.stringify(dependencyInfo, null, 2)}
-
-For EACH blocking goal, you must explain:
-1. WHY this goal matters for ALL the impacted goals (psychological, practical, foundational reasons)
-2. For EVERY impacted goal (list them ALL, not just 2-3):
-   - HOW specifically the blocker is holding back THIS specific goal
-   - WHAT progress/benefits are being lost
-   - WHAT will unlock once the blocker is resolved
-3. SPECIFIC action steps to address the blocking goal (3-5 steps)
-
-**DO NOT TRUNCATE OR SAMPLE - Include analysis for EVERY goal in the impactedGoals list!**
-` : ''}
-
-${!hasGoals ? `
-## SPECIAL INSTRUCTION: NO GOALS EXIST
-The user has defined their life purpose but hasn't created any goals yet. Your PRIMARY task is to:
-1. Break down their life purpose into key areas
-2. Suggest 5-8 specific NEW GOALS they should create to start their journey
-3. Make each suggested goal actionable and specific
-4. Include a mix of short-term (1-3 months), medium-term (3-6 months), and long-term (6-12 months) goals
-5. For suggestions, focus heavily on "new_goal" type suggestions since they have no goals to edit
-` : ''}
-
-## YOUR CRITICAL TASK: DISSECT THE LIFE PURPOSE
-
-Step 1: Parse every distinct element/component mentioned in the purpose statement
-Step 2: For EACH element, identify what skills, knowledge, resources, or achievements are needed
-Step 3: Create 6-10 comprehensive areas (be thorough - don't miss anything)
-
-EXAMPLE: If purpose is "I want to be a musician in Japan while running a tech business"
-You MUST identify areas like:
-- Music Production Skills (instruments, DAW, composition)
-- Music Industry Knowledge (marketing, distribution, networking)
-- Japanese Language (for living/working there)
-- Japan Residency (visa, legal requirements, housing)
-- Japanese Culture (understanding local market, customs)
-- Technical Skills (for the tech business)
-- Business Management (running a company)
-- Financial Foundation (funding both pursuits)
-- Work-Life Balance (managing dual careers)
-- Network Building (connections in both industries)
-
-BE THOROUGH. Extract EVERY component from their specific purpose statement.
-
-Respond with this EXACT JSON (no markdown):
+Return JSON (no markdown):
 {
-  "purposeSummary": "<2-3 sentence interpretation breaking down what their purpose actually requires>",
-  "purposeAreas": [
-    {
-      "name": "<specific area name>",
-      "description": "<why this specific area is essential for their stated purpose>",
-      "importance": "critical|important|helpful",
-      "coverage": <0-100 how well their current goals cover this>,
-      "coveredBy": ["<goal title that covers this>"],
-      "gap": "<specific skill/knowledge/resource missing, or 'Well covered' if coverage > 70>",
-      "suggestedGoal": "<specific, actionable goal suggestion if coverage < 70, or empty string>"
-    }
-  ],
-  "overallCoverage": <0-100 overall coverage>,
-  "criticalGaps": ["<most critical uncovered area with explanation>", "<second critical gap>", "<third if applicable>"],
-  
+  "purposeSummary": "<1-2 sentences>",
+  "purposeAreas": [{"name":"<area>","description":"<brief>","importance":"critical|important|helpful","coverage":<0-100>,"coveredBy":["<goal>"],"gap":"<what's missing>","suggestedGoal":"<suggestion>"}],
+  "overallCoverage": <0-100>,
+  "criticalGaps": ["<gap1>","<gap2>"],
   "overallScore": <0-100>,
   "alignmentScore": <0-100>,
   "progressScore": <0-100>,
   "balanceScore": <0-100>,
   "urgencyScore": <0-100>,
-  
-  "alignmentItems": [
-    {"goal": "<title>", "score": <0-100>, "area": "<which purpose area it serves>", "insight": "<specific insight>", "suggestion": "<improvement>"}
-  ],
-  
-  "goalConnections": [
-    {"goal1": "<title>", "goal2": "<title>", "relationship": "supports|conflicts|synergy", "explanation": "<how>"}
-  ],
-  
-  "timelineInsights": [
-    {"goal": "<title>", "status": "on-track|at-risk|behind", "recommendation": "<action>"}
-  ],
-  
-  "dependencyImpacts": [
-    {
-      "blockingGoal": "<title of the blocking goal>",
-      "blockingGoalId": "<id of blocking goal>",
-      "whyItMatters": "<deep psychological/practical explanation of why this blocker is important - be specific about the underlying issue>",
-      "impactedGoals": [
-        // **INCLUDE ALL IMPACTED GOALS - DO NOT TRUNCATE OR SAMPLE!**
-        // If a goal impacts 9 goals, list all 9 with unique analysis for each
-        {
-          "goalTitle": "<title of impacted goal>",
-          "goalId": "<id>",
-          "howItImpacts": "<SPECIFIC to THIS goal - how the blocker affects it>",
-          "whatYouLose": "<SPECIFIC to THIS goal - what progress is being lost>",
-          "unlockPotential": "<SPECIFIC to THIS goal - what benefits unlock>"
-        }
-        // ... repeat for EVERY impacted goal, no exceptions
-      ],
-      "actionPlan": ["<step 1>", "<step 2>", "<step 3>", "<step 4>", "<step 5>"],
-      "urgencyLevel": "critical|high|medium"
-    }
-  ],
-  
-  "weeklyFocus": [
-    {"goal": "<title>", "milestone": "<milestone>", "reason": "<why this week>"}
-  ],
-  
-  "actionItems": [
-    {"priority": "high|medium|low", "action": "<specific action>", "impact": "<result>", "timeframe": "today|this week|this month"}
-  ],
-  
-  "habitInsights": [
-    {"observation": "<pattern>", "suggestion": "<improvement>"}
-  ],
-  
-  "quickWins": ["<easy win>", "<easy win>", "<easy win>"],
-  
-  "risks": ["<risk>", "<risk>"],
-  "blindSpots": ["<blind spot>", "<blind spot>"],
-  
-  "strengths": ["<strength>", "<strength>", "<strength>"],
-  "momentum": "<momentum observation>",
-  
-  "encouragement": "<personalized encouragement>",
-  
-  "bigPictureInsight": "<how goals connect to purpose>",
-  "nextMilestone": "<most important next milestone>",
-  "thirtyDayGoal": "<30 day target>",
-  
-  "suggestions": [
-    {
-      "id": "<unique id like 'sug-1'>",
-      "type": "edit_goal|add_milestone|edit_milestone|new_goal|add_task|edit_task",
-      "goalId": "<goal id - required for all except new_goal>",
-      "goalTitle": "<goal title for display>",
-      "milestoneId": "<milestone id - required for milestone and task operations>",
-      "milestoneTitle": "<milestone title for display>",
-      "taskId": "<task id - only for edit_task>",
-      "taskTitle": "<current task title for display - only for edit_task>",
-      "changes": {
-        "title": "<new/improved title>",
-        "description": "<new/improved description if applicable>",
-        "why": "<new/improved why statement - only for goals>",
-        "targetDate": "<YYYY-MM-DD format if suggesting date>"
-      },
-      "reason": "<detailed explanation of why this change is important>",
-      "impact": "<specific, measurable expected benefit>"
-    }
-  ]
+  "alignmentItems": [{"goal":"<title>","score":<0-100>,"area":"<area>","insight":"<brief>","suggestion":"<brief>"}],
+  "goalConnections": [{"goal1":"<title>","goal2":"<title>","relationship":"supports|conflicts|synergy","explanation":"<brief>"}],
+  "timelineInsights": [{"goal":"<title>","status":"on-track|at-risk|behind","recommendation":"<brief>"}],
+  "dependencyImpacts": [{"blockingGoal":"<title>","blockingGoalId":"<id>","whyItMatters":"<brief>","impactedGoals":[{"goalTitle":"<title>","goalId":"<id>","howItImpacts":"<brief>","whatYouLose":"<brief>","unlockPotential":"<brief>"}],"actionPlan":["<step1>","<step2>","<step3>"],"urgencyLevel":"critical|high|medium"}],
+  "weeklyFocus": [{"goal":"<title>","milestone":"<milestone>","reason":"<brief>"}],
+  "actionItems": [{"priority":"high|medium|low","action":"<action>","impact":"<result>","timeframe":"today|this week|this month"}],
+  "habitInsights": [{"observation":"<pattern>","suggestion":"<improvement>"}],
+  "quickWins": ["<win1>","<win2>","<win3>"],
+  "risks": ["<risk1>","<risk2>"],
+  "blindSpots": ["<spot1>","<spot2>"],
+  "strengths": ["<strength1>","<strength2>"],
+  "momentum": "<observation>",
+  "encouragement": "<personalized message>",
+  "bigPictureInsight": "<insight>",
+  "nextMilestone": "<milestone>",
+  "thirtyDayGoal": "<goal>",
+  "suggestions": [{"id":"sug-1","type":"edit_goal|add_milestone|edit_milestone|new_goal","goalId":"<id>","goalTitle":"<title>","milestoneId":"<id if needed>","milestoneTitle":"<title>","changes":{"title":"<new title>","description":"<desc>","why":"<why>","targetDate":"<YYYY-MM-DD>"},"reason":"<why important>","impact":"<benefit>"}]
 }
 
-## DEEP ANALYSIS REQUIREMENTS - BE THOROUGH AND CRITICAL
-
-ANALYZE THESE ASPECTS:
-1. CLARITY: Are titles/descriptions vague? "work on X" should be "Complete Y by doing Z"
-2. MEASURABILITY: Can progress be tracked? Add specific metrics or deliverables
-3. SPECIFICITY: Generic tasks → concrete actions with clear outcomes
-4. COMPLETENESS: Are there missing steps between milestones? Gaps in the plan?
-5. ALIGNMENT: Does each item directly serve the life purpose?
-6. TIMELINE: Are dates realistic? Missing deadlines that should be set?
-7. BREAKDOWN: Are large items broken into manageable pieces?
-8. ACTIONABILITY: Do tasks start with strong action verbs?
-9. DEPENDENCIES: Should some items be reworded to show what comes first?
-10. MOTIVATION: Are "why" statements compelling and specific?
-
-SUGGESTION GUIDELINES:
-- Generate 8-15 DEEP, specific suggestions
-- Use EXACT goal, milestone, and task IDs from the data
-- BE CRITICAL - even well-written items can be improved
-- PRIORITIZE high-impact changes that will drive real progress
-
-SUGGESTION TYPES TO INCLUDE:
-* new_goal: Fill gaps in purpose coverage (be specific about what's missing)
-* edit_goal: 
-  - Strengthen weak "why" statements with emotional drivers
-  - Make titles more inspiring/specific
-  - Add missing descriptions that clarify the vision
-  - Suggest realistic target dates for undated goals
-* add_milestone:
-  - Break down large goals into 3-5 clear phases
-  - Add "quick win" milestones for motivation
-  - Add validation/review milestones
-* edit_milestone:
-  - Make milestones SMART (Specific, Measurable, Achievable, Relevant, Time-bound)
-  - Add success criteria to descriptions
-  - Clarify what "done" looks like
-* add_task:
-  - Add specific first actions to get started
-  - Include research/learning tasks where knowledge gaps exist
-  - Add review/reflection tasks
-  - Break complex tasks into smaller steps
-* edit_task:
-  - Transform vague tasks into specific actions
-  - Add context (who, what, where, when)
-  - Make tasks completable in one session
-  - Start with strong verbs: Create, Write, Call, Research, Design, Build, Review, Schedule
-
-QUALITY STANDARDS:
-- Every suggestion must have a SPECIFIC reason tied to purpose/progress
-- Impact should describe the tangible benefit
-- Changes should be immediately actionable
-- Prefer multiple smaller improvements over few large ones`
+Generate 4-6 purpose areas and 5-8 suggestions. Be specific and actionable.`
   }
 
   const runAnalysis = async () => {
@@ -580,11 +380,11 @@ QUALITY STANDARDS:
         },
         body: JSON.stringify({
           messages: [
-            { role: "system", content: "You are an expert life coach. Respond with valid JSON only." },
+            { role: "system", content: "Expert life coach. Return valid JSON only, no markdown. Be concise." },
             { role: "user", content: buildAnalysisPrompt() },
           ],
-          temperature: 0.7,
-          max_tokens: 8000,
+          temperature: 0.6,
+          max_tokens: 2000,
         }),
       })
 
