@@ -16,7 +16,7 @@ import { CreateGoalDialog } from "@/components/create-goal-dialog"
 import { GoalDetailView } from "@/components/goal-detail-view"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { isMilestoneOverdue, isMilestoneDueSoon, getMilestoneDaysUntilDue, getMilestoneDaysOverdue } from "@/utils/date"
-import { isGoalCompleted, isSupportingGoal } from "@/utils/goals"
+import { isGoalCompleted } from "@/utils/goals"
 import { DailyTodoList } from "@/components/daily-todo-list"
 import { LifePurpose } from "@/components/life-purpose"
 import { AuthModal } from "@/components/auth-modal"
@@ -407,13 +407,12 @@ export function GoalDashboard() {
 
   const allTags = getAllTags()
 
-  // Filter out completed, archived, standalone milestones goal, and supporting goals from the main dashboard
+  // Filter out completed, archived, and standalone milestones goal from the main dashboard
   const activeGoals = useMemo(() => {
     return goals.filter((goal) => 
       !isGoalCompleted(goal) && 
       !goal.archived && 
-      goal.title !== "Quick Milestones" && // Hide standalone milestones goal
-      !isSupportingGoal(goals, goal.id) // Hide goals that are supporting other goals (linked as milestones)
+      goal.title !== "Quick Milestones" // Hide standalone milestones goal
     )
   }, [goals])
 

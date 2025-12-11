@@ -9,7 +9,6 @@ import type { Goal } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalCard } from "@/components/goal-card"
 import { GoalDetailView } from "@/components/goal-detail-view"
-import { isSupportingGoal } from "@/utils/goals"
 
 export default function ArchivedGoalsPage() {
   const { goals, getAllTags } = useGoals()
@@ -17,9 +16,9 @@ export default function ArchivedGoalsPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"date" | "priority">("date")
 
-  // Filter to only archived goals (excluding supporting goals which are shown in their parent goal)
+  // Filter to only archived goals
   const archivedGoals = useMemo(() => {
-    return goals.filter((goal) => goal.archived === true && !isSupportingGoal(goals, goal.id))
+    return goals.filter((goal) => goal.archived === true)
   }, [goals])
 
   const allTags = getAllTags()
