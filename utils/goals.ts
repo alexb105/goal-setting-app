@@ -34,6 +34,15 @@ export function getSupportingGoals(goals: Goal[], goal: Goal): Goal[] {
 }
 
 /**
+ * Check if a goal is supporting another goal (i.e., it's linked as a milestone to another goal)
+ */
+export function isSupportingGoal(goals: Goal[], goalId: string): boolean {
+  return goals.some((goal) =>
+    goal.milestones.some((milestone) => milestone.linkedGoalId === goalId)
+  )
+}
+
+/**
  * Get all unique tags from all goals
  */
 export function getAllTags(goals: Goal[]): string[] {

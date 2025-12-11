@@ -9,7 +9,7 @@ import type { Goal } from "@/types"
 import { useGoals } from "@/components/goals-context"
 import { GoalCard } from "@/components/goal-card"
 import { GoalDetailView } from "@/components/goal-detail-view"
-import { isGoalCompleted } from "@/utils/goals"
+import { isGoalCompleted, isSupportingGoal } from "@/utils/goals"
 
 export default function CompletedGoalsPage() {
   const { goals, getAllTags } = useGoals()
@@ -17,9 +17,9 @@ export default function CompletedGoalsPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"date" | "priority">("date")
 
-  // Filter to only completed goals
+  // Filter to only completed goals (excluding supporting goals which are shown in their parent goal)
   const completedGoals = useMemo(() => {
-    return goals.filter(isGoalCompleted)
+    return goals.filter((goal) => isGoalCompleted(goal) && !isSupportingGoal(goals, goal.id))
   }, [goals])
 
   const allTags = getAllTags()
