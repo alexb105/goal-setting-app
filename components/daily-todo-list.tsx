@@ -169,6 +169,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     }
   }, [currentDate])
 
+  // Track the previous date to detect mid-session date changes
+  const [previousDate, setPreviousDate] = useState<string | null>(null)
+
   // Load todos, recurring tasks, and pinned tasks from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -218,7 +221,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     }
 
     // Check if we need to reset (new day)
-    if (lastReset !== currentDate) {
+    const needsReset = lastReset !== currentDate
+    
+    if (needsReset) {
       // Calculate score change based on yesterday's snapshot
       if (yesterdaySnapshot && lastReset) {
         try {
@@ -246,6 +251,9 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       // Filter out pinned tasks that were completed yesterday (completedDate is before today)
       loadedPinned = loadedPinned.filter((task) => !task.completedDate || task.completedDate === currentDate)
       localStorage.setItem(LAST_RESET_KEY, currentDate)
+      // Save the cleared todos immediately to localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedTodos))
+      localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(loadedPinned))
       // Clear yesterday's snapshot
       localStorage.removeItem(YESTERDAY_TASKS_KEY)
     }
@@ -253,8 +261,18 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     setTodos(loadedTodos)
     setRecurringTasks(loadedRecurring)
     setPinnedTasks(loadedPinned)
+    setPreviousDate(currentDate)
     setIsLoaded(true)
   }, [currentDate])
+
+  // Handle mid-session date changes - clear completed tasks from current state
+  useEffect(() => {
+    if (previousDate && previousDate !== currentDate && isLoaded) {
+      // Date changed mid-session - clear completed tasks from current state
+      setTodos((prev) => prev.filter((todo) => !todo.completed))
+      setPinnedTasks((prev) => prev.filter((task) => !task.completedDate || task.completedDate === currentDate))
+    }
+  }, [currentDate, previousDate, isLoaded])
 
   // Listen for storage events (when data is changed from other components or cloud sync)
   useEffect(() => {

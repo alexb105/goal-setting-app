@@ -3,6 +3,12 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js"
 import type { Goal, DailyTodo, StandaloneRecurringTask, PinnedMilestoneTask, RecurringGroupDivider, JournalEntry } from "@/types"
 
+// Helper to get today's date string in local timezone
+function getTodayDateString(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
 // Storage keys
 const STORAGE_KEYS = {
   goals: "goalritual-goals",
@@ -154,6 +160,27 @@ export class SupabaseSync {
     return result
   }
 
+  // Apply daily reset logic to todos - filter out completed tasks if it's a new day
+  private applyDailyReset(
+    dailyTodos: DailyTodo[],
+    pinnedTasks: PinnedMilestoneTask[],
+    lastResetDate: string | null
+  ): { dailyTodos: DailyTodo[]; pinnedTasks: PinnedMilestoneTask[]; lastResetDate: string } {
+    const today = getTodayDateString()
+    
+    // If last reset was not today, clear completed tasks
+    if (lastResetDate !== today) {
+      console.log("Applying daily reset: clearing completed tasks from", lastResetDate, "to", today)
+      return {
+        dailyTodos: dailyTodos.filter((todo) => !todo.completed),
+        pinnedTasks: pinnedTasks.filter((task) => !task.completedDate || task.completedDate === today),
+        lastResetDate: today,
+      }
+    }
+    
+    return { dailyTodos, pinnedTasks, lastResetDate: lastResetDate || today }
+  }
+
   // Pull cloud data and overwrite local (for sign in)
   async pullCloudToLocal(): Promise<boolean> {
     if (!this.user) {
@@ -173,14 +200,21 @@ export class SupabaseSync {
           ? localData.journal_entries 
           : [])
 
-      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", remoteData.daily_todos?.length || 0, "Journal entries:", journalEntries.length)
+      // Apply daily reset logic - clear completed tasks if it's a new day
+      const { dailyTodos, pinnedTasks, lastResetDate } = this.applyDailyReset(
+        remoteData.daily_todos || [],
+        remoteData.pinned_milestone_tasks || [],
+        remoteData.daily_todos_last_reset
+      )
+
+      console.log("Pulling cloud data to local. Goals:", remoteData.goals?.length || 0, "Daily todos:", dailyTodos.length, "Journal entries:", journalEntries.length)
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
-        daily_todos: remoteData.daily_todos || [],
-        daily_todos_last_reset: remoteData.daily_todos_last_reset,
+        daily_todos: dailyTodos,
+        daily_todos_last_reset: lastResetDate,
         recurring_tasks: remoteData.recurring_tasks || [],
-        pinned_milestone_tasks: remoteData.pinned_milestone_tasks || [],
+        pinned_milestone_tasks: pinnedTasks,
         life_purpose: remoteData.life_purpose,
         openai_api_key: remoteData.openai_api_key,
         ai_analysis: remoteData.ai_analysis,
@@ -377,13 +411,20 @@ export class SupabaseSync {
           ? localData.journal_entries 
           : [])
 
+      // Apply daily reset logic - clear completed tasks if it's a new day
+      const { dailyTodos, pinnedTasks, lastResetDate } = this.applyDailyReset(
+        remoteData.daily_todos || [],
+        remoteData.pinned_milestone_tasks || [],
+        remoteData.daily_todos_last_reset
+      )
+
       this.setLocalData({
         goals: remoteData.goals || [],
         group_order: remoteData.group_order || [],
-        daily_todos: remoteData.daily_todos || [],
-        daily_todos_last_reset: remoteData.daily_todos_last_reset,
+        daily_todos: dailyTodos,
+        daily_todos_last_reset: lastResetDate,
         recurring_tasks: remoteData.recurring_tasks || [],
-        pinned_milestone_tasks: remoteData.pinned_milestone_tasks || [],
+        pinned_milestone_tasks: pinnedTasks,
         life_purpose: remoteData.life_purpose,
         openai_api_key: remoteData.openai_api_key,
         ai_analysis: remoteData.ai_analysis,
@@ -424,14 +465,24 @@ export class SupabaseSync {
     const uniqueLocalJournalEntries = (localData.journal_entries || []).filter((e) => !remoteJournalIds.has(e.id))
     const mergedJournalEntries = [...(remoteData.journal_entries || []), ...uniqueLocalJournalEntries]
 
+    // Apply daily reset logic - clear completed tasks if it's a new day
+    const remoteTodos = remoteData.daily_todos || localData.daily_todos
+    const remotePinned = remoteData.pinned_milestone_tasks || localData.pinned_milestone_tasks
+    const remoteLastReset = remoteData.daily_todos_last_reset || localData.daily_todos_last_reset
+    const { dailyTodos, pinnedTasks, lastResetDate } = this.applyDailyReset(
+      remoteTodos,
+      remotePinned,
+      remoteLastReset
+    )
+
     // For other data, prefer remote if it exists
     const mergedData: Omit<UserData, "updated_at"> = {
       goals: mergedGoals,
       group_order: remoteData.group_order || localData.group_order,
-      daily_todos: remoteData.daily_todos || localData.daily_todos,
-      daily_todos_last_reset: remoteData.daily_todos_last_reset || localData.daily_todos_last_reset,
+      daily_todos: dailyTodos,
+      daily_todos_last_reset: lastResetDate,
       recurring_tasks: remoteData.recurring_tasks || localData.recurring_tasks,
-      pinned_milestone_tasks: remoteData.pinned_milestone_tasks || localData.pinned_milestone_tasks,
+      pinned_milestone_tasks: pinnedTasks,
       life_purpose: remoteData.life_purpose || localData.life_purpose,
       openai_api_key: remoteData.openai_api_key || localData.openai_api_key,
       ai_analysis: remoteData.ai_analysis || localData.ai_analysis,
