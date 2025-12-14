@@ -277,13 +277,13 @@ export default function AIGuidancePage() {
 
   const lateMilestones = useMemo(() => {
     return activeGoals.flatMap((goal) =>
-      goal.milestones.filter(isMilestoneOverdue).map((m) => ({ milestone: m, goalTitle: goal.title }))
+      goal.milestones.filter((m) => !m.linkedGoalId && isMilestoneOverdue(m)).map((m) => ({ milestone: m, goalTitle: goal.title }))
     )
   }, [activeGoals])
 
   const expiringMilestones = useMemo(() => {
     return activeGoals.flatMap((goal) =>
-      goal.milestones.filter(isMilestoneDueSoon).map((m) => ({ milestone: m, goalTitle: goal.title }))
+      goal.milestones.filter((m) => !m.linkedGoalId && isMilestoneDueSoon(m)).map((m) => ({ milestone: m, goalTitle: goal.title }))
     )
   }, [activeGoals])
 

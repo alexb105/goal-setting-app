@@ -573,10 +573,11 @@ export function GoalDashboard() {
   const overallProgress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0
 
   // Calculate late milestones (past target date and not completed) with their goal info
+  // Exclude milestones that are actually goals acting like milestones (linkedGoalId)
   const lateMilestonesData = useMemo(() => {
     return activeGoals.reduce((acc, goal) => {
       const late = goal.milestones
-        .filter(isMilestoneOverdue)
+        .filter((milestone) => !milestone.linkedGoalId && isMilestoneOverdue(milestone))
         .map((milestone) => ({
           milestone,
           goal,
@@ -589,10 +590,11 @@ export function GoalDashboard() {
   const lateMilestones = lateMilestonesData.length
 
   // Calculate milestones expiring in 3 days (not completed, due within 3 days but not overdue)
+  // Exclude milestones that are actually goals acting like milestones (linkedGoalId)
   const expiringMilestonesData = useMemo(() => {
     return activeGoals.reduce((acc, goal) => {
       const expiring = goal.milestones
-        .filter(isMilestoneDueSoon)
+        .filter((milestone) => !milestone.linkedGoalId && isMilestoneDueSoon(milestone))
         .map((milestone) => ({
           milestone,
           goal,

@@ -25,6 +25,9 @@ const STORAGE_KEYS = {
   pinnedInsights: "goalritual-pinned-insights",
   recurringGroupDividers: "goalritual-recurring-group-dividers",
   journal: "goalritual-journal",
+  dailyTasksScore: "goalritual-daily-tasks-score",
+  dailyTasksScoreUpdatedAt: "goalritual-daily-tasks-score-updated-at",
+  dailyTasksSnapshot: "goalritual-yesterday-tasks-snapshot",
 } as const
 
 // User data table schema - we store all user data in a single JSONB column for simplicity
@@ -43,6 +46,9 @@ interface UserData {
   pinned_insights: unknown[] | null
   recurring_group_dividers: RecurringGroupDivider[] | null
   journal_entries: JournalEntry[] | null
+  daily_tasks_score: number | null
+  daily_tasks_score_updated_at: string | null
+  daily_tasks_snapshot: { totalTasks: number; completedTasks: number } | null
   updated_at: string
 }
 
@@ -75,6 +81,13 @@ export class SupabaseSync {
       return localStorage.getItem(key)
     }
 
+    const getNumber = (key: string): number | null => {
+      const value = localStorage.getItem(key)
+      if (value === null) return null
+      const parsed = parseInt(value, 10)
+      return isNaN(parsed) ? null : parsed
+    }
+
     return {
       goals: getJson<Goal[]>(STORAGE_KEYS.goals, []),
       group_order: getJson<string[]>(STORAGE_KEYS.groupOrder, []),
@@ -90,6 +103,9 @@ export class SupabaseSync {
       pinned_insights: getJson(STORAGE_KEYS.pinnedInsights, []),
       recurring_group_dividers: getJson<RecurringGroupDivider[]>(STORAGE_KEYS.recurringGroupDividers, []),
       journal_entries: getJson<JournalEntry[]>(STORAGE_KEYS.journal, []),
+      daily_tasks_score: getNumber(STORAGE_KEYS.dailyTasksScore),
+      daily_tasks_score_updated_at: getString(STORAGE_KEYS.dailyTasksScoreUpdatedAt),
+      daily_tasks_snapshot: getJson<{ totalTasks: number; completedTasks: number } | null>(STORAGE_KEYS.dailyTasksSnapshot, null),
     }
   }
 
@@ -116,6 +132,14 @@ export class SupabaseSync {
       }
     }
 
+    const setNumber = (key: string, value: number | null) => {
+      if (value === null) {
+        localStorage.removeItem(key)
+      } else {
+        localStorage.setItem(key, String(value))
+      }
+    }
+
     setJson(STORAGE_KEYS.goals, data.goals)
     setJson(STORAGE_KEYS.groupOrder, data.group_order)
     setJson(STORAGE_KEYS.dailyTodos, data.daily_todos)
@@ -131,6 +155,9 @@ export class SupabaseSync {
     setJson(STORAGE_KEYS.recurringGroupDividers, data.recurring_group_dividers)
     // Preserve journal entries even if empty to prevent accidental deletion
     setJson(STORAGE_KEYS.journal, data.journal_entries, true)
+    setNumber(STORAGE_KEYS.dailyTasksScore, data.daily_tasks_score)
+    setString(STORAGE_KEYS.dailyTasksScoreUpdatedAt, data.daily_tasks_score_updated_at)
+    setJson(STORAGE_KEYS.dailyTasksSnapshot, data.daily_tasks_snapshot)
 
     // Dispatch custom event so other components can react (works in same window)
     window.dispatchEvent(new CustomEvent("goalritual-storage-updated"))
@@ -223,6 +250,9 @@ export class SupabaseSync {
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
         journal_entries: journalEntries,
+        daily_tasks_score: remoteData.daily_tasks_score ?? null,
+        daily_tasks_score_updated_at: remoteData.daily_tasks_score_updated_at ?? null,
+        daily_tasks_snapshot: remoteData.daily_tasks_snapshot ?? null,
       })
       console.log("Successfully pulled cloud data to local storage")
       return true
@@ -433,6 +463,9 @@ export class SupabaseSync {
         pinned_insights: remoteData.pinned_insights,
         recurring_group_dividers: remoteData.recurring_group_dividers || [],
         journal_entries: journalEntries,
+        daily_tasks_score: remoteData.daily_tasks_score ?? null,
+        daily_tasks_score_updated_at: remoteData.daily_tasks_score_updated_at ?? null,
+        daily_tasks_snapshot: remoteData.daily_tasks_snapshot ?? null,
       })
       return true
     } else {
@@ -476,6 +509,7 @@ export class SupabaseSync {
     )
 
     // For other data, prefer remote if it exists
+    // For daily_tasks_score, prefer remote if it exists, otherwise use local
     const mergedData: Omit<UserData, "updated_at"> = {
       goals: mergedGoals,
       group_order: remoteData.group_order || localData.group_order,
@@ -491,6 +525,9 @@ export class SupabaseSync {
       pinned_insights: remoteData.pinned_insights || localData.pinned_insights,
       recurring_group_dividers: remoteData.recurring_group_dividers || localData.recurring_group_dividers || [],
       journal_entries: mergedJournalEntries,
+      daily_tasks_score: remoteData.daily_tasks_score ?? localData.daily_tasks_score ?? null,
+      daily_tasks_score_updated_at: remoteData.daily_tasks_score_updated_at ?? localData.daily_tasks_score_updated_at ?? null,
+      daily_tasks_snapshot: remoteData.daily_tasks_snapshot ?? localData.daily_tasks_snapshot ?? null,
     }
 
     // Update both local and remote with merged data

@@ -43,6 +43,7 @@ const PINNED_TASKS_STORAGE_KEY = "goalritual-pinned-milestone-tasks"
 const LAST_RESET_KEY = "goalritual-daily-todos-last-reset"
 const TOTAL_COMPLETED_KEY = "goalritual-total-completed-count"
 const DAILY_SCORE_KEY = "goalritual-daily-tasks-score"
+const DAILY_SCORE_UPDATED_AT_KEY = "goalritual-daily-tasks-score-updated-at"
 const YESTERDAY_TASKS_KEY = "goalritual-yesterday-tasks-snapshot"
 
 // Get score display info
@@ -180,6 +181,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     const lastReset = localStorage.getItem(LAST_RESET_KEY)
     const storedTotalCompleted = localStorage.getItem(TOTAL_COMPLETED_KEY)
     const storedScore = localStorage.getItem(DAILY_SCORE_KEY)
+    const scoreUpdatedAt = localStorage.getItem(DAILY_SCORE_UPDATED_AT_KEY)
     const yesterdaySnapshot = localStorage.getItem(YESTERDAY_TASKS_KEY)
 
     let loadedTodos: DailyTodo[] = []
@@ -224,8 +226,13 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     const needsReset = lastReset !== currentDate
     
     if (needsReset) {
+      // Check if score was already adjusted today (by another device)
+      // This prevents double adjustments when using multiple devices
+      const scoreAlreadyAdjustedToday = scoreUpdatedAt === currentDate
+      
       // Calculate score change based on yesterday's snapshot
-      if (yesterdaySnapshot && lastReset) {
+      // Only adjust if we haven't already adjusted today
+      if (!scoreAlreadyAdjustedToday && yesterdaySnapshot && lastReset) {
         try {
           const snapshot = JSON.parse(yesterdaySnapshot) as { 
             totalTasks: number
@@ -240,6 +247,10 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
               : Math.max(-100, currentScore - 1)
             setDailyScore(newScore)
             localStorage.setItem(DAILY_SCORE_KEY, String(newScore))
+            // Mark that we adjusted the score today to prevent double adjustments
+            localStorage.setItem(DAILY_SCORE_UPDATED_AT_KEY, currentDate)
+            // Trigger sync when score changes
+            triggerSync()
           }
         } catch {
           // Ignore parse errors
@@ -254,7 +265,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       // Save the cleared todos immediately to localStorage
       localStorage.setItem(STORAGE_KEY, JSON.stringify(loadedTodos))
       localStorage.setItem(PINNED_TASKS_STORAGE_KEY, JSON.stringify(loadedPinned))
-      // Clear yesterday's snapshot
+      // Clear yesterday's snapshot (will be rebuilt as today progresses)
       localStorage.removeItem(YESTERDAY_TASKS_KEY)
     }
 
@@ -263,7 +274,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     setPinnedTasks(loadedPinned)
     setPreviousDate(currentDate)
     setIsLoaded(true)
-  }, [currentDate])
+  }, [currentDate, triggerSync])
 
   // Handle mid-session date changes - clear completed tasks from current state
   useEffect(() => {
@@ -281,6 +292,7 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
       const storedTodos = localStorage.getItem(STORAGE_KEY)
       const storedRecurring = localStorage.getItem(RECURRING_STORAGE_KEY)
       const storedPinned = localStorage.getItem(PINNED_TASKS_STORAGE_KEY)
+      const storedScore = localStorage.getItem(DAILY_SCORE_KEY)
       
       if (storedTodos) {
         try {
@@ -310,6 +322,14 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
         }
       } else {
         setPinnedTasks([])
+      }
+
+      // Update score from localStorage (from sync)
+      if (storedScore) {
+        const parsedScore = parseInt(storedScore, 10)
+        if (!isNaN(parsedScore)) {
+          setDailyScore(parsedScore)
+        }
       }
     }
 
@@ -377,12 +397,22 @@ export function DailyTodoList({ onNavigateToGoal, triggerAddTask, onAddTaskTrigg
     }).length
     const completedTasks = completedRegular + completedRecurring + completedPinned
     
-    // Save snapshot
+    // Save snapshot (synced to cloud so other devices can use it for score calculation)
     localStorage.setItem(YESTERDAY_TASKS_KEY, JSON.stringify({
       totalTasks,
       completedTasks
     }))
-  }, [todos, recurringTasks, pinnedTasks, goals, currentDate, isLoaded])
+    // Trigger sync so snapshot is available on other devices
+    triggerSync()
+  }, [todos, recurringTasks, pinnedTasks, goals, currentDate, isLoaded, triggerSync])
+
+  // Sync score to cloud whenever it changes
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem(DAILY_SCORE_KEY, String(dailyScore))
+      triggerSync()
+    }
+  }, [dailyScore, isLoaded, triggerSync])
 
   // Handle trigger from FAB
   useEffect(() => {

@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS user_data (
   -- Journal entries
   journal_entries JSONB DEFAULT '[]'::jsonb,
   
+  -- Daily tasks streak score and tracking
+  daily_tasks_score INTEGER DEFAULT 0,
+  daily_tasks_score_updated_at TEXT,  -- Date when score was last adjusted (to prevent double adjustments)
+  daily_tasks_snapshot JSONB,  -- Snapshot of yesterday's task completion for score calculation
+  
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -100,4 +105,10 @@ CREATE TRIGGER update_user_data_updated_at
 -- Migration: Add journal_entries column to existing databases
 -- Run this if you already have a user_data table:
 -- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS journal_entries JSONB DEFAULT '[]'::jsonb;
+
+-- Migration: Add daily_tasks_score columns to existing databases
+-- Run this if you already have a user_data table:
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS daily_tasks_score INTEGER DEFAULT 0;
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS daily_tasks_score_updated_at TEXT;
+-- ALTER TABLE user_data ADD COLUMN IF NOT EXISTS daily_tasks_snapshot JSONB;
 
